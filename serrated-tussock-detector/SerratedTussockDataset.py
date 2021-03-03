@@ -72,6 +72,7 @@ class SerratedTussockDataset(object):
         sample['image_id'] = image_id
         sample['area'] = area
         sample['iscrowd'] = iscrowd
+        # sample['image_name'] = img_name
         # sample['image'] = image
 
         if self.transforms:
