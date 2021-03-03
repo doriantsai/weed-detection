@@ -278,7 +278,7 @@ if __name__ == "__main__":
     # replace the pre-trained head with a new one
     model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
 
-    save_path = os.path.join('output', 'fasterrcnn-serratedtussock.pth')
+    save_path = os.path.join('output', 'fasterrcnn-serratedtussock-bootstrap-0.pth')
     # model.load_state_dict(torch.load(save_path))
     model.load_state_dict(torch.load(save_path))
 
@@ -310,7 +310,7 @@ if __name__ == "__main__":
     #                                                 collate_fn=utils.collate_fn)
                                                     
     # load stuff:
-    data_save_path = os.path.join('.', 'output', 'st_data.pkl')
+    data_save_path = os.path.join('.', 'output', 'st_data_bootstrap.pkl')
     with open(data_save_path, 'rb') as f:
         dataset = pickle.load(f)
         dataset_train = pickle.load(f)
@@ -320,6 +320,10 @@ if __name__ == "__main__":
         hp = pickle.load(f)
 
     
+    # print up filenames in dataset_test, so we can print them
+    # for image, sample in dataset_test:
+        
+
 
     # first, plot a sample from the training set (should be overfit)
     # model.to(device)
@@ -328,13 +332,15 @@ if __name__ == "__main__":
         print('training set')
         model.eval()
         imgs_train, smps_train = next(iter(dataloader_train))
-        confidence_thresh = 0.8
+        confidence_thresh = 0.9
         iou_thresh = 0.5
-        bs = 1 # len(imgs_train) 
+        bs = len(imgs_train) 
+        model.to(device)
+        # imgs_train.to(device)
         for i in range(bs):
             print(i)            
             # figi, axi = show_image_bbox(imgs_train[i], smps_train[i])
-            pred, keep = get_prediction(model, imgs_train[i], confidence_thresh, iou_thresh, CLASS_NAMES)
+            pred, keep = get_prediction(model, imgs_train[i], confidence_thresh, iou_thresh, device, CLASS_NAMES)
             img = show_groundtruth_and_prediction_bbox(imgs_train[i], 
                                                              smps_train[i], 
                                                              pred, 
@@ -344,10 +350,11 @@ if __name__ == "__main__":
             # plt.show()
             # time.sleep(1) # sleep for 1 second
             # plt.close(figi)
+            img = cv.cvtColor(img, cv.COLOR_RGB2BGR)
             cv.imwrite(imgname, img)
             winname = 'training'
             cv.namedWindow(winname, cv.WINDOW_GUI_NORMAL)
-            img = cv.cvtColor(img, cv.COLOR_RGB2BGR)
+            # img = cv.cvtColor(img, cv.COLOR_RGB2BGR)
             cv.imshow(winname, img)
             cv.waitKey(2000)  # wait for 2 sec
             cv.destroyWindow(winname)
@@ -358,21 +365,26 @@ if __name__ == "__main__":
         print('testing set')
         model.eval()
         imgs_test, smps_test = next(iter(dataloader_test))
-        confidence_thresh = 0.6
+        confidence_thresh = 0.8
         iou_thresh = 0.5
         bs = len(imgs_test) 
+        model.to(device)
+        # imgs_test.to(device)
         for i in range(bs):
             print(i)
             # figi, axi = show_image_bbox(imgs_train[i], smps_train[i])
-            pred, keep = get_prediction(model, imgs_test[i], confidence_thresh, iou_thresh, CLASS_NAMES)
-            figi, axi = show_groundtruth_and_prediction_bbox(imgs_test[i], smps_test[i], pred, keep)
+            pred, keep = get_prediction(model, imgs_test[i], confidence_thresh, iou_thresh, device, CLASS_NAMES)
+            img = show_groundtruth_and_prediction_bbox(imgs_test[i], smps_test[i], pred, keep)
             imgname = os.path.join('output', 'fasterrcnn-serratedtussock-test-' + str(i) + '.png')
             # plt.savefig()
             # plt.show()
             # time.sleep(1) # sleep for 1 second
             # plt.close(figi)
-            winname = 'training'
+            img = cv.cvtColor(img, cv.COLOR_RGB2BGR)
+            cv.imwrite(imgname, img)
+            winname = 'testing'
             cv.namedWindow(winname, cv.WINDOW_NORMAL)
+            
             cv.imshow(winname, img)
             cv.waitKey(2000)  # wait for 2 sec
             cv.destroyWindow(winname)
@@ -387,7 +399,7 @@ if __name__ == "__main__":
     if INFER_ON_JOH:
         print('joh image set')
         # create a new dataset, run inference
-        joh_folder = os.path.join('/Data', 'JohImagesDataset')
+        joh_folder = os.path.join('/home', 'dorian', 'Data', 'JohImagesDataset')
         json_file = os.path.join('Annotations', 'via_region_data.json')
         tforms = Compose([Rescale(800), RandomHorizontalFlip(0.5), ToTensor()])
         dataset_joh = SerratedTussockDataset(joh_folder, json_file, tforms)
@@ -400,13 +412,26 @@ if __name__ == "__main__":
         imgs_joh, smps_joh = next(iter(dataloader_joh))
         confidence_thresh = 0.6
         iou_thresh = 0.5
+        model.eval()
+        model.to(device)
         for i in range(bs):
-            pred, keep = get_prediction(model, imgs_joh[i], confidence_thresh, iou_thresh, CLASS_NAMES)
-            figi, axi = show_groundtruth_and_prediction_bbox(imgs_joh[i], smps_joh[i], pred, keep)
-            plt.savefig(os.path.join('output', 'fasterrcnn-serratedtussock-testjoh-' + str(i) + '.png'))
-            plt.show()
-            time.sleep(1) # sleep for 1 second
-            plt.close(figi)
+            pred, keep = get_prediction(model, imgs_joh[i], confidence_thresh, iou_thresh, device, CLASS_NAMES)
+            img = show_groundtruth_and_prediction_bbox(imgs_joh[i], smps_joh[i], pred, keep)
+            # plt.savefig(os.path.join('output', 'fasterrcnn-serratedtussock-testjoh-' + str(i) + '.png'))
+            imgname = os.path.join('output', 'fasterrcnn-serratedtussock-testjoh-' + str(i) + '.png')
+            # plt.savefig()
+            # plt.show()
+            # time.sleep(1) # sleep for 1 second
+            # plt.close(figi)
+            img = cv.cvtColor(img, cv.COLOR_RGB2BGR)
+            cv.imwrite(imgname, img)
+            winname = 'testingjoh'
+            cv.namedWindow(winname, cv.WINDOW_NORMAL)
+            
+            cv.imshow(winname, img)
+            cv.waitKey(2000)  # wait for 2 sec
+            cv.destroyWindow(winname)
+
 
 
     # read in video using webcam.py's grab_webcam_video
