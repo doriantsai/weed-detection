@@ -2,18 +2,21 @@ import math
 import sys
 import time
 import torch
-
 import torchvision.models.detection.mask_rcnn
-
+import utils
 
 from coco_utils import get_coco_api_from_dataset
 from coco_eval import CocoEvaluator
-import utils
-
 
 
 
 def train_one_epoch(model, optimizer, data_loader_train, data_loader_val, device, epoch, val_epoch, print_freq):
+    """
+    train_one_epoch trains a single epoch for the model
+    - data_loader_train - data loader for the training set
+    - data_loader_val - data loader for the validation set, which evaluates at a frequency defined by int "val_epoch"
+    """
+
     model.train()
     metric_logger = utils.MetricLogger(delimiter="  ")
     metric_logger.add_meter('lr', utils.SmoothedValue(window_size=1, fmt='{value:.6f}'))
@@ -22,9 +25,8 @@ def train_one_epoch(model, optimizer, data_loader_train, data_loader_val, device
     metric_logger_val = utils.MetricLogger(delimiter="  ")
     metric_logger_val.add_meter('lr', utils.SmoothedValue(window_size=1, fmt='{value:.6f}'))
 
-
     header = 'Epoch: [{}]'.format(epoch)
-    
+
     lr_scheduler = None
     if epoch == 0:
         warmup_factor = 1. / 1000
@@ -38,9 +40,6 @@ def train_one_epoch(model, optimizer, data_loader_train, data_loader_val, device
         targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
 
         loss_dict = model(images, targets)
-        
-        # import code
-        # code.interact(local=dict(globals(), **locals()))
 
         losses = sum(loss for loss in loss_dict.values())
 
@@ -65,19 +64,16 @@ def train_one_epoch(model, optimizer, data_loader_train, data_loader_val, device
         metric_logger.update(loss=losses_reduced, **loss_dict_reduced)
         metric_logger.update(lr=optimizer.param_groups[0]["lr"])
 
-
+    # perform validation on the validation dataset every val_epoch epochs
     if (epoch % val_epoch) == (val_epoch - 1):
 
         for images, targets in metric_logger.log_every(data_loader_val, 10, header):
             images = list(image.to(device) for image in images)
             targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
             loss_outputs = model(images, targets)
-            # losses = sum(loss for loss in outputs.values())
             loss_output_reduced = utils.reduce_dict(loss_outputs)
             losses_reduced = sum(loss for loss in loss_output_reduced.values())
-            # loss_value = losses_reduced.item()
             metric_logger_val.update(loss=losses_reduced, **loss_output_reduced)
-            
 
     return metric_logger, metric_logger_val
 
@@ -117,33 +113,8 @@ def evaluate(model, data_loader, device):
         torch.cuda.synchronize()
         model.eval()
         model_time = time.time()
-        
-        # outputs = model(images)  # was 
-        outputs = model(images)  # added for loss compute
-        
-        # hack to get losses from the test set:
-        # model.train()
-        # loss_outputs = model(images, targets)
-        # # losses = sum(loss for loss in outputs.values())
-        # loss_output_reduced = utils.reduce_dict(loss_outputs)
-        # losses_reduced = sum(loss for loss in loss_output_reduced.values())
-        # # loss_value = losses_reduced.item()
-        # metric_logger.update(loss=losses_reduced, **loss_output_reduced)
 
-        # # switch back to eval, though shouldn't matter at this point
-        # model.eval()
-        # import code
-        # code.interact(local=dict(globals(), **locals()))
-
-        # added to calculate loss on the evaluation/test set
-        # loss_dict = model(images, targets)
-        # losses = sum(loss for loss in loss_dict.values())
-        # loss_dict_reduced = utils.reduce_dict(loss_dict)
-        # losses_reduced = sum(loss for loss in loss_dict_reduced.values())
-        # loss_value = losses_reduced.item()
-        # metric_logger.update(loss=losses_reduced, **loss_dict_reduced)
-
-        
+        outputs = model(images)
 
         outputs = [{k: v.to(cpu_device) for k, v in t.items()} for t in outputs]
         model_time = time.time() - model_time
