@@ -127,7 +127,6 @@ class Rescale(object):
         self.output_size = output_size
 
     def __call__(self, image, sample=None):
-        # image = sample['image']
 
         # handle the aspect ratio
         h, w = image.size[:2]
@@ -150,9 +149,6 @@ class Rescale(object):
             yChange = float(new_h) / float(h)
             bbox = sample["boxes"]  # [xmin ymin xmax ymax]
 
-            # if len(bbox) == 0:
-                # do nothing, since there are no bboxes
-                # print('rescale transform: no boxes here')
             if len(bbox) > 0:
                 bbox[:, 0] = bbox[:, 0] * yChange
                 bbox[:, 1] = bbox[:, 1] * xChange
