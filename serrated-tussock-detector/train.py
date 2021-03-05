@@ -52,7 +52,7 @@ if __name__ == "__main__":
     learning_rate = 0.005
     momentum = 0.9
     weight_decay = 0.0001
-    num_epochs = 50
+    num_epochs = 100
     step_size = round(num_epochs/4)
 
     # make a hyperparameter dictionary
@@ -67,7 +67,7 @@ if __name__ == "__main__":
     # ------------------------------ #
     # directories
     # TODO add date/time to filename
-    save_path = os.path.join('output', 'fasterrcnn-serratedtussock-bootstrap-0.pth')
+    save_path = os.path.join('output', 'fasterrcnn-serratedtussock-bootstrap-1.pth')
 
     # setup device
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
@@ -75,6 +75,9 @@ if __name__ == "__main__":
     # setup dataset
     root_dir = os.path.join('/home', 'dorian', 'Data', 'SerratedTussockDataset_v1')
     json_file = os.path.join('Annotations', 'via_region_data.json')
+
+    # setup save pickle file (saved datasets/loaders, etc for inference)
+    save_detector_train_path = os.path.join('.', 'output', 'st_data_bootstrap-1.pkl')
 
     # setup transforms to operate on dataset images
     tforms = Compose([Rescale(800),
@@ -183,39 +186,18 @@ if __name__ == "__main__":
     torch.save(model.state_dict(), save_path)
 
     # should also save the training and testing datasets/loaders for easier "test.py" setup
-    save_detector_train_path = os.path.join('.', 'output', 'st_data_bootstrap.pkl')
     with open(save_detector_train_path, 'wb') as f:
         pickle.dump(dataset, f)
         pickle.dump(dataset_train, f)
+        pickle.dump(dataset_val, f)
         pickle.dump(dataset_test, f)
         pickle.dump(dataloader_test, f)
         pickle.dump(dataloader_train, f)
+        pickle.dump(dataloader_val, f)
         pickle.dump(hp, f)
 
-
-    # import code
-    # code.interact(local=dict(globals(), **locals()))
-
-    # dataiter = next(iter(dataloader_test))
-    # img, smp = dataiter[0], dataiter[1]
-    # matplotlib_imshow(img)
-
-
-    # get datasample from one instance of the dataloader_test
-
-    SHOW_TRAIN = False
-    if SHOW_TRAIN:
-        datasample = next(iter(dataloader_train))
-        img_batch, smp_batch = datasample[0], datasample[1]
-
-        bs = len(img_batch)
-        print(bs)
-        for i in range(bs):
-            print(i)
-            figi, axi = show_image_bbox(img_batch[i], smp_batch[i])
-
-            plt.savefig(os.path.join('output', 'fasterrcnn-serratedtussock-trainbbox-' + str(i) + '.png'))
-            plt.show()
+    # see inference.py for running model on images/datasets
+    print('done training')
 
     import code
     code.interact(local=dict(globals(), **locals()))
