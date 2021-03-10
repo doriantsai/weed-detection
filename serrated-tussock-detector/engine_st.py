@@ -8,6 +8,7 @@ import utils
 from coco_utils import get_coco_api_from_dataset
 from coco_eval import CocoEvaluator
 
+from inference import get_prediction
 
 
 def train_one_epoch(model, optimizer, data_loader_train, data_loader_val, device, epoch, val_epoch, print_freq):
@@ -96,8 +97,8 @@ def evaluate(model, data_loader, device):
     # FIXME remove this and make paste_masks_in_image run on the GPU
     torch.set_num_threads(1)
     cpu_device = torch.device("cpu")
+
     model.eval()
-    # model.train()
     metric_logger = utils.MetricLogger(delimiter="  ")
     header = 'Test:'
 
@@ -115,8 +116,10 @@ def evaluate(model, data_loader, device):
         model_time = time.time()
 
         outputs = model(images)
+        pred, keep = get_prediction(model, image, conf, iou, device, class_names)
 
         outputs = [{k: v.to(cpu_device) for k, v in t.items()} for t in outputs]
+        # outputs = [{k: v.to(device) for k, v in t.items()} for t in outputs]
         model_time = time.time() - model_time
 
         res = {target["image_id"].item(): output for target, output in zip(targets, outputs)}
