@@ -67,7 +67,7 @@ if __name__ == "__main__":
     # ------------------------------ #
     # directories
     # TODO add date/time to filename
-    save_path = os.path.join('output', 'fasterrcnn-serratedtussock-bootstrap-1.pth')
+    save_path = os.path.join('output', 'fasterrcnn-serratedtussock-bootstrap-3.pth')
 
     # setup device
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
@@ -77,7 +77,7 @@ if __name__ == "__main__":
     json_file = os.path.join('Annotations', 'via_region_data.json')
 
     # setup save pickle file (saved datasets/loaders, etc for inference)
-    save_detector_train_path = os.path.join('.', 'output', 'st_data_bootstrap-1.pkl')
+    save_detector_train_path = os.path.join('.', 'output', 'st_data_bootstrap-3.pkl')
 
     # setup transforms to operate on dataset images
     tforms = Compose([Rescale(800),
