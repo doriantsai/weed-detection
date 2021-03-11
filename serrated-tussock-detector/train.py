@@ -52,7 +52,7 @@ if __name__ == "__main__":
     learning_rate = 0.005
     momentum = 0.9
     weight_decay = 0.0001
-    num_epochs = 100
+    num_epochs = 50
     step_size = round(num_epochs/4)
 
     # make a hyperparameter dictionary
@@ -67,7 +67,11 @@ if __name__ == "__main__":
     # ------------------------------ #
     # directories
     # TODO add date/time to filename
-    save_path = os.path.join('output', 'fasterrcnn-serratedtussock-bootstrap-3.pth')
+    save_name = 'fasterrcnn-serratedtussock-4'
+    save_folder = os.path.join('output', save_name)
+    if not os.path.isdir(save_folder):
+        os.mkdir(save_folder)
+    save_path = os.path.join(save_folder, save_name + '.pth')
 
     # setup device
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
@@ -77,7 +81,7 @@ if __name__ == "__main__":
     json_file = os.path.join('Annotations', 'via_region_data.json')
 
     # setup save pickle file (saved datasets/loaders, etc for inference)
-    save_detector_train_path = os.path.join('.', 'output', 'st_data_bootstrap-3.pkl')
+    save_detector_train_path = os.path.join('.', 'output', save_name, save_name + '.pkl')
 
     # setup transforms to operate on dataset images
     tforms = Compose([Rescale(800),
@@ -88,6 +92,9 @@ if __name__ == "__main__":
     dataset = SerratedTussockDataset(root_dir=root_dir,
                                      json_file=json_file,
                                      transforms=tforms)
+
+    # class definitions
+    class_names = ["_background_", "serrated tussock"]
 
     # split into training, validation and testing
     nimg = len(dataset)
@@ -109,7 +116,7 @@ if __name__ == "__main__":
 
     dataloader_val = torch.utils.data.DataLoader(dataset_val,
                                                   batch_size=batch_size,
-                                                  shuffle=False,
+                                                  shuffle=True,
                                                   num_workers=num_workers,
                                                   collate_fn=utils.collate_fn)
 
@@ -176,11 +183,18 @@ if __name__ == "__main__":
         lr_scheduler.step()
 
         # evaluate on test dataset
-        print('evaluating on test set')
-        mt_eval = evaluate(model, dataloader_test, device=device)
+        # TODO only evaluate once in a while - every other
+        # print('evaluating on test set')
+
 
         if (epoch % val_epoch) == (val_epoch - 1):
             writer.add_scalar('Detector/Validation_Loss', mv.loss.median, epoch + 1)
+
+
+    # for non-max-suppression, need:
+    conf = 0.5
+    iou = 0.5
+    # mt_eval = evaluate(model, dataloader_test, device, conf, iou, class_names)
 
     # save trained model for inference
     torch.save(model.state_dict(), save_path)
@@ -197,7 +211,7 @@ if __name__ == "__main__":
         pickle.dump(hp, f)
 
     # see inference.py for running model on images/datasets
-    print('done training')
+    print('done training: {}'.format(save_name))
 
     import code
     code.interact(local=dict(globals(), **locals()))

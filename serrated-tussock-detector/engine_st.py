@@ -8,7 +8,8 @@ import utils
 from coco_utils import get_coco_api_from_dataset
 from coco_eval import CocoEvaluator
 
-from inference import get_prediction
+from get_prediction import get_prediction_image
+from get_prediction import get_prediction_batch
 
 
 def train_one_epoch(model, optimizer, data_loader_train, data_loader_val, device, epoch, val_epoch, print_freq):
@@ -39,6 +40,9 @@ def train_one_epoch(model, optimizer, data_loader_train, data_loader_val, device
         images = list(image.to(device) for image in images)
 
         targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
+
+        # import code
+        # code.interact(local=dict(globals(), **locals()))
 
         loss_dict = model(images, targets)
 
@@ -92,12 +96,13 @@ def _get_iou_types(model):
 
 
 @torch.no_grad()
-def evaluate(model, data_loader, device):
+def evaluate(model, data_loader, device, conf, iou, class_names):
     n_threads = torch.get_num_threads()
     # FIXME remove this and make paste_masks_in_image run on the GPU
     torch.set_num_threads(1)
     cpu_device = torch.device("cpu")
 
+    model.to(device)
     model.eval()
     metric_logger = utils.MetricLogger(delimiter="  ")
     header = 'Test:'
@@ -108,21 +113,65 @@ def evaluate(model, data_loader, device):
 
     for images, targets in metric_logger.log_every(data_loader, 10, header):
 
+        # if not isinstance(images, list) and (len(images) == 1):
+        #     images = [images]
         images = list(img.to(device) for img in images)
+
+        # if not isinstance(targets, list) and (len(targets) == 1):
+            # targets = [targets]
         targets = [{k: v.to(device) for k, v in t.items()} for t in targets]  # added
 
         torch.cuda.synchronize()
         model.eval()
+
         model_time = time.time()
 
-        outputs = model(images)
-        pred, keep = get_prediction(model, image, conf, iou, device, class_names)
+        import code
+        code.interact(local=dict(globals(), **locals()))
 
-        outputs = [{k: v.to(cpu_device) for k, v in t.items()} for t in outputs]
-        # outputs = [{k: v.to(device) for k, v in t.items()} for t in outputs]
+        # if we have a tuple of images:
+        # imgs = list(img for img in images)
+        # if we have a single image:
+        output_raw = model(images) # no nms, conf thresh
+
+        # outputs = get_prediction_batch(model, images, conf, iou, device, class_names)
+
+        # raw_outputs = model(images)
+
+        # do non-maxima suppression for evaluation
+        outputs = []
+        for i in range(len(images)):
+            print(i)
+            out, _ = get_prediction_image(model,
+                                          images[i],
+                                          conf,
+                                          iou,
+                                          device,
+                                          class_names)
+            # need to convert out values into tensors, so we can send this to the device (GPU)
+            # if no boxes, just make out empty TODO trying to deal w batch cases
+            # if len(out['boxes']) == 0:
+            #     out = []
+
+            outputs.append(out)
+
+
+
+        # # TODO FIXME HACK
+        # # just to be sure we understand our problem, if we have an empty thing, replace it with a full thing
+        # for i in range(len(images)):
+        #     if len(outputs[i]['boxes']) == 0:
+        #         outputs[i] = outputs[0]  # assume 0 is okay
+
+        # outputs = [{k: v.to(cpu_device) for k, v in t.items()} for t in outputs]
+        outputs = [{k: torch.tensor(v).to(device) for k, v in t.items()} for t in outputs]
         model_time = time.time() - model_time
 
         res = {target["image_id"].item(): output for target, output in zip(targets, outputs)}
+
+
+
+
         evaluator_time = time.time()
         coco_evaluator.update(res)
         evaluator_time = time.time() - evaluator_time

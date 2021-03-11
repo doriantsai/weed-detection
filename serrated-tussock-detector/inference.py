@@ -20,7 +20,8 @@ from webcam import grab_webcam_video
 import cv2 as cv
 from PIL import Image
 import time
-
+from get_prediction import get_prediction_image
+from engine_st import evaluate
 
 def matplotlib_imshow(img):
     # image in, probably as a tensor
@@ -148,7 +149,7 @@ def show_groundtruth_and_prediction_bbox(image,
             #     boxes_pd = boxes_pd[keep]
             # else:
         boxes_pd = predictions['boxes']
-        boxes_score = predictions['score']
+        boxes_score = predictions['scores']
 
         # import code
         # code.interact(local=dict(globals(), **locals()))
@@ -186,75 +187,7 @@ def show_groundtruth_and_prediction_bbox(image,
     return imgnp
 
 
-def get_prediction(model, image, confidence_threshold, iou_threshold, device, class_names):
-    """ take in model, image and confidence threshold,
-    return bbox predictions for scores > threshold """
 
-    # image in should be a tensor, because it's coming from a dataloader
-    # for now, assume it is a single image, as opposed to a batch of images
-    if torch.cuda.is_available():
-        image = image.to(device)
-        # lbls = lbls.to(device)
-    pred = model([image])
-    # pred_class = [CLASS_NAMES[i] for i in list(pred[0]['labels'].cpu().numpy())]
-    # pred_boxes = [[bb[0], bb[1], bb[2], bb[3]] for bb in list(pred[0]['boxes'].detach().cpu().numpy())]
-    # # scores are ordered from highest to lowest
-    # pred_score = list(pred[0]['scores'].detach().cpu().numpy())
-
-    # I think this fails for the null case (no detections)
-    # TODO if no detections, then return empty?
-    # if max(pred_score) < confidence_threshold: # none of pred_score > thresh, then return empty
-    #     pred_thresh = []
-    #     pred_boxes = []
-    #     pred_class = []
-    #     pred_score = []
-    # else:
-    #     pred_thresh = [pred_score.index(x) for x in pred_score if x > confidence_threshold][-1]
-    #     pred_boxes = pred_boxes[:pred_thresh+1]
-    #     pred_class = pred_class[:pred_thresh+1]
-    #     pred_score = pred_score[:pred_thresh+1]
-
-    # predictions = {}
-    # predictions['boxes'] = pred_boxes
-    # predictions['classes'] = pred_class
-    # predictions['score'] = pred_score
-
-    # do non-maxima suppression
-    keep = torchvision.ops.nms(pred[0]['boxes'], pred[0]['scores'], iou_threshold)
-    # pred_keep =
-
-    # import code
-    # code.interact(local=dict(globals(), **locals()))
-
-    # TODO may not have to keep on cpu, might be faster on gpu
-    pred_class = [class_names[i] for i in list(pred[0]['labels'][keep].cpu().numpy())]
-    pred_boxes = [[bb[0], bb[1], bb[2], bb[3]] for bb in list(pred[0]['boxes'][keep].detach().cpu().numpy())]
-    # scores are ordered from highest to lowest
-    pred_score = list(pred[0]['scores'][keep].detach().cpu().numpy())
-
-    if len(pred_score) > 0:
-        if max(pred_score) < confidence_threshold: # none of pred_score > thresh, then return empty
-            pred_thresh = []
-            pred_boxes = []
-            pred_class = []
-            pred_score = []
-        else:
-            pred_thresh = [pred_score.index(x) for x in pred_score if x > confidence_threshold][-1]
-            pred_boxes = pred_boxes[:pred_thresh+1]
-            pred_class = pred_class[:pred_thresh+1]
-            pred_score = pred_score[:pred_thresh+1]
-    else:
-        pred_thresh = []
-        pred_boxes = []
-        pred_class = []
-        pred_score = []
-
-    predictions = {}
-    predictions['boxes'] = pred_boxes
-    predictions['classes'] = pred_class
-    predictions['score'] = pred_score
-
-    return predictions, keep
 
 
 def infer_dataset(model,
@@ -273,12 +206,12 @@ def infer_dataset(model,
     model.to(device)
     for image, sample in dataset:
         image_id = sample['image_id'].item()
-        pred, keep = get_prediction(model,
-                                    image,
-                                    confidence_threshold,
-                                    iou_threshold,
-                                    device,
-                                    class_names)
+        pred, keep = get_prediction_image(model,
+                                          image,
+                                          confidence_threshold,
+                                          iou_threshold,
+                                          device,
+                                          class_names)
         image_marked = show_groundtruth_and_prediction_bbox(image,
                                                             sample,
                                                             pred,
@@ -299,6 +232,8 @@ def infer_dataset(model,
         cv.imshow(winname, image_marked)
         cv.waitKey(2000)
         cv.destroyWindow(winname)
+
+
 
 
 
@@ -323,7 +258,7 @@ if __name__ == "__main__":
     # replace the pre-trained head with a new one
     model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
 
-    save_name = 'fasterrcnn-serratedtussock-bootstrap-1'
+    save_name = 'fasterrcnn-serratedtussock-4'
     save_path = os.path.join('output', save_name, save_name + '.pth')
     # model.load_state_dict(torch.load(save_path))
     model.load_state_dict(torch.load(save_path))
@@ -360,9 +295,11 @@ if __name__ == "__main__":
     with open(data_save_path, 'rb') as f:
         dataset = pickle.load(f)
         dataset_train = pickle.load(f)
+        dataset_val = pickle.load(f)
         dataset_test = pickle.load(f)
         dataloader_test = pickle.load(f)
         dataloader_train = pickle.load(f)
+        dataloader_val = pickle.load(f)
         hp = pickle.load(f)
 
 
@@ -386,7 +323,7 @@ if __name__ == "__main__":
         for i in range(bs):
             print(i)
             # figi, axi = show_image_bbox(imgs_train[i], smps_train[i])
-            pred, keep = get_prediction(model, imgs_train[i], confidence_thresh, iou_thresh, device, CLASS_NAMES)
+            pred, keep = get_prediction_image(model, imgs_train[i], confidence_thresh, iou_thresh, device, CLASS_NAMES)
             img = show_groundtruth_and_prediction_bbox(imgs_train[i],
                                                              smps_train[i],
                                                              pred,
@@ -405,6 +342,21 @@ if __name__ == "__main__":
             cv.waitKey(2000)  # wait for 2 sec
             cv.destroyWindow(winname)
 
+
+    # finally, evaulate on the whole dataset
+    confidence_thresh = 0.8
+    iou_thresh = 0.5
+
+    # test loading images from dataloader_test, dataloader_train and dataloader_val
+
+    # import code
+    # code.interact(local=dict(globals(), **locals()))
+    # mt_eval = evaluate(model,
+    #                    dataloader_test,
+    #                    device=device,
+    #                    conf=confidence_thresh,
+    #                    iou=iou_thresh,
+    #                    class_names=CLASS_NAMES)
 
     INFER_ON_TEST = True
     if INFER_ON_TEST:
@@ -473,7 +425,7 @@ if __name__ == "__main__":
    # --------------- #
    # try joh's images
 
-    INFER_ON_JOH = True
+    INFER_ON_JOH = False
     if INFER_ON_JOH:
         print('joh image set')
         # create a new dataset, run inference
@@ -616,7 +568,7 @@ if __name__ == "__main__":
                 #     imgs = imgs.to(device)
                 #     lbls = lbls.to(device)
 
-                pred, keep = get_prediction(model, frame_t, confidence_thresh, iou_thresh, device, CLASS_NAMES)
+                pred, keep = get_prediction_image(model, frame_t, confidence_thresh, iou_thresh, device, CLASS_NAMES)
                 img = show_groundtruth_and_prediction_bbox(image=frame_t,
                                                            predictions=pred,
                                                            keep=keep)
