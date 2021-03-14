@@ -126,13 +126,13 @@ def evaluate(model, data_loader, device, conf, iou, class_names):
 
         model_time = time.time()
 
-        import code
-        code.interact(local=dict(globals(), **locals()))
+        # import code
+        # code.interact(local=dict(globals(), **locals()))
 
         # if we have a tuple of images:
         # imgs = list(img for img in images)
         # if we have a single image:
-        output_raw = model(images) # no nms, conf thresh
+        # output_raw = model(images) # no nms, conf thresh
 
         # outputs = get_prediction_batch(model, images, conf, iou, device, class_names)
 
@@ -150,7 +150,13 @@ def evaluate(model, data_loader, device, conf, iou, class_names):
                                           class_names)
             # need to convert out values into tensors, so we can send this to the device (GPU)
             # if no boxes, just make out empty TODO trying to deal w batch cases
-            # if len(out['boxes']) == 0:
+            if len(out['boxes']) == 0:
+                print('warning: len boxes 0')
+                print('output through get_prediction_image')
+                print(out)
+                print('output through model')
+                output_raw = model(images)
+                print(output_raw)
             #     out = []
 
             outputs.append(out)

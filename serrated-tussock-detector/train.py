@@ -52,7 +52,7 @@ if __name__ == "__main__":
     learning_rate = 0.005
     momentum = 0.9
     weight_decay = 0.0001
-    num_epochs = 50
+    num_epochs = 100
     step_size = round(num_epochs/4)
 
     # make a hyperparameter dictionary
@@ -67,7 +67,7 @@ if __name__ == "__main__":
     # ------------------------------ #
     # directories
     # TODO add date/time to filename
-    save_name = 'fasterrcnn-serratedtussock-4'
+    save_name = 'fasterrcnn-serratedtussock-0'
     save_folder = os.path.join('output', save_name)
     if not os.path.isdir(save_folder):
         os.mkdir(save_folder)
@@ -194,6 +194,9 @@ if __name__ == "__main__":
     # for non-max-suppression, need:
     conf = 0.5
     iou = 0.5
+    # TODO fix evaluate to deal with null case while evaluating model with nms
+    # TODO consider making a function for calling the model? the "forward" pass?
+    # TODO discuss this with david
     # mt_eval = evaluate(model, dataloader_test, device, conf, iou, class_names)
 
     # save trained model for inference
