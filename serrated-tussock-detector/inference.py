@@ -23,58 +23,58 @@ import time
 from get_prediction import get_prediction_image
 from engine_st import evaluate
 
-def matplotlib_imshow(img):
-    # image in, probably as a tensor
-    # want to show image using plt.imshow(img)
-    # img = img / 2 + 0.5     # unnormalize
-    imgnp = img.cpu().numpy()
-    plt.imshow(np.transpose(imgnp, (1, 2, 0)))
-    return plt
+# def matplotlib_imshow(img):
+#     # image in, probably as a tensor
+#     # want to show image using plt.imshow(img)
+#     # img = img / 2 + 0.5     # unnormalize
+#     imgnp = img.cpu().numpy()
+#     plt.imshow(np.transpose(imgnp, (1, 2, 0)))
+#     return plt
 
 
-def show_single_bbox(img, bb, color='red'):
-    # put bounding box onto image
-    # bb is a numpy array or tensor?
-    # TODO convert to opencv -> cv.rectangle
-    bb = np.array(bb.cpu(), dtype=np.float32)
-    rect = mpp.Rectangle((bb[0], bb[1]),
-                          bb[2] - bb[0],
-                          bb[3] - bb[1],
-                          color=color,
-                          fill=False,
-                          linewidth=3)
+# def show_single_bbox(img, bb, color='red'):
+#     # put bounding box onto image
+#     # bb is a numpy array or tensor?
+#     # TODO convert to opencv -> cv.rectangle
+#     bb = np.array(bb.cpu(), dtype=np.float32)
+#     rect = mpp.Rectangle((bb[0], bb[1]),
+#                           bb[2] - bb[0],
+#                           bb[3] - bb[1],
+#                           color=color,
+#                           fill=False,
+#                           linewidth=3)
 
 
-def show_image_bbox(image, sample, color='blue'):
-    # show image and bounding box together
-    # matplotlib_imshow(image)
-    # TODO convert to opencv -> cv.rectangle
-    imgnp = image.cpu().numpy()
+# def show_image_bbox(image, sample, color='blue'):
+#     # show image and bounding box together
+#     # matplotlib_imshow(image)
+#     # TODO convert to opencv -> cv.rectangle
+#     imgnp = image.cpu().numpy()
 
-    fig, ax = plt.subplots(1)
+#     fig, ax = plt.subplots(1)
 
-    ax.imshow(np.transpose(imgnp, (1, 2, 0)))
+#     ax.imshow(np.transpose(imgnp, (1, 2, 0)))
 
-    boxes = sample['boxes']
-    nbb, _ = boxes.size()
+#     boxes = sample['boxes']
+#     nbb, _ = boxes.size()
 
-    print(imgnp.shape)
+#     print(imgnp.shape)
 
-    for i in range(nbb):
-        print('plot box {}'.format(i))
-        bb = np.array(boxes[i, :].cpu(), dtype=np.float32)
-        print(bb)  # [xmin, ymin, xmax, ymax]
-        rect = mpp.Rectangle((bb[0], bb[1]),
-                             bb[2] - bb[0],
-                             bb[3] - bb[1],
-                             color=color,
-                             fill=False,
-                             linewidth=3)
-        ax.add_patch(rect)
+#     for i in range(nbb):
+#         print('plot box {}'.format(i))
+#         bb = np.array(boxes[i, :].cpu(), dtype=np.float32)
+#         print(bb)  # [xmin, ymin, xmax, ymax]
+#         rect = mpp.Rectangle((bb[0], bb[1]),
+#                              bb[2] - bb[0],
+#                              bb[3] - bb[1],
+#                              color=color,
+#                              fill=False,
+#                              linewidth=3)
+#         ax.add_patch(rect)
 
-        # plt.gca().add_patch(show_single_bbox(image, boxes[i, :]))
+#         # plt.gca().add_patch(show_single_bbox(image, boxes[i, :]))
 
-    return fig, ax
+#     return fig, ax
 
 
 def show_groundtruth_and_prediction_bbox(image,
@@ -267,29 +267,6 @@ if __name__ == "__main__":
     root_dir = os.path.join('SerratedTussockDataset')
     json_file = os.path.join('Annotations', 'via_region_data.json')
 
-    # tforms = Compose([Rescale(800),
-    #                     RandomHorizontalFlip(0.5),
-    #                     ToTensor()])
-
-    # dataset = SerratedTussockDataset(root_dir=root_dir,
-    #                                     json_file=json_file,
-    #                                     transforms=tforms)
-
-    # split into training, validation and testing
-    # nimg = len(dataset)
-    # ntrain = 20
-    # TODO obviously, we'll need more data/images in future runs,
-    # but we're just gunning for the pipeline at the moment
-    # dataset_train, dataset_test = torch.utils.data.random_split(dataset, [ntrain, nimg - ntrain])
-
-    # batch_size = 1
-    # num_workers = 0
-    # dataloader_test = torch.utils.data.DataLoader(dataset_test,
-    #                                                 batch_size=batch_size,
-    #                                                 shuffle=False,
-    #                                                 num_workers=num_workers,
-    #                                                 collate_fn=utils.collate_fn)
-
     # load stuff:
     data_save_path = os.path.join('.', 'output', save_name, save_name + '.pkl')
     with open(data_save_path, 'rb') as f:
@@ -301,12 +278,6 @@ if __name__ == "__main__":
         dataloader_train = pickle.load(f)
         dataloader_val = pickle.load(f)
         hp = pickle.load(f)
-
-
-    # print up filenames in dataset_test, so we can print them
-    # for image, sample in dataset_test:
-
-
 
     # first, plot a sample from the training set (should be overfit)
     # model.to(device)
@@ -344,19 +315,19 @@ if __name__ == "__main__":
 
 
     # finally, evaulate on the whole dataset
-    confidence_thresh = 0.8
+    confidence_thresh = 0.5
     iou_thresh = 0.5
 
     # test loading images from dataloader_test, dataloader_train and dataloader_val
 
     # import code
     # code.interact(local=dict(globals(), **locals()))
-    # mt_eval = evaluate(model,
-    #                    dataloader_test,
-    #                    device=device,
-    #                    conf=confidence_thresh,
-    #                    iou=iou_thresh,
-    #                    class_names=CLASS_NAMES)
+    mt_eval = evaluate(model,
+                       dataloader_test,
+                       device=device,
+                       conf=confidence_thresh,
+                       iou=iou_thresh,
+                       class_names=CLASS_NAMES)
 
     INFER_ON_TEST = True
     if INFER_ON_TEST:

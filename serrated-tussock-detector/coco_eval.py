@@ -75,6 +75,9 @@ class CocoEvaluator(object):
             if len(prediction) == 0:
                 continue
 
+            import code
+            code.interact(local=dict(globals(), **locals()))
+            # for some strange reason, an empty prediction is getting through
             boxes = prediction["boxes"]
             boxes = convert_to_xywh(boxes).tolist()
             scores = prediction["scores"].tolist()
