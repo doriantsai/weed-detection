@@ -54,6 +54,20 @@ class CocoEvaluator(object):
         for coco_eval in self.coco_eval.values():
             coco_eval.accumulate()
 
+    # added by Dorian to get eval dictionary (should contain PR values)
+    def get_eval(self):
+        # res = self.coco_eval[self.iou_types].eval['precision']
+        # print(type(res))
+        # import code
+        # code.interact(local=dict(globals(), **locals()))
+        return self.coco_eval[self.iou_types[0]].eval
+        #  'params': p,
+        #     'counts': [T, R, K, A, M],
+        #     'date': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        #     'precision': precision,
+        #     'recall':   recall,
+        #     'scores': scores,
+
     def summarize(self):
         for iou_type, coco_eval in self.coco_eval.items():
             print("IoU metric: {}".format(iou_type))
@@ -75,8 +89,8 @@ class CocoEvaluator(object):
             if len(prediction) == 0:
                 continue
 
-            import code
-            code.interact(local=dict(globals(), **locals()))
+            # import code
+            # code.interact(local=dict(globals(), **locals()))
             # for some strange reason, an empty prediction is getting through
             boxes = prediction["boxes"]
             boxes = convert_to_xywh(boxes).tolist()
