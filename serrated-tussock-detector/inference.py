@@ -189,7 +189,7 @@ def show_groundtruth_and_prediction_bbox(image,
 
 
 
-
+@torch.no_grad()
 def infer_dataset(model,
                   dataset,
                   confidence_threshold,
@@ -204,6 +204,7 @@ def infer_dataset(model,
 
     model.eval()
     model.to(device)
+    out = []
     for image, sample in dataset:
         image_id = sample['image_id'].item()
         pred, keep = get_prediction_image(model,
@@ -233,7 +234,23 @@ def infer_dataset(model,
         cv.waitKey(2000)
         cv.destroyWindow(winname)
 
+        # save output
+        # TODO HACK until output keep bug is solved:
+        outtensor = model([image.to(device)])
 
+        # convert from tensor gpu to tensor cpu
+        outnumpy = [{k: v.cpu().numpy() for k, v in t.items()} for t in outtensor]
+
+        # import code
+        # code.interact(local=dict(globals(), **locals()))
+        # outnumpy[0]["image_id"] = image_id
+        # need to zip w/ targets
+        # res = {target["image_id"].item(): output for target, output in zip(targets, outputs)}
+        # res = {sample["image_id"].item(): outnumpy}
+
+        out.append(outnumpy)
+
+    return out
 
 
 
@@ -279,6 +296,15 @@ if __name__ == "__main__":
         dataloader_val = pickle.load(f)
         hp = pickle.load(f)
 
+        # pickle.dump(dataset, f)
+        # pickle.dump(dataset_train, f)
+        # pickle.dump(dataset_val, f)
+        # pickle.dump(dataset_test, f)
+        # pickle.dump(dataloader_test, f)
+        # pickle.dump(dataloader_train, f)
+        # pickle.dump(dataloader_val, f)
+        # pickle.dump(hp, f)
+
     # first, plot a sample from the training set (should be overfit)
     # model.to(device)
     INFER_ON_TRAINING = False
@@ -322,14 +348,18 @@ if __name__ == "__main__":
 
     # import code
     # code.interact(local=dict(globals(), **locals()))
-    mt_eval = evaluate(model,
-                       dataloader_test,
-                       device=device,
-                       conf=confidence_thresh,
-                       iou=iou_thresh,
-                       class_names=CLASS_NAMES)
+    mt_eval, ccres = evaluate(model,
+                                dataloader_test,
+                                device=device,
+                                conf=confidence_thresh,
+                                iou=iou_thresh,
+                                class_names=CLASS_NAMES)
 
-    INFER_ON_TEST = True
+    precision = ccres['precision']
+    recall = ccres['recall']
+    # ccres['params'].recThrs
+
+    INFER_ON_TEST = False
     if INFER_ON_TEST:
         print('testing set')
         # model.eval()
@@ -338,14 +368,23 @@ if __name__ == "__main__":
         # imgs_test, smps_test = next(iter(dataloader_test))
         confidence_thresh = 0.8
         iou_thresh = 0.5
-        infer_dataset(model,
-                      dataset_test,
-                      confidence_thresh,
-                      iou_thresh,
-                      save_name,
-                      device,
-                      CLASS_NAMES,
-                      'dataset-test')
+        out_test = infer_dataset(model,
+                                 dataset_test,
+                                 confidence_thresh,
+                                 iou_thresh,
+                                 save_name,
+                                 device,
+                                 CLASS_NAMES,
+                                 'dataset-test')
+
+        # convert per image results to per box output:
+        # create a list with each box as an entry, with entries:
+        # image_id, category_id, bbox, score
+        out = []
+        for outputs in out_test:
+            image_id = int(outputs['image_id'])
+            print(image_id)
+
         # bs = len(imgs_test)
         # model.to(device)
         # imgs_test.to(device)
@@ -588,6 +627,6 @@ if __name__ == "__main__":
 
 
 
-
+    print('end of the line')
     import code
     code.interact(local=dict(globals(), **locals()))

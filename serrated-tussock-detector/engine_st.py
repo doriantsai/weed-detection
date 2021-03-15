@@ -122,7 +122,6 @@ def evaluate(model, data_loader, device, conf, iou, class_names):
         targets = [{k: v.to(device) for k, v in t.items()} for t in targets]  # added
 
         torch.cuda.synchronize()
-        model.eval()
 
         model_time = time.time()
 
@@ -142,7 +141,7 @@ def evaluate(model, data_loader, device, conf, iou, class_names):
         outputs = []
         for i in range(len(images)):
             print(i)
-            out, _ = get_prediction_image(model,
+            out, keep = get_prediction_image(model,
                                           images[i],
                                           conf,
                                           iou,
@@ -151,23 +150,20 @@ def evaluate(model, data_loader, device, conf, iou, class_names):
             # need to convert out values into tensors, so we can send this to the device (GPU)
             # if no boxes, just make out empty TODO trying to deal w batch cases
             if len(out['boxes']) == 0:
-                print('warning: len boxes 0')
-                print('output through get_prediction_image')
-                print(out)
-                print('output through model')
-                output_raw = model(images)
-                print(output_raw)
+                # print('warning: len boxes 0')
+                # print('output through get_prediction_image')
+                # print(out)
+                # print('output through model')
+                # output_raw = model([images[i]])
+                # print(output_raw)
+                # import code
+                # code.interact(local=dict(globals(), **locals()))
+
+                continue
             #     out = []
 
+
             outputs.append(out)
-
-
-
-        # # TODO FIXME HACK
-        # # just to be sure we understand our problem, if we have an empty thing, replace it with a full thing
-        # for i in range(len(images)):
-        #     if len(outputs[i]['boxes']) == 0:
-        #         outputs[i] = outputs[0]  # assume 0 is okay
 
         # outputs = [{k: v.to(cpu_device) for k, v in t.items()} for t in outputs]
         outputs = [{k: torch.tensor(v).to(device) for k, v in t.items()} for t in outputs]
@@ -179,6 +175,7 @@ def evaluate(model, data_loader, device, conf, iou, class_names):
 
 
         evaluator_time = time.time()
+        # this is where the magic happens
         coco_evaluator.update(res)
         evaluator_time = time.time() - evaluator_time
         metric_logger.update(model_time=model_time, evaluator_time=evaluator_time)
@@ -189,7 +186,19 @@ def evaluate(model, data_loader, device, conf, iou, class_names):
     coco_evaluator.synchronize_between_processes()
 
     # accumulate predictions from all images
-    coco_evaluator.accumulate()
+    coco_evaluator.accumulate() # should have PR matrix
+    #  coco_evaluator.eval['precision']
+
+    # import code
+    # code.interact(local=dict(globals(), **locals()))
+    # print('calling get_eval')
+    ccres = coco_evaluator.get_eval()
+    # print(type(ccres))
+    # ccres['precision'].shape
+
+    # import code
+    # code.interact(local=dict(globals(), **locals()))
+
     coco_evaluator.summarize()
     torch.set_num_threads(n_threads)
-    return metric_logger
+    return metric_logger, ccres
