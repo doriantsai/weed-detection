@@ -67,7 +67,7 @@ if __name__ == "__main__":
     # ------------------------------ #
     # directories
     # TODO add date/time to filename
-    save_name = 'fasterrcnn-serratedtussock-1'
+    save_name = 'fasterrcnn-serratedtussock-3'
     save_folder = os.path.join('output', save_name)
     if not os.path.isdir(save_folder):
         os.mkdir(save_folder)
@@ -77,7 +77,7 @@ if __name__ == "__main__":
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
     # setup dataset
-    root_dir = os.path.join('/home', 'dorian', 'Data', 'SerratedTussockDataset_v1')
+    root_dir = os.path.join('/home', 'dorian', 'Data', 'SerratedTussockDataset_v2')
     json_file = os.path.join('Annotations', 'via_region_data.json')
 
     # setup save pickle file (saved datasets/loaders, etc for inference)
@@ -98,12 +98,12 @@ if __name__ == "__main__":
 
     # split into training, validation and testing
     nimg = len(dataset)
-    ntrain_val = 90  # select number of images for training dataset
+    ntrain_val = 120  # select number of images for training dataset
     dataset_train_and_val, dataset_test = torch.utils.data.random_split(dataset,
                                                 [ntrain_val, nimg - ntrain_val])
 
     # further split the training/val dataset
-    ntrain = 80
+    ntrain = 100
     dataset_train, dataset_val = torch.utils.data.random_split(dataset_train_and_val,
                                                     [ntrain, ntrain_val - ntrain])
 
@@ -192,12 +192,12 @@ if __name__ == "__main__":
 
 
     # for non-max-suppression, need:
-    conf = 0.5
+    conf = 0.7
     iou = 0.5
     # TODO fix evaluate to deal with null case while evaluating model with nms
     # TODO consider making a function for calling the model? the "forward" pass?
     # TODO discuss this with david
-    # mt_eval = evaluate(model, dataloader_test, device, conf, iou, class_names)
+    mt_eval, ccres = evaluate(model, dataloader_test, device, conf, iou, class_names)
 
     # save trained model for inference
     torch.save(model.state_dict(), save_path)
