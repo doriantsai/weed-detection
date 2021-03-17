@@ -79,6 +79,8 @@ if __name__ == "__main__":
 
     # evaluate model
     print('Evaluating model')
+    # TODO extract dtScores/sorted in order to get confidence scores
+    # then would need to get 
     mt_eval, ccres = evaluate(model,
                               dataloader_train,
                               device=device,

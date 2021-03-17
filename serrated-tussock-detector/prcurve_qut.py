@@ -6,6 +6,7 @@ import pickle
 import json
 import cv2 as cv
 import matplotlib.pyplot as plt
+import numpy as np
 
 from PIL import Image
 from inference import show_groundtruth_and_prediction_bbox, cv_imshow
@@ -105,13 +106,14 @@ if __name__ == "__main__":
     # for now, manually define them:
     # [xmin, ymin, xmax, ymax]
     dt_bbox = [[38, 39, 412, 464],
-            [240, 280, 851, 705],
+            [240, 240, 851, 705],
             [644, 73, 1023, 329],
-            [1010, 490, 1153, 724]]
+            [827, 600, 900, 750],
+            [1000, 473, 1153, 724]]
     dt_bbox = torch.as_tensor(dt_bbox, dtype=torch.float64)
 
     # in corresponding order, the confidence scores
-    dt_scores = [0.6, 0.9, 0.8, 0.4]
+    dt_scores = [0.65, 0.95, 0.85, 0.75, 0.45]
 
     # put into dictionary and then list form
     pred = {
@@ -133,6 +135,9 @@ if __name__ == "__main__":
 
     # show IOU for each dt_box:
     dt_iou = []
+    tp = np.zeros((len(dt_bbox),), dtype=bool)
+    fp = np.zeros((len(dt_bbox),), dtype=bool)
+    fn = np.zeros((len(dt_bbox),), dtype=bool)
     for i in range(len(dt_bbox[:, 0])):
         # compute iou for nearest/most overlapping gt_bbox
         gt_iou = []
@@ -145,8 +150,28 @@ if __name__ == "__main__":
         iou_max = gt_iou[idx_max]
         dt_iou.append(iou_max)
 
-    print(dt_iou)
+    # now determine if TP, FP, TN, FN
+    # TP: if our dt_bbox is sufficiently within a gt_bbox with a high-enough confidence score
+    #   we found the right thing
+    # FP: if our dt_bbox is a high confidence score, but is not sufficiently within a gt_bbox (iou is low)
+    #   we found the wrong thing
+    # FN: if our dd_bbox is within a gt_bbox, but has low confidence score
+    #   we didn't find the right thing
+    # TN: basically everything else in the scene, not wholely relevant for PR-curves
+    dt_iou = np.array(dt_iou)
+    dt_scores = np.array(dt_scores)
+    tp = np.logical_and(dt_scores >= CONF_THRESH, dt_iou >= IOU_THRESH)
+    fp = np.logical_and(dt_scores >= CONF_THRESH, dt_iou < IOU_THRESH)
+    fn = np.array(dt_scores < CONF_THRESH)
 
+    print('true positives (if true)')
+    print(tp)
+    print('false positives (if true)')
+    print(fp)
+    print('false negatives (if true)')
+    print(fn)
+
+    # TODO add puttext for TP/FN/FP etc
     img_iou = show_groundtruth_and_prediction_bbox(img, smp, pred, iou=dt_iou)
     imgw= cv.cvtColor(img_iou, cv.COLOR_RGB2BGR)
     save_img_name = os.path.join('output', img_name[:-4] + '_iou.png')
@@ -155,6 +180,16 @@ if __name__ == "__main__":
     cv_imshow(img_iou, winname, 2000)
 
 
+    # compute Precision, Recall:
+    tps = np.sum(tp)
+    fps = np.sum(fp)
+    fns = np.sum(fn)
+
+    prec = tps / (tps + fps)
+    rec = tps / (tps + fns)
+
+    print('precision = {}'.format(prec))
+    print('recall = {}'.format(rec))
 
 
 
