@@ -67,7 +67,7 @@ if __name__ == "__main__":
     # ------------------------------ #
     # directories
     # TODO add date/time to filename
-    save_name = 'fasterrcnn-serratedtussock-0'
+    save_name = 'fasterrcnn-serratedtussock-1'
     save_folder = os.path.join('output', save_name)
     if not os.path.isdir(save_folder):
         os.mkdir(save_folder)
