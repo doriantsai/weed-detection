@@ -140,13 +140,13 @@ def evaluate(model, data_loader, device, conf, iou, class_names):
         # do non-maxima suppression for evaluation
         outputs = []
         for i in range(len(images)):
-            print(i)
+            # print(i)
             out, keep = get_prediction_image(model,
-                                          images[i],
-                                          conf,
-                                          iou,
-                                          device,
-                                          class_names)
+                                            images[i],
+                                            conf,
+                                            iou,
+                                            device,
+                                            class_names)
             # need to convert out values into tensors, so we can send this to the device (GPU)
             # if no boxes, just make out empty TODO trying to deal w batch cases
             if len(out['boxes']) == 0:
@@ -170,9 +170,6 @@ def evaluate(model, data_loader, device, conf, iou, class_names):
         model_time = time.time() - model_time
 
         res = {target["image_id"].item(): output for target, output in zip(targets, outputs)}
-
-
-
 
         evaluator_time = time.time()
         # this is where the magic happens

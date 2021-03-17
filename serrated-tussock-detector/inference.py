@@ -31,6 +31,13 @@ from engine_st import evaluate
 #     plt.imshow(np.transpose(imgnp, (1, 2, 0)))
 #     return plt
 
+def cv_imshow(img, winname, wait_time=2000):
+    img = cv.cvtColor(img, cv.COLOR_RGB2BGR)
+    cv.namedWindow(winname, cv.WINDOW_GUI_NORMAL)
+    cv.imshow(winname, img)
+    cv.waitKey(wait_time)
+    cv.destroyWindow(winname)
+
 
 # def show_single_bbox(img, bb, color='red'):
 #     # put bounding box onto image
@@ -81,8 +88,10 @@ def show_groundtruth_and_prediction_bbox(image,
                          sample=None,
                          predictions=None,
                          keep=None,
+                         iou=None,
                          sample_color=(0, 0, 255), #RGB
                          predictions_color=(255, 0, 0), #RGB
+                         iou_color=(0, 255, 0),  #RGB)
                          transpose_channels=True,
                          transpose_color_channels=False):
     # show image, sample/gt bounding box, and predictions bounding box together
@@ -141,18 +150,8 @@ def show_groundtruth_and_prediction_bbox(image,
 
     # second, plot predictions
     if not predictions is None:
-
-            # if not(keep is None):
-            #     boxes_pd = predictions['boxes']
-            #     import code
-            #     code.interact(local=dict(globals(), **locals()))
-            #     boxes_pd = boxes_pd[keep]
-            # else:
         boxes_pd = predictions['boxes']
         boxes_score = predictions['scores']
-
-        # import code
-        # code.interact(local=dict(globals(), **locals()))
 
         if len(boxes_pd) > 0:
             for i in range(len(boxes_pd)):
@@ -162,27 +161,35 @@ def show_groundtruth_and_prediction_bbox(image,
                                     (int(bb[2]), int(bb[3])),
                                     color=predictions_color,
                                     thickness=5)
-                # rect = mpp.Rectangle((bb[0], bb[1]),
-                #                       bb[2] - bb[0],
-                #                       bb[3] - bb[1],
-                #                     color=predictions_color,
-                #                     fill=False,
-                #                     linewidth=1)
-                # ax.add_patch(rect)
 
                 # add text to top left corner of bounding box
                 sc = format(boxes_score[i], '.4f') # show 4 decimal places
-                # ax.annotate('{}: {}'.format(i, sc),
-                #              (bb[0], bb[1]),
-                #              color=predictions_color,
-                #              fontsize=12)
                 cv.putText(imgnp,
                           '{}: {}'.format(i, sc),
-                          (int(bb[0]), int(bb[1])),
+                          (int(bb[0]), int(bb[1]) - 10),
                           fontFace=cv.FONT_HERSHEY_COMPLEX,
-                          fontScale=2,
+                          fontScale=1,
                           color=predictions_color,
-                          thickness=3)
+                          thickness=2)
+
+        # third, add iou
+        if (iou is not None) and (predictions is not None):
+            # iou should be a list or array with iou values for each boxes_pd
+            boxes_pd = predictions['boxes']
+            if len(iou) > 0 and len(boxes_pd) > 0:
+                for i  in range(len(iou)):
+                    bb = np.array(boxes_pd[i], dtype=np.float32)
+                    # needed to get top/left corner of bbox
+                    iou_str = format(iou[i], '.4f')
+                    cv.putText(imgnp,
+                               'iou: {}'.format(iou_str),
+                               (int(bb[0]), int(bb[1] + 40)), # place iou under confidence score
+                               fontFace=cv.FONT_HERSHEY_COMPLEX,
+                               fontScale=1,
+                               color=iou_color,
+                               thickness=2)
+
+
 
     return imgnp
 
@@ -231,7 +238,7 @@ def infer_dataset(model,
         winname = 'testing'
         cv.namedWindow(winname, cv.WINDOW_NORMAL)
         cv.imshow(winname, image_marked)
-        cv.waitKey(2000)
+        cv.waitKey(1000)
         cv.destroyWindow(winname)
 
         # save output
@@ -310,56 +317,56 @@ if __name__ == "__main__":
     INFER_ON_TRAINING = False
     if INFER_ON_TRAINING:
         print('training set')
-        model.eval()
-        imgs_train, smps_train = next(iter(dataloader_train))
-        confidence_thresh = 0.9
+        # infer on entire dataset + save images
+        confidence_thresh = 0.5
         iou_thresh = 0.5
-        bs = len(imgs_train)
-        model.to(device)
-        # imgs_train.to(device)
-        for i in range(bs):
-            print(i)
-            # figi, axi = show_image_bbox(imgs_train[i], smps_train[i])
-            pred, keep = get_prediction_image(model, imgs_train[i], confidence_thresh, iou_thresh, device, CLASS_NAMES)
-            img = show_groundtruth_and_prediction_bbox(imgs_train[i],
-                                                             smps_train[i],
-                                                             pred,
-                                                             keep)
-            imgname = os.path.join('output', 'fasterrcnn-serratedtussock-train-' + str(i) + '.png')
-            # plt.savefig()
-            # plt.show()
-            # time.sleep(1) # sleep for 1 second
-            # plt.close(figi)
-            img = cv.cvtColor(img, cv.COLOR_RGB2BGR)
-            cv.imwrite(imgname, img)
-            winname = 'training'
-            cv.namedWindow(winname, cv.WINDOW_GUI_NORMAL)
-            # img = cv.cvtColor(img, cv.COLOR_RGB2BGR)
-            cv.imshow(winname, img)
-            cv.waitKey(2000)  # wait for 2 sec
-            cv.destroyWindow(winname)
+        out_test = infer_dataset(model,
+                                 dataset_train,
+                                 confidence_thresh,
+                                 iou_thresh,
+                                 save_name,
+                                 device,
+                                 CLASS_NAMES,
+                                 'dataset-train')
+
+        # infer on single batch from dataloader_train
+        # model.eval()
+        # imgs_train, smps_train = next(iter(dataloader_train))
+        # confidence_thresh = 0.9
+        # iou_thresh = 0.5
+        # bs = len(imgs_train)
+        # model.to(device)
+        # # imgs_train.to(device)
+        # for i in range(bs):
+        #     print(i)
+        #     # figi, axi = show_image_bbox(imgs_train[i], smps_train[i])
+        #     pred, keep = get_prediction_image(model, imgs_train[i], confidence_thresh, iou_thresh, device, CLASS_NAMES)
+        #     img = show_groundtruth_and_prediction_bbox(imgs_train[i],
+        #                                                      smps_train[i],
+        #                                                      pred,
+        #                                                      keep)
+        #     imgname = os.path.join('output', 'fasterrcnn-serratedtussock-train-' + str(i) + '.png')
+        #     # plt.savefig()
+        #     # plt.show()
+        #     # time.sleep(1) # sleep for 1 second
+        #     # plt.close(figi)
+        #     img = cv.cvtColor(img, cv.COLOR_RGB2BGR)
+        #     cv.imwrite(imgname, img)
+        #     winname = 'training'
+        #     cv.namedWindow(winname, cv.WINDOW_GUI_NORMAL)
+        #     # img = cv.cvtColor(img, cv.COLOR_RGB2BGR)
+        #     cv.imshow(winname, img)
+        #     cv.waitKey(2000)  # wait for 2 sec
+        #     cv.destroyWindow(winname)
 
 
-    # finally, evaulate on the whole dataset
-    confidence_thresh = 0.5
-    iou_thresh = 0.5
 
-    # test loading images from dataloader_test, dataloader_train and dataloader_val
 
-    # import code
-    # code.interact(local=dict(globals(), **locals()))
-    mt_eval, ccres = evaluate(model,
-                                dataloader_test,
-                                device=device,
-                                conf=confidence_thresh,
-                                iou=iou_thresh,
-                                class_names=CLASS_NAMES)
 
-    precision = ccres['precision']
-    recall = ccres['recall']
-    # ccres['params'].recThrs
+    # TODO save figure
 
-    INFER_ON_TEST = False
+    # TODO interpolate from PR curve, the confidence threshold
+    INFER_ON_TEST = True
     if INFER_ON_TEST:
         print('testing set')
         # model.eval()
@@ -380,10 +387,10 @@ if __name__ == "__main__":
         # convert per image results to per box output:
         # create a list with each box as an entry, with entries:
         # image_id, category_id, bbox, score
-        out = []
-        for outputs in out_test:
-            image_id = int(outputs['image_id'])
-            print(image_id)
+        # out = []
+        # for outputs in out_test:
+        #     image_id = int(outputs['image_id'])
+        #     print(image_id)
 
         # bs = len(imgs_test)
         # model.to(device)
@@ -627,6 +634,6 @@ if __name__ == "__main__":
 
 
 
-    print('end of the line')
+    print('end of inference.py')
     import code
     code.interact(local=dict(globals(), **locals()))
