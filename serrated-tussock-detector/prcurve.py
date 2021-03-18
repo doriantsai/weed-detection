@@ -116,8 +116,10 @@ def compute_outcome_image(pred, sample, IOU_THRESH, CONF_THRESH):
 def compute_single_pr_over_dataset(model,
                                    dataset,
                                    save_name,
-                                   IOU_THRESH,
-                                   CONF_THRESH):
+                                   MODEL_IOU_THRESH,
+                                   MODEL_CONF_THRESH,
+                                   OUTCOME_IOU_THRESH,
+                                   OUTCOME_CONF_THRESH):
     model.eval()
     model.to(device)
 
@@ -134,15 +136,15 @@ def compute_single_pr_over_dataset(model,
         # get predictions
         pred, keep = get_prediction_image(model,
                                           image,
-                                          0.01, # set low to allow FNs
-                                          IOU_THRESH,
+                                          MODEL_CONF_THRESH, # set low to allow FNs
+                                          MODEL_IOU_THRESH,
                                           device,
                                           class_names)
 
         outcome, tn, tp, fp, fn , dt_iou = compute_outcome_image(pred,
                                                                  sample,
-                                                                 IOU_THRESH,
-                                                                 CONF_THRESH)
+                                                                 OUTCOME_IOU_THRESH,
+                                                                 OUTCOME_CONF_THRESH)
 
         # show for given image:
         img_out = show_groundtruth_and_prediction_bbox(image,
@@ -225,17 +227,29 @@ if __name__ == "__main__":
 
 
     # set thresholds
-    IOU_THRESH = 0.5
-    CONF_THRESH = np.linspace(start=0.05, stop=0.95, num=101, endpoint=True)
+    # model iou threshold - used for doing non-maxima suppression at the end of model output
+    MODEL_IOU_THRESH = 0.5
+    # model confidence threshold - used for thresholding model output
+    MODEL_CONF_THRESH = 0.3
+    # outcome iou threshold - used for determining how much overlap between
+    # detection and groundtruth bounding boxes is sufficient to be a TP
+    OUTCOME_IOU_THRESH = 0.6
+    # outcome confidence threshold - used for determining how much confidence is
+    # required to be a TP
+    OUTCOME_CONF_THRESH = np.linspace(start=0.05, stop=0.95, num=51, endpoint=True)
 
+    # iterate over confidence threshold
     prec = []
     rec = []
-    for c, conf in enumerate(CONF_THRESH):
+    for c, conf in enumerate(OUTCOME_CONF_THRESH):
         # get single pr over entire dataset,
+        print('outcome confidence threshold: {}'.format(conf))
         p, r = compute_single_pr_over_dataset(model,
                                               dataset_test,
                                               save_name,
-                                              IOU_THRESH,
+                                              MODEL_IOU_THRESH,
+                                              MODEL_CONF_THRESH,
+                                              OUTCOME_IOU_THRESH,
                                               conf)
         prec.append(p)
         rec.append(r)
