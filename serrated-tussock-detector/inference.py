@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import os
 import utils
 import pickle
+import json
 
 from train import build_model
 from SerratedTussockDataset import SerratedTussockDataset, RandomHorizontalFlip, Rescale, ToTensor, Compose
@@ -89,9 +90,11 @@ def show_groundtruth_and_prediction_bbox(image,
                          predictions=None,
                          keep=None,
                          iou=None,
+                         outcome=None,
+                         trueneg=None,
                          sample_color=(0, 0, 255), #RGB
                          predictions_color=(255, 0, 0), #RGB
-                         iou_color=(0, 255, 0),  #RGB)
+                         iou_color=(60, 60, 60),  #RGB)
                          transpose_channels=True,
                          transpose_color_channels=False):
     # show image, sample/gt bounding box, and predictions bounding box together
@@ -145,7 +148,7 @@ def show_groundtruth_and_prediction_bbox(image,
                                      (int(bb[0]), int(bb[1])),
                                      (int(bb[2]), int(bb[3])),
                                      color=sample_color,
-                                     thickness=15)
+                                     thickness=10)
                 # ax.add_patch(rect)
 
     # second, plot predictions
@@ -163,10 +166,10 @@ def show_groundtruth_and_prediction_bbox(image,
                                     thickness=5)
 
                 # add text to top left corner of bounding box
-                sc = format(boxes_score[i], '.4f') # show 4 decimal places
+                sc = format(boxes_score[i], '.2f') # show 4 decimal places
                 cv.putText(imgnp,
                           '{}: {}'.format(i, sc),
-                          (int(bb[0]), int(bb[1]) - 10),
+                          (int(bb[0] + 10), int(bb[1]) + 30),
                           fontFace=cv.FONT_HERSHEY_COMPLEX,
                           fontScale=1,
                           color=predictions_color,
@@ -180,14 +183,73 @@ def show_groundtruth_and_prediction_bbox(image,
                 for i  in range(len(iou)):
                     bb = np.array(boxes_pd[i], dtype=np.float32)
                     # needed to get top/left corner of bbox
-                    iou_str = format(iou[i], '.4f')
+                    iou_str = format(iou[i], '.2f')
                     cv.putText(imgnp,
                                'iou: {}'.format(iou_str),
-                               (int(bb[0]), int(bb[1] + 40)), # place iou under confidence score
+                               (int(bb[0]+ 10), int(bb[1] + 60)), # place iou under confidence score
                                fontFace=cv.FONT_HERSHEY_COMPLEX,
                                fontScale=1,
                                color=iou_color,
                                thickness=2)
+
+        # fourth, add outcome (TP, FP, FN, TN)
+        if (outcome is not None) and \
+            (trueneg is not None) and \
+            (predictions is not None) and \
+            (sample is not None):
+            # for each prediction, there is an outcome, which is an array with 1-4
+            outcome_list = ['TP', 'FP', 'FN', 'TN']
+            # choose colour scheme
+            # default: blue is groundtruth
+            # default: red is detection ->
+            #          red is false negative
+            #          green is true positive
+            #          yellow is false positive
+            outcome_color = [(0, 255, 0),   # TP - green
+                             (255, 255, 0), # FP - yellow
+                             (255, 0, 0),   # FN - red
+                             (0, 0, 0)]     # TN - black
+            boxes_pd = predictions['boxes']
+            if len(outcome) > 0 and len(boxes_pd) > 0:
+                for i in range(len(boxes_pd)):
+                    # replot the detection boxes' colour based on outcome
+                    bb = np.array(boxes_pd[i], dtype=np.float32)  # TODO might just specify np.int16?
+                    imgnp = cv.rectangle(imgnp,
+                                        (int(bb[0]), int(bb[1])),
+                                        (int(bb[2]), int(bb[3])),
+                                        color=outcome_color[outcome[i]],
+                                        thickness=5)
+
+                # add text to top left corner of bounding box
+                    sc = format(boxes_score[i], '.2f') # show 4 decimal places
+                    cv.putText(imgnp,
+                            '{}: {}/{}'.format(i, sc, outcome_list[outcome[i]]),
+                            (int(bb[0]+ 10), int(bb[1]) + 30),
+                            fontFace=cv.FONT_HERSHEY_COMPLEX,
+                            fontScale=1,
+                            color=outcome_color[outcome[i]],
+                            thickness=2)
+
+            # true negatives cases wrt ground-truth bounding boxes
+            boxes_gt = sample['boxes']
+            if len(trueneg) > 0 and len(boxes_gt) > 0:
+                for j in range(len(boxes_gt)):
+                    # groundtruth boxes already plotted, so only replot them
+                    # if truenegative
+                    if trueneg[j]:
+                        bb = np.array(boxes_gt[j,:].cpu(), dtype=np.float32)
+                        imgnp = cv.rectangle(imgnp,
+                                            (int(bb[0]), int(bb[1])),
+                                            (int(bb[2]), int(bb[3])),
+                                            color=outcome_color[3],
+                                            thickness=10)
+                        cv.putText(imgnp,
+                            '{}: {}'.format(j, outcome_list[3]),
+                            (int(bb[0]+ 10), int(bb[1]) + 30),
+                            fontFace=cv.FONT_HERSHEY_COMPLEX,
+                            fontScale=1,
+                            color=outcome_color[3],
+                            thickness=2)
 
 
 
@@ -383,6 +445,14 @@ if __name__ == "__main__":
                                  device,
                                  CLASS_NAMES,
                                  'dataset-test')
+
+        # save output
+        save_output_test = os.path.join('output', save_name, 'predictions_test.json')
+        with open(save_output_test, 'w') as out_file:
+            json.dump(out_test, ann_file, indent=4)
+
+        import code
+        code.interact(local=dict(globals(), **locals()))
 
         # convert per image results to per box output:
         # create a list with each box as an entry, with entries:

@@ -64,7 +64,6 @@ if __name__ == "__main__":
     annotations = list(annotations.values())
 
     # get image
-
     img_name = annotations[idx]['filename']
     img_path = os.path.join(root_dir, 'Images', img_name)
     print(img_path)
@@ -108,12 +107,11 @@ if __name__ == "__main__":
     dt_bbox = [[38, 39, 412, 464],
             [240, 240, 851, 705],
             [644, 73, 1023, 329],
-            [827, 600, 900, 750],
-            [1000, 473, 1153, 724]]
+            [827, 600, 900, 750]]
     dt_bbox = torch.as_tensor(dt_bbox, dtype=torch.float64)
 
     # in corresponding order, the confidence scores
-    dt_scores = [0.65, 0.95, 0.85, 0.75, 0.45]
+    dt_scores = [0.65, 0.95, 0.45, 0.75]
 
     # put into dictionary and then list form
     pred = {
@@ -122,22 +120,28 @@ if __name__ == "__main__":
     }
 
     # show
-    img_gp = show_groundtruth_and_prediction_bbox(img, smp, pred)
-    winname = 'gt (blue) and pred (pred): ' + img_name
-    cv_imshow(img_gp, winname, 2000)
+    # img_gp = show_groundtruth_and_prediction_bbox(img, smp, pred)
+    # winname = 'gt (blue) and pred (pred): ' + img_name
+    # cv_imshow(img_gp, winname, 2000)
 
     # compute IOU for each dt_bbox wrt gt_bbox:
-    igt = 0
-    idt = 0
-    boxA = gt_bbox[igt, :]
-    boxB = dt_bbox[idt, :]
-    compute_iou_bbox(boxA, boxB)
+    # igt = 0
+    # idt = 0
+    # boxA = gt_bbox[igt, :]
+    # boxB = dt_bbox[idt, :]
+    # compute_iou_bbox(boxA, boxB)
 
     # show IOU for each dt_box:
     dt_iou = []
     tp = np.zeros((len(dt_bbox),), dtype=bool)
     fp = np.zeros((len(dt_bbox),), dtype=bool)
     fn = np.zeros((len(dt_bbox),), dtype=bool)
+    tn = np.zeros((len(gt_bbox),), dtype=bool)
+    gt_iou_all = np.zeros((len(dt_bbox), len(gt_bbox)))
+
+    import code
+    code.interact(local=dict(globals(), **locals()))
+
     for i in range(len(dt_bbox[:, 0])):
         # compute iou for nearest/most overlapping gt_bbox
         gt_iou = []
@@ -145,10 +149,20 @@ if __name__ == "__main__":
             iou = compute_iou_bbox(dt_bbox[i, :], gt_bbox[j, :])
             gt_iou.append(iou)
 
+        gt_iou_all[i, :] = np.array(gt_iou)
+
         # find max iou from gt_iou list
         idx_max = gt_iou.index(max(gt_iou))
         iou_max = gt_iou[idx_max]
         dt_iou.append(iou_max)
+
+      # TODO add puttext for TP/FN/FP etc
+    # img_iou = show_groundtruth_and_prediction_bbox(img, smp, pred, iou=dt_iou)
+    # imgw= cv.cvtColor(img_iou, cv.COLOR_RGB2BGR)
+    # save_img_name = os.path.join('output', img_name[:-4] + '_iou.png')
+    # cv.imwrite(save_img_name, imgw)
+    # winname = 'iou: ' + img_name
+    # cv_imshow(img_iou, winname, 2000)
 
     # now determine if TP, FP, TN, FN
     # TP: if our dt_bbox is sufficiently within a gt_bbox with a high-enough confidence score
@@ -163,6 +177,13 @@ if __name__ == "__main__":
     tp = np.logical_and(dt_scores >= CONF_THRESH, dt_iou >= IOU_THRESH)
     fp = np.logical_and(dt_scores >= CONF_THRESH, dt_iou < IOU_THRESH)
     fn = np.array(dt_scores < CONF_THRESH)
+    tn = np.zeros((len(gt_bbox),), dtype=bool)
+
+    # any gt_bbox that sums to zero has no detections on it
+    gt_sum = np.sum(gt_iou_all, axis=0)
+    tn = gt_sum == 0
+
+    # for tn, search gt_iou_all along dimension 1, if any sum to zero then tn is +1
 
     print('true positives (if true)')
     print(tp)
@@ -170,11 +191,27 @@ if __name__ == "__main__":
     print(fp)
     print('false negatives (if true)')
     print(fn)
+    print('true negatives (if true)')
+    print(tn)
 
     # TODO add puttext for TP/FN/FP etc
-    img_iou = show_groundtruth_and_prediction_bbox(img, smp, pred, iou=dt_iou)
+    outcome = -np.ones((len(dt_bbox),), dtype=np.int16)
+    for i in range(len(outcome)):
+        if tp[i]:
+            outcome[i] = 0
+        elif fp[i]:
+            outcome[i] = 1
+        elif fn[i]:
+            outcome[i] = 2
+        else:
+            outcome[i] = 3
+            # this else should not happen for detections
+    print('outcome = ', outcome)
+    print(type(outcome))
+
+    img_iou = show_groundtruth_and_prediction_bbox(img, smp, pred, iou=dt_iou, outcome=outcome, trueneg=tn)
     imgw= cv.cvtColor(img_iou, cv.COLOR_RGB2BGR)
-    save_img_name = os.path.join('output', img_name[:-4] + '_iou.png')
+    save_img_name = os.path.join('output', img_name[:-4] + '_outcome.png')
     cv.imwrite(save_img_name, imgw)
     winname = 'iou: ' + img_name
     cv_imshow(img_iou, winname, 2000)
