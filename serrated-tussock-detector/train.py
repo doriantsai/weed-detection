@@ -49,11 +49,11 @@ if __name__ == "__main__":
     # hyperparameters
     batch_size = 5
     num_workers = 0
-    learning_rate = 0.005
+    learning_rate = 0.0005 # was 0.005 for v1
     momentum = 0.9
     weight_decay = 0.0001
     num_epochs = 100
-    step_size = round(num_epochs/4)
+    step_size = round(num_epochs/5)
 
     # make a hyperparameter dictionary
     hp={}
