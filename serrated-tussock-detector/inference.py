@@ -91,13 +91,17 @@ def show_groundtruth_and_prediction_bbox(image,
                          keep=None,
                          iou=None,
                          outcome=None,
-                         trueneg=None,
+                         falseneg=None,
                          sample_color=(0, 0, 255), #RGB
                          predictions_color=(255, 0, 0), #RGB
-                         iou_color=(60, 60, 60),  #RGB)
+                         iou_color=(255, 255, 255),  #RGB)
                          transpose_channels=True,
                          transpose_color_channels=False):
     # show image, sample/gt bounding box, and predictions bounding box together
+
+    gt_box_thick = 12
+    dt_box_thick = 6
+    out_box_thick = 3
 
     if transpose_color_channels:
         print('swap colour channels in tensor format')
@@ -148,7 +152,7 @@ def show_groundtruth_and_prediction_bbox(image,
                                      (int(bb[0]), int(bb[1])),
                                      (int(bb[2]), int(bb[3])),
                                      color=sample_color,
-                                     thickness=10)
+                                     thickness=gt_box_thick)
                 # ax.add_patch(rect)
 
     # second, plot predictions
@@ -163,7 +167,7 @@ def show_groundtruth_and_prediction_bbox(image,
                                     (int(bb[0]), int(bb[1])),
                                     (int(bb[2]), int(bb[3])),
                                     color=predictions_color,
-                                    thickness=5)
+                                    thickness=dt_box_thick)
 
                 # add text to top left corner of bounding box
                 sc = format(boxes_score[i], '.2f') # show 4 decimal places
@@ -194,7 +198,7 @@ def show_groundtruth_and_prediction_bbox(image,
 
         # fourth, add outcome (TP, FP, FN, TN)
         if (outcome is not None) and \
-            (trueneg is not None) and \
+            (falseneg is not None) and \
             (predictions is not None) and \
             (sample is not None):
             # for each prediction, there is an outcome, which is an array with 1-4
@@ -218,7 +222,7 @@ def show_groundtruth_and_prediction_bbox(image,
                                         (int(bb[0]), int(bb[1])),
                                         (int(bb[2]), int(bb[3])),
                                         color=outcome_color[outcome[i]],
-                                        thickness=5)
+                                        thickness=out_box_thick)
 
                 # add text to top left corner of bounding box
                     sc = format(boxes_score[i], '.2f') # show 4 decimal places
@@ -230,32 +234,28 @@ def show_groundtruth_and_prediction_bbox(image,
                             color=outcome_color[outcome[i]],
                             thickness=2)
 
-            # true negatives cases wrt ground-truth bounding boxes
+            # falseneg negatives cases wrt ground-truth bounding boxes
             boxes_gt = sample['boxes']
-            if len(trueneg) > 0 and len(boxes_gt) > 0:
+            if len(falseneg) > 0 and len(boxes_gt) > 0:
                 for j in range(len(boxes_gt)):
                     # groundtruth boxes already plotted, so only replot them
-                    # if truenegative
-                    if trueneg[j]:
+                    # if false negative case
+                    if falseneg[j]:
                         bb = np.array(boxes_gt[j,:].cpu(), dtype=np.float32)
                         imgnp = cv.rectangle(imgnp,
                                             (int(bb[0]), int(bb[1])),
                                             (int(bb[2]), int(bb[3])),
-                                            color=outcome_color[3],
-                                            thickness=10)
+                                            color=outcome_color[2],
+                                            thickness=out_box_thick)
                         cv.putText(imgnp,
-                            '{}: {}'.format(j, outcome_list[3]),
+                            '{}: {}'.format(j, outcome_list[2]),
                             (int(bb[0]+ 10), int(bb[1]) + 30),
                             fontFace=cv.FONT_HERSHEY_COMPLEX,
                             fontScale=1,
-                            color=outcome_color[3],
+                            color=outcome_color[2],
                             thickness=2)
 
-
-
     return imgnp
-
-
 
 
 @torch.no_grad()
@@ -422,13 +422,44 @@ if __name__ == "__main__":
         #     cv.destroyWindow(winname)
 
 
+    # test model inference on a single image to see if the predictions are changing
+    # should be consistent/not change
+    INFER_ON_SINGLE_IMAGE = True
+    if INFER_ON_SINGLE_IMAGE:
+        print('single image')
 
+        with torch.no_grad():
+            # model.eval()
+            model.to(device)
+            imgs, smps = next(iter(dataloader_test))
+            model_conf = 0.5
+            model_iou = 0.5
+            bs = 1
+            for i in range(bs):
+                img = imgs[i]
+                smp = smps[i]
+                image_id = smp['image_id']
+                print('image_id = ', str(image_id))
 
+                for j in range(10):
+                    pred, keep = get_prediction_image(model,
+                                                    img,
+                                                    model_conf,
+                                                    model_iou,
+                                                    device,
+                                                    CLASS_NAMES)
+                    print('iter: {} :: {}'.format(j, pred))
 
-    # TODO save figure
+                imgname = os.path.join('output', save_name, 'single_image_model_infer.png')
+                img_out = show_groundtruth_and_prediction_bbox(img, smp, pred)
+                cv.imwrite(imgname, img_out)
+                cv_imshow(img_out, winname='single image')
+
+                print(pred)
+
 
     # TODO interpolate from PR curve, the confidence threshold
-    INFER_ON_TEST = True
+    INFER_ON_TEST = False
     if INFER_ON_TEST:
         print('testing set')
         # model.eval()
@@ -451,8 +482,7 @@ if __name__ == "__main__":
         with open(save_output_test, 'w') as out_file:
             json.dump(out_test, ann_file, indent=4)
 
-        import code
-        code.interact(local=dict(globals(), **locals()))
+
 
         # convert per image results to per box output:
         # create a list with each box as an entry, with entries:

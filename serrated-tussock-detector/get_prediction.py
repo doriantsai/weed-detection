@@ -63,6 +63,7 @@ def get_prediction_image(model, image, confidence_threshold, iou_threshold, devi
 
     # image in should be a tensor, because it's coming from a dataloader
     # for now, assume it is a single image, as opposed to a batch of images
+    model.eval()
     if torch.cuda.is_available():
         image = image.to(device)
     pred = model([image])
