@@ -123,7 +123,9 @@ if __name__ == "__main__":
     model.eval()
 
     # setup new dataset to be labelled/bootstrapped
-    root_dir = os.path.join('/home', 'dorian', 'Data', 'SerratedTussockDataset_v2')
+    # root_dir = os.path.join('/home', 'dorian', 'Data', 'SerratedTussockDataset_v1')
+    # root_dir = os.path.join('/home', 'dorian', 'Data', 'SerratedTussockDataset_v2')
+    root_dir = os.path.join('/home', 'dorian', 'Data', 'JohMakoDataset_v0')
     json_file = os.path.join('Annotations', 'via_region_data_bootstrap.json')
     save_file = os.path.join(root_dir, json_file)
 

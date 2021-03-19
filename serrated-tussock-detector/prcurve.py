@@ -67,8 +67,7 @@ def compute_outcome_image(pred, sample, IOU_THRESH, CONF_THRESH):
         dt_assignment.append(idx_max)
 
     # assign dt_bbox to gt_bbox
-    # for j in range(len(gt_bbox)):
-    # TODO need to find any gt_indices that are not in dt_assignment
+    # need to find any gt_indices that are not in dt_assignment
     # for each index in gt_bbox, search dt_assignment, if index matches an
     # element in dt_assignment, then ok/set gt_assignment = True (def False)
     # any falses are true negatives
@@ -79,7 +78,7 @@ def compute_outcome_image(pred, sample, IOU_THRESH, CONF_THRESH):
     # print('gt_assigned = ', gt_assigned)
     # gt2dt_assignment = np.array(dt_assignment)
 
-    # now determine if TP, FP, TN, FN
+    # now determine if TP, FP, FN
     # TP: if our dt_bbox is sufficiently within a gt_bbox with a high-enough confidence score
     #   we found the right thing
     # FP: if our dt_bbox is a high confidence score, but is not sufficiently within a gt_bbox (iou is low)
@@ -87,20 +86,21 @@ def compute_outcome_image(pred, sample, IOU_THRESH, CONF_THRESH):
     # FN: if our dd_bbox is within a gt_bbox, but has low confidence score
     #   we didn't find the right thing
     # TN: basically everything else in the scene, not wholely relevant for PR-curves
+
+    # From the slides:
+    # TP: we correctly found the weed
+    # FP: we think we found the weed, but we did not
+    # FN: we missed a weed
+    # TN: we correctly ignored everything else we were not interested in (doesn't really show up for binary detectors)
     dt_iou = np.array(dt_iou)
     dt_scores = np.array(dt_scores)
     tp = np.logical_and(dt_scores >= CONF_THRESH, dt_iou >= IOU_THRESH)
-    fp = np.logical_and(dt_scores >= CONF_THRESH, dt_iou < IOU_THRESH)
-    fn = np.array(dt_scores < CONF_THRESH)
-    tn = np.zeros((len(gt_bbox),), dtype=bool)
-
-    # any gt_bbox that sums to zero has no detections on it
-    # gt_sum = np.sum(gt_iou_all, axis=0)
-    # tn = gt_sum == 0
-    tn = np.logical_not(gt_assigned)
+    fp = np.logical_or(np.logical_and(dt_scores < CONF_THRESH, dt_iou >= IOU_THRESH), dt_iou < IOU_THRESH )
+    # fn = np.zeros((len(gt_bbox),), dtype=bool)
+    fn = np.logical_not(gt_assigned)
 
     # define outcome as an array, each element corresponding to
-    # tp/fp/fn/tn for 0/1/2/3, respectively
+    # tp/fp/fn for 0/1/2, respectively
     outcome = -np.ones((len(dt_bbox),), dtype=np.int16)
     for i in range(len(outcome)):
         if tp[i]:
@@ -110,7 +110,7 @@ def compute_outcome_image(pred, sample, IOU_THRESH, CONF_THRESH):
         elif fn[i]:
             outcome[i] = 2
 
-    return outcome, tn, tp, fp, fn, dt_iou
+    return outcome, fn, tp, fp, dt_iou
 
 
 def compute_single_pr_over_dataset(model,
@@ -141,10 +141,10 @@ def compute_single_pr_over_dataset(model,
                                           device,
                                           class_names)
 
-        outcome, tn, tp, fp, fn , dt_iou = compute_outcome_image(pred,
-                                                                 sample,
-                                                                 OUTCOME_IOU_THRESH,
-                                                                 OUTCOME_CONF_THRESH)
+        outcome, fn, tp, fp , dt_iou = compute_outcome_image(pred,
+                                                             sample,
+                                                             OUTCOME_IOU_THRESH,
+                                                             OUTCOME_CONF_THRESH)
 
         # show for given image:
         img_out = show_groundtruth_and_prediction_bbox(image,
@@ -152,7 +152,7 @@ def compute_single_pr_over_dataset(model,
                                                        pred,
                                                        iou=dt_iou,
                                                        outcome=outcome,
-                                                       trueneg=tn)
+                                                       falseneg=fn)
 
         imgw = cv.cvtColor(img_out, cv.COLOR_RGB2BGR)
         save_img_name = os.path.join('output', save_name, img_name + '_outcome.png')
@@ -163,13 +163,13 @@ def compute_single_pr_over_dataset(model,
         tp_sum += np.sum(tp)
         fp_sum += np.sum(fp)
         fn_sum += np.sum(fn)
-        tn_sum += np.sum(tn)
+        # tn_sum += np.sum(tn)
         # end per image outcome calculations
 
     print('tp sum: ', tp_sum)
     print('fp sum: ', fp_sum)
     print('fn sum: ', fn_sum)
-    print('tn sum: ', tn_sum)
+    # print('tn sum: ', tn_sum)
 
     prec = tp_sum / (tp_sum + fp_sum)
     rec = tp_sum / (tp_sum + fn_sum)
@@ -230,13 +230,13 @@ if __name__ == "__main__":
     # model iou threshold - used for doing non-maxima suppression at the end of model output
     MODEL_IOU_THRESH = 0.5
     # model confidence threshold - used for thresholding model output
-    MODEL_CONF_THRESH = 0.3
+    MODEL_CONF_THRESH = 0.5
     # outcome iou threshold - used for determining how much overlap between
     # detection and groundtruth bounding boxes is sufficient to be a TP
     OUTCOME_IOU_THRESH = 0.6
     # outcome confidence threshold - used for determining how much confidence is
     # required to be a TP
-    OUTCOME_CONF_THRESH = np.linspace(start=0.05, stop=0.95, num=51, endpoint=True)
+    OUTCOME_CONF_THRESH = np.linspace(start=0.1, stop=0.9, num=3, endpoint=True)
 
     # iterate over confidence threshold
     prec = []
@@ -245,7 +245,7 @@ if __name__ == "__main__":
         # get single pr over entire dataset,
         print('outcome confidence threshold: {}'.format(conf))
         p, r = compute_single_pr_over_dataset(model,
-                                              dataset_test,
+                                              dataset_train,
                                               save_name,
                                               MODEL_IOU_THRESH,
                                               MODEL_CONF_THRESH,

@@ -1,11 +1,13 @@
 #! /usr/bin/env python
 
+# NOTE This code is superseded by prcurve.py
+
 import torch
 import os
 import pickle
 import json
 import cv2 as cv
-import matplotlib.pyplot as plt
+import matplotlib.pyplot as pl  t
 import numpy as np
 
 from PIL import Image
@@ -175,13 +177,13 @@ if __name__ == "__main__":
     dt_iou = np.array(dt_iou)
     dt_scores = np.array(dt_scores)
     tp = np.logical_and(dt_scores >= CONF_THRESH, dt_iou >= IOU_THRESH)
-    fp = np.logical_and(dt_scores >= CONF_THRESH, dt_iou < IOU_THRESH)
-    fn = np.array(dt_scores < CONF_THRESH)
-    tn = np.zeros((len(gt_bbox),), dtype=bool)
+    fp = np.logical_or(np.logical_and(dt_scores < CONF_THRESH, dt_iou >= IOU_THRESH), dt_iou < IOU_THRESH )
+    # fn = np.logical_and(dt_scores >= CONF_THRESH, dt_iou < IOU_THRESH)
+    fn = np.zeros((len(gt_bbox),), dtype=bool)
 
     # any gt_bbox that sums to zero has no detections on it
     gt_sum = np.sum(gt_iou_all, axis=0)
-    tn = gt_sum == 0
+    fn = gt_sum == 0
 
     # for tn, search gt_iou_all along dimension 1, if any sum to zero then tn is +1
 
@@ -191,8 +193,8 @@ if __name__ == "__main__":
     print(fp)
     print('false negatives (if true)')
     print(fn)
-    print('true negatives (if true)')
-    print(tn)
+    # print('true negatives (if true)')
+    # print(tn)
 
     # TODO add puttext for TP/FN/FP etc
     outcome = -np.ones((len(dt_bbox),), dtype=np.int16)
@@ -209,7 +211,7 @@ if __name__ == "__main__":
     print('outcome = ', outcome)
     print(type(outcome))
 
-    img_iou = show_groundtruth_and_prediction_bbox(img, smp, pred, iou=dt_iou, outcome=outcome, trueneg=tn)
+    img_iou = show_groundtruth_and_prediction_bbox(img, smp, pred, iou=dt_iou, outcome=outcome, trueneg=fn)
     imgw= cv.cvtColor(img_iou, cv.COLOR_RGB2BGR)
     save_img_name = os.path.join('output', img_name[:-4] + '_outcome.png')
     cv.imwrite(save_img_name, imgw)
