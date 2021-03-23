@@ -16,6 +16,9 @@ import json
 import pickle
 import datetime
 
+import cv2 as cv
+import matplotlib.pyplot as plt
+
 from PIL import Image
 from torch.utils.tensorboard import SummaryWriter
 from engine_st import train_one_epoch, evaluate
@@ -67,7 +70,7 @@ if __name__ == "__main__":
     # ------------------------------ #
     # directories
     # TODO add date/time to filename
-    save_name = 'fasterrcnn-serratedtussock-3'
+    save_name = 'fasterrcnn-serratedtussock-4'
     save_folder = os.path.join('output', save_name)
     if not os.path.isdir(save_folder):
         os.mkdir(save_folder)
@@ -84,28 +87,39 @@ if __name__ == "__main__":
     save_detector_train_path = os.path.join('.', 'output', save_name, save_name + '.pkl')
 
     # setup transforms to operate on dataset images
-    tforms = Compose([Rescale(800),
-                      RandomHorizontalFlip(0.5),
-                      Blur(5, (0.5, 2.0)),
-                      ToTensor()])
+    tforms_train = Compose([Rescale(800),
+                            RandomHorizontalFlip(1),
+                            Blur(5, (0.5, 2.0)),
+                            ToTensor()])
+    tforms_test = Compose([Rescale(800),
+                           ToTensor()])
 
-    dataset = SerratedTussockDataset(root_dir=root_dir,
-                                     json_file=json_file,
-                                     transforms=tforms)
+    # TODO apply training transforms and testing transforms separately
+    # otherwise testing set changes
+    dataset_tform_train = SerratedTussockDataset(root_dir=root_dir,
+                                           json_file=json_file,
+                                           transforms=tforms_train)
+    dataset_tform_test = SerratedTussockDataset(root_dir=root_dir,
+                                          json_file=json_file,
+                                          transforms=tforms_test)
 
     # class definitions
     class_names = ["_background_", "serrated tussock"]
 
-    # split into training, validation and testing
-    nimg = len(dataset)
+    # split into training, validation and testing - note: we're only after the indices here
+    nimg = len(dataset_tform_test)
     ntrain_val = 120  # select number of images for training dataset
-    dataset_train_and_val, dataset_test = torch.utils.data.random_split(dataset,
+    dataset_train_and_val, dataset_test = torch.utils.data.random_split(dataset_tform_test,
                                                 [ntrain_val, nimg - ntrain_val])
 
     # further split the training/val dataset
     ntrain = 100
     dataset_train, dataset_val = torch.utils.data.random_split(dataset_train_and_val,
                                                     [ntrain, ntrain_val - ntrain])
+
+    # adjust the transforms for the training set
+    # dataset_train.dataset.dataset.set_transform(tforms_train)
+    dataset_train.dataset.dataset = dataset_tform_train
 
     # setup dataloaders for efficient access to datasets
     dataloader_train = torch.utils.data.DataLoader(dataset_train,
@@ -125,6 +139,38 @@ if __name__ == "__main__":
                                                   shuffle=False,
                                                   num_workers=num_workers,
                                                   collate_fn=utils.collate_fn)
+
+    with open(save_detector_train_path, 'wb') as f:
+        pickle.dump(dataset_tform_test, f)
+        pickle.dump(dataset_tform_train, f)
+        pickle.dump(dataset_train, f)
+        pickle.dump(dataset_val, f)
+        pickle.dump(dataset_test, f)
+        pickle.dump(dataloader_test, f)
+        pickle.dump(dataloader_train, f)
+        pickle.dump(dataloader_val, f)
+        pickle.dump(hp, f)
+
+    # TODO test if dataloader_train has randomly horizontal flipped images
+    # imgs_t, smps_t = next(iter(dataloader_train))
+    # print('dataloader_train: image should be flipped')
+    # print(smps_t[1]['image_id'])
+    # imgnp = imgs_t[1].cpu().numpy()
+    # imgnp = np.transpose(imgnp, (1, 2, 0))
+    # plt.imshow(imgnp)
+    # plt.show()
+
+    # imgs, smps = next(iter(dataloader_test))
+    # print('dataloader_test: image should NOT be flipped')
+    # print(smps[1]['image_id'])
+    # imgnp = imgs[1].cpu().numpy()
+    # imgnp = np.transpose(imgnp, (1, 2, 0))
+    # plt.imshow(imgnp)
+    # plt.show()
+
+    import code
+    code.interact(local=dict(globals(), **locals()))
+
 
     # build model
     # setup number of classes (1 background, 1 class - serrated tussock)
@@ -200,11 +246,18 @@ if __name__ == "__main__":
     mt_eval, ccres = evaluate(model, dataloader_test, device, conf, iou, class_names)
 
     # save trained model for inference
-    torch.save(model.state_dict(), save_path)
+    # torch.save(model.state_dict(), save_path)
+    # x = {'state_dict': modeel.state_dict(),
+    # 'hp': hp
+    # }
+    # torch.save(x,save_path)
 
+    model.load_state_dict(file['state_dict'])
+    print(file['hp'])
     # should also save the training and testing datasets/loaders for easier "test.py" setup
     with open(save_detector_train_path, 'wb') as f:
-        pickle.dump(dataset, f)
+        pickle.dump(dataset_tform_test, f)
+        pickle.dump(dataset_tform_train, f)
         pickle.dump(dataset_train, f)
         pickle.dump(dataset_val, f)
         pickle.dump(dataset_test, f)
