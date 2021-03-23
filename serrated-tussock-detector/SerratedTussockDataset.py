@@ -102,6 +102,15 @@ class SerratedTussockDataset(object):
         return len(self.annotations)
 
 
+    def set_transform(self, tforms):
+        """
+        set the transforms
+        """
+        # TODO assert for valid input
+        # tforms must be callable and operate on an image
+        self.transforms = tforms
+
+
 class Compose(object):
     """ Compose for set of transforms """
 

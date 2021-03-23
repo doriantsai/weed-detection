@@ -333,12 +333,12 @@ if __name__ == "__main__":
 
     # load model
 
-    # model = build_model(nclasses)
+    # model = build_modegit statl(nclasses)
 
     num_classes = 2
     CLASS_NAMES = ["_background_", "serrated tussock"]
     # load instance segmentation model pre-trained on coco:
-    model = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=True)
+    model = torchvision.models.detection.fasterrcnn_resnet50_fpn()
     # get number of input features for the classifier
     in_features = model.roi_heads.box_predictor.cls_score.in_features
     # replace the pre-trained head with a new one
@@ -356,7 +356,8 @@ if __name__ == "__main__":
     # load stuff:
     data_save_path = os.path.join('.', 'output', save_name, save_name + '.pkl')
     with open(data_save_path, 'rb') as f:
-        dataset = pickle.load(f)
+        dataset_tform_test = pickle.load(f)
+        dataset_tform_train = pickle.load(f)
         dataset_train = pickle.load(f)
         dataset_val = pickle.load(f)
         dataset_test = pickle.load(f)
@@ -456,7 +457,6 @@ if __name__ == "__main__":
                 cv_imshow(img_out, winname='single image')
 
                 print(pred)
-
 
     # TODO interpolate from PR curve, the confidence threshold
     INFER_ON_TEST = False
