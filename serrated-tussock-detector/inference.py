@@ -89,12 +89,10 @@ def show_groundtruth_and_prediction_bbox(image,
                          sample=None,
                          predictions=None,
                          keep=None,
-                         iou=None,
-                         outcome=None,
-                         falseneg=None,
+                         outcomes=None,
                          sample_color=(0, 0, 255), #RGB
                          predictions_color=(255, 0, 0), #RGB
-                         iou_color=(255, 255, 255),  #RGB)
+                         iou_color=(255, 255, 255),  #RGB
                          transpose_channels=True,
                          transpose_color_channels=False):
     # show image, sample/gt bounding box, and predictions bounding box together
@@ -180,7 +178,9 @@ def show_groundtruth_and_prediction_bbox(image,
                           thickness=2)
 
         # third, add iou
-        if (iou is not None) and (predictions is not None):
+        if (outcomes is not None) and (predictions is not None):
+            iou = outcomes['dt_iou']
+
             # iou should be a list or array with iou values for each boxes_pd
             boxes_pd = predictions['boxes']
             if len(iou) > 0 and len(boxes_pd) > 0:
@@ -197,8 +197,7 @@ def show_groundtruth_and_prediction_bbox(image,
                                thickness=2)
 
         # fourth, add outcome (TP, FP, FN, TN)
-        if (outcome is not None) and \
-            (falseneg is not None) and \
+        if (outcomes is not None) and \
             (predictions is not None) and \
             (sample is not None):
             # for each prediction, there is an outcome, which is an array with 1-4
@@ -214,33 +213,44 @@ def show_groundtruth_and_prediction_bbox(image,
                              (255, 0, 0),   # FN - red
                              (0, 0, 0)]     # TN - black
             boxes_pd = predictions['boxes']
-            if len(outcome) > 0 and len(boxes_pd) > 0:
+            # outcomes = {'dt_outcome': dt_outcome, # detections, integer index for tp/fp/fn
+            # 'gt_outcome': gt_outcome, # groundtruths, integer index for fn
+            # 'dt_match': dt_match, # detections, boolean matched or not
+            # 'gt_match': gt_match, # gt, boolean matched or not
+            # 'fn_gt': fn_gt, # boolean for gt false negatives
+            # 'fn_dt': fn_dt, # boolean for dt false negatives
+            # 'tp': tp, # true positives for detections
+            # 'fp': fp, # false positives for detections
+            # 'dt_iou': dt_iou} # intesection over union scores for detections
+            dt_outcome = outcomes['dt_outcome']
+            if len(dt_outcome) > 0 and len(boxes_pd) > 0:
                 for i in range(len(boxes_pd)):
                     # replot the detection boxes' colour based on outcome
                     bb = np.array(boxes_pd[i], dtype=np.float32)  # TODO might just specify np.int16?
                     imgnp = cv.rectangle(imgnp,
                                         (int(bb[0]), int(bb[1])),
                                         (int(bb[2]), int(bb[3])),
-                                        color=outcome_color[outcome[i]],
+                                        color=outcome_color[dt_outcome[i]],
                                         thickness=out_box_thick)
 
                 # add text to top left corner of bounding box
                     sc = format(boxes_score[i], '.2f') # show 4 decimal places
                     cv.putText(imgnp,
-                            '{}: {}/{}'.format(i, sc, outcome_list[outcome[i]]),
+                            '{}: {}/{}'.format(i, sc, outcome_list[dt_outcome[i]]),
                             (int(bb[0]+ 10), int(bb[1]) + 30),
                             fontFace=cv.FONT_HERSHEY_COMPLEX,
                             fontScale=1,
-                            color=outcome_color[outcome[i]],
+                            color=outcome_color[dt_outcome[i]],
                             thickness=2)
 
             # falseneg negatives cases wrt ground-truth bounding boxes
             boxes_gt = sample['boxes']
-            if len(falseneg) > 0 and len(boxes_gt) > 0:
+            fn_gt = outcomes['fn_gt']
+            if len(fn_gt) > 0 and len(boxes_gt) > 0:
                 for j in range(len(boxes_gt)):
                     # groundtruth boxes already plotted, so only replot them
                     # if false negative case
-                    if falseneg[j]:
+                    if fn_gt[j]:
                         bb = np.array(boxes_gt[j,:].cpu(), dtype=np.float32)
                         imgnp = cv.rectangle(imgnp,
                                             (int(bb[0]), int(bb[1])),
