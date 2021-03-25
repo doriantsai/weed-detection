@@ -38,46 +38,121 @@ def compute_iou_bbox(boxA, boxB):
     return iou
 
 
+def compute_match_cost(score, iou, weights=None):
+    # compute match cost based on score and iou
+    # this is the arithmetic mean, consider the geometric mean
+    # https://en.wikipedia.org/wiki/Geometric_mean
+    # which automatically punishes the 0 IOU case because of the multiplication
+    # small numbers penalized harder?
+    if weights is None:
+        weights = np.array([0.5, 0.5])
+    # cost = weights[0] * score + weights[1] * iou
+    cost = np.sqrt(score * iou)
+    return cost
+
+
 def compute_outcome_image(pred, sample, IOU_THRESH, CONF_THRESH):
 
     # output: outcome, tn, fp, fn, tp for the image
     dt_bbox = pred['boxes']
     dt_scores = pred['scores']
     gt_bbox = sample['boxes']
-    # compute ious
-    dt_iou = []
-    tp = np.zeros((len(dt_bbox),), dtype=bool)
-    fp = np.zeros((len(dt_bbox),), dtype=bool)
-    fn = np.zeros((len(dt_bbox),), dtype=bool)
-    gt_iou_all = np.zeros((len(dt_bbox), len(gt_bbox)))
 
-    dt_assignment = []
-    for i in range(len(dt_bbox)):
+    ndt = len(dt_bbox)
+    ngt = len(gt_bbox)
+
+    # compute ious
+
+    gt_iou_all = np.zeros((ndt, ngt))
+
+    # for each detection bounding box, find the best-matching groundtruth bounding box
+    # gt/dt_match is False - not matched, True - matched
+    dt_match = np.zeros((ndt,), dtype=bool)
+    gt_match = np.zeros((ngt,), dtype=bool)
+
+    # gt/dt_match_id is the index of the match vector
+    # eg. gt = [1 0 2 -1] specifies that
+    # gt_bbox[0] is matched to dt_bbox[1],
+    # gt_bbox[1] is matched to dt_bbox[0],
+    # gt_bbox[2] is matched to dt_bbox[2],
+    # gt_bbox[3] is not matched to any dt_bbox
+    dt_match_id = -np.ones((ndt,), dtype=int)
+    gt_match_id = -np.ones((ngt,), dtype=int)
+
+    # dt_assignment_idx = -np.ones((len(dt_bbox),), dtype=int)
+
+    # for each dt_bbox, compute iou and record confidence score
+    for i in range(ndt):
         gt_iou = []
-        for j in range(len(gt_bbox)):
+        for j in range(ngt):
             iou = compute_iou_bbox(dt_bbox[i], gt_bbox[j])
             gt_iou.append(iou)
 
         gt_iou_all[i, :] = np.array(gt_iou)
 
+        # NOTE finding the max is insufficient
+        # dt_score also important consideration
         # find max iou from gt_iou list
-        idx_max = gt_iou.index(max(gt_iou))
-        iou_max = gt_iou[idx_max]
-        dt_iou.append(iou_max)
-        dt_assignment.append(idx_max)
+        # idx_max = gt_iou.index(max(gt_iou))
+        # iou_max = gt_iou[idx_max]
+        # dt_iou.append(iou_max)
+        # dt_assignment_idx[i] = idx_max
 
-    # assign dt_bbox to gt_bbox
-    # need to find any gt_indices that are not in dt_assignment
-    # for each index in gt_bbox, search dt_assignment, if index matches an
-    # element in dt_assignment, then ok/set gt_assignment = True (def False)
-    # any falses are true negatives
-    gt_assigned = np.zeros((len(gt_bbox),), dtype=bool)
-    for j in range(len(gt_bbox)):
-        if j in dt_assignment:
-            gt_assigned[j] = True
-    # print('gt_assigned = ', gt_assigned)
-    # gt2dt_assignment = np.array(dt_assignment)
+    # calculate cost of each match/assignment
+    cost = np.zeros((ndt, ngt))
+    for i in range(ndt):
+        for j in range(ngt):
+            cost[i,j] = compute_match_cost(dt_scores[i], gt_iou_all[i, j])
 
+    # choose assignment based on max of matrix. If equal cost, we choose the first match
+    # higher cost is good - more confidence, more overlap
+    # print(cost)
+
+    # for each ndt, pick the max in cost as the match
+    # ids_max = cost.argmax(axis=1)  # axis 1 - find max for each dt_bbox
+    # TODO check len(ids_max) == ndt
+    # TODO sort cost matrix
+    # TODO for each iteratively check from the top until a valid assignment is found
+    dt_iou = -np.ones((ndt,))
+    for i in range(ndt):
+        dt_cost = cost[i, :]
+        i_cost_srt = np.argsort(dt_cost)[::-1]   # sort costs in descending order
+        # choose assignment based on decision thresholds:
+        # if iou is 0, it is not an assignment
+        # if dt_score and iou are not high enough, it is not an assignment
+        # repeat this until end of gt_bbox, we stop after the first
+        for j in i_cost_srt:
+            if gt_iou_all[i,j] == 0:
+                # no overlap
+                dt_iou[i] = gt_iou_all[i,j]
+                continue
+            elif dt_scores[i] < CONF_THRESH or gt_iou_all[i,j] < IOU_THRESH:
+                dt_iou[i] = gt_iou_all[i,j]
+                # TODO replace this with a single threshold that combines IOU and CONF?
+                # confidence or iou overlap too low
+                continue
+            else:
+                # an assignment is made:
+                # save dt_match_id, gt_match_id,
+                # dt_match, gt_match = True
+                dt_match[i] = True
+                gt_match[j] = True
+                dt_match_id[i] = j
+                gt_match_id[j] = i
+
+                # set dt_iou to the correct i,j from gt_iou_all
+                dt_iou[i] = gt_iou_all[i,j]
+
+                continue
+                # TODO check if this is done right!
+                # TODO ensure unique
+
+
+
+
+    tp = np.zeros((ndt,), dtype=bool)
+    fp = np.zeros((ndt,), dtype=bool)
+    # fn = np.zeros((ngt,), dtype=bool)
     # now determine if TP, FP, FN
     # TP: if our dt_bbox is sufficiently within a gt_bbox with a high-enough confidence score
     #   we found the right thing
@@ -94,23 +169,67 @@ def compute_outcome_image(pred, sample, IOU_THRESH, CONF_THRESH):
     # TN: we correctly ignored everything else we were not interested in (doesn't really show up for binary detectors)
     dt_iou = np.array(dt_iou)
     dt_scores = np.array(dt_scores)
-    tp = np.logical_and(dt_scores >= CONF_THRESH, dt_iou >= IOU_THRESH)
-    fp = np.logical_or(np.logical_and(dt_scores < CONF_THRESH, dt_iou >= IOU_THRESH), dt_iou < IOU_THRESH )
+
+    # TP: if dt_match True, also, scores above certain threshold
+    tp = np.logical_and(dt_match, dt_scores >= CONF_THRESH)
+    # tp = np.logical_and(dt_scores >= CONF_THRESH, dt_iou >= IOU_THRESH)
+    fp = np.logical_or(np.logical_not(dt_match), np.logical_and(dt_match, dt_scores < CONF_THRESH))
+    # fp = np.logical_or(np.logical_and(dt_scores < CONF_THRESH, dt_iou >= IOU_THRESH), dt_iou < IOU_THRESH )
+    # dt_assigned = np.logical_or(tp, fp)
     # fn = np.zeros((len(gt_bbox),), dtype=bool)
-    fn = np.logical_not(gt_assigned)
+    fn_gt = np.logical_not(gt_match)
+    fn_dt = np.logical_and(dt_match, dt_scores < CONF_THRESH)
+
+    # import code
+    # code.interact(local=dict(globals(), **locals()))
+
+
+    # gt_assigned = np.zeros((len(gt_bbox),), dtype=bool)
+
+    # for j in range(len(gt_bbox)):
+
+    #     if j in dt_assignment_idx:
+    #         # find all idx of dt_assignment_idx that j matches to
+    #         # j = dt_assignment_idx[?]
+    #         dt_idx = []
+    #         for i in dt_assignment_idx:
+    #             if j == i:
+    #                 dt_idx.append(i)
+
+    #         if len(dt_idx) > 0:
+    #             for k in dt_idx:
+    #                 if tp[k]:
+    #                     gt_assigned[j] = True
+    # fn = np.logical_not(gt_assigned)
+
 
     # define outcome as an array, each element corresponding to
     # tp/fp/fn for 0/1/2, respectively
-    outcome = -np.ones((len(dt_bbox),), dtype=np.int16)
-    for i in range(len(outcome)):
+    dt_outcome = -np.ones((ndt,), dtype=np.int16)
+    for i in range(ndt):
         if tp[i]:
-            outcome[i] = 0
+            dt_outcome[i] = 0
         elif fp[i]:
-            outcome[i] = 1
-        elif fn[i]:
-            outcome[i] = 2
+            dt_outcome[i] = 1
+        elif fn_dt[i]:
+            dt_outcome[i] = 2
 
-    return outcome, fn, tp, fp, dt_iou
+    gt_outcome = -np.ones((ngt,), dtype=np.int16)
+    for j in range(ngt):
+        if fn_gt[j]:
+            gt_outcome = 1
+
+    # package outcomes
+    outcomes = {'dt_outcome': dt_outcome, # detections, integer index for tp/fp/fn
+                'gt_outcome': gt_outcome, # groundtruths, integer index for fn
+                'dt_match': dt_match, # detections, boolean matched or not
+                'gt_match': gt_match, # gt, boolean matched or not
+                'fn_gt': fn_gt, # boolean for gt false negatives
+                'fn_dt': fn_dt, # boolean for dt false negatives
+                'tp': tp, # true positives for detections
+                'fp': fp, # false positives for detections
+                'dt_iou': dt_iou} # intesection over union scores for detections
+    return outcomes
 
 
 def compute_single_pr_over_dataset(model,
@@ -127,7 +246,8 @@ def compute_single_pr_over_dataset(model,
     fp_sum = 0
     tn_sum = 0
     fn_sum = 0
-
+    gt_sum = 0
+    idx = 0
     for image, sample in dataset:
 
         image_id = sample['image_id'].item()
@@ -141,18 +261,16 @@ def compute_single_pr_over_dataset(model,
                                           device,
                                           class_names)
 
-        outcome, fn, tp, fp , dt_iou = compute_outcome_image(pred,
-                                                             sample,
-                                                             OUTCOME_IOU_THRESH,
-                                                             OUTCOME_CONF_THRESH)
+        outcomes = compute_outcome_image(pred,
+                                         sample,
+                                         OUTCOME_IOU_THRESH,
+                                         OUTCOME_CONF_THRESH)
 
         # show for given image:
         img_out = show_groundtruth_and_prediction_bbox(image,
                                                        sample,
                                                        pred,
-                                                       iou=dt_iou,
-                                                       outcome=outcome,
-                                                       falseneg=fn)
+                                                       outcomes=outcomes)
 
         imgw = cv.cvtColor(img_out, cv.COLOR_RGB2BGR)
         save_img_name = os.path.join('output', save_name, img_name + '_outcome.png')
@@ -160,15 +278,29 @@ def compute_single_pr_over_dataset(model,
         # winname = 'outcome: ' + img_name
         # cv_imshow(img_out, winname, 1000)
 
+        tp = outcomes['tp']
+        fp = outcomes['fp']
+        fn_gt = outcomes['fn_gt']
+        fn_dt = outcomes['fn_dt']
+        fn = np.concatenate((fn_gt, fn_dt), axis=0)
+        gt = len(outcomes['gt_match'])
+
         tp_sum += np.sum(tp)
         fp_sum += np.sum(fp)
         fn_sum += np.sum(fn)
+        gt_sum += np.sum(gt)
         # tn_sum += np.sum(tn)
         # end per image outcome calculations
+
+        idx += 1
+        if idx > 10:
+            break
 
     print('tp sum: ', tp_sum)
     print('fp sum: ', fp_sum)
     print('fn sum: ', fn_sum)
+    print('gt sum: ', gt_sum)
+    print('tp + fn = ', tp_sum + fn_sum)
     # print('tn sum: ', tn_sum)
 
     prec = tp_sum / (tp_sum + fp_sum)
@@ -216,7 +348,8 @@ if __name__ == "__main__":
     # here, order matters (order in = order out)
     data_save_path = os.path.join('output', save_name, save_name + '.pkl')
     with open(data_save_path, 'rb') as f:
-        dataset = pickle.load(f)
+        dataset_tform_test = pickle.load(f)
+        dataset_tform_train = pickle.load(f)
         dataset_train = pickle.load(f)
         dataset_val = pickle.load(f)
         dataset_test = pickle.load(f)
@@ -224,35 +357,60 @@ if __name__ == "__main__":
         dataloader_train = pickle.load(f)
         dataloader_val = pickle.load(f)
         hp = pickle.load(f)
-
+    # with open(save_detector_train_path, 'wb') as f:
+    #         pickle.dump(dataset_tform_test, f)
+    #         pickle.dump(dataset_tform_train, f)
+    #         pickle.dump(dataset_train, f)
+    #         pickle.dump(dataset_val, f)
+    #         pickle.dump(dataset_test, f)
+    #         pickle.dump(dataloader_test, f)
+    #         pickle.dump(dataloader_train, f)
+    #         pickle.dump(dataloader_val, f)
+    #         pickle.dump(hp, f)
 
     # set thresholds
     # model iou threshold - used for doing non-maxima suppression at the end of model output
     MODEL_IOU_THRESH = 0.5
     # model confidence threshold - used for thresholding model output
-    MODEL_CONF_THRESH = 0.5
+    MODEL_CONF_THRESH = 0.1
+
     # outcome iou threshold - used for determining how much overlap between
     # detection and groundtruth bounding boxes is sufficient to be a TP
-    OUTCOME_IOU_THRESH = 0.6
+    OUTCOME_IOU_THRESH = 0.5
     # outcome confidence threshold - used for determining how much confidence is
     # required to be a TP
-    OUTCOME_CONF_THRESH = np.linspace(start=0.1, stop=0.9, num=3, endpoint=True)
+    # OUTCOME_CONF_THRESH = np.linspace(start=0.1, stop=0.18, num=2, endpoint=True)
+    OUTCOME_CONF_THRESH = np.array([0.4])
 
     # iterate over confidence threshold
     prec = []
     rec = []
-    for c, conf in enumerate(OUTCOME_CONF_THRESH):
-        # get single pr over entire dataset,
-        print('outcome confidence threshold: {}'.format(conf))
+    if (OUTCOME_CONF_THRESH) <= 1:
         p, r = compute_single_pr_over_dataset(model,
-                                              dataset_train,
+                                              dataset_test,
                                               save_name,
                                               MODEL_IOU_THRESH,
                                               MODEL_CONF_THRESH,
                                               OUTCOME_IOU_THRESH,
-                                              conf)
+                                              OUTCOME_CONF_THRESH)
+
         prec.append(p)
         rec.append(r)
+    else:
+        for c, conf in enumerate(OUTCOME_CONF_THRESH):
+            # get single pr over entire dataset,
+            print('outcome confidence threshold: {}'.format(conf))
+            p, r = compute_single_pr_over_dataset(model,
+                                                dataset_test,
+                                                save_name,
+                                                MODEL_IOU_THRESH,
+                                                MODEL_CONF_THRESH,
+                                                OUTCOME_IOU_THRESH,
+                                                conf)
+            prec.append(p)
+            rec.append(r)
+            # import code
+            # code.interact(local=dict(globals(), **locals()))
 
     print(prec)
     print(rec)
@@ -264,6 +422,7 @@ if __name__ == "__main__":
     plt.xlabel('recall')
     plt.ylabel('precision')
     plt.title('precision-recall for varying confidence')
+    # TODO make dir if does not yet exist
     save_plot_name = os.path.join('output', save_name, save_name + '_pr.png')
     plt.savefig(save_plot_name)
 

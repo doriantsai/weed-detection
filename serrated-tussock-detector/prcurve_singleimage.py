@@ -7,7 +7,7 @@ import os
 import pickle
 import json
 import cv2 as cv
-import matplotlib.pyplot as pl  t
+import matplotlib.pyplot as plt
 import numpy as np
 
 from PIL import Image
@@ -138,12 +138,10 @@ if __name__ == "__main__":
     tp = np.zeros((len(dt_bbox),), dtype=bool)
     fp = np.zeros((len(dt_bbox),), dtype=bool)
     fn = np.zeros((len(dt_bbox),), dtype=bool)
-    tn = np.zeros((len(gt_bbox),), dtype=bool)
+    # tn = np.zeros((len(gt_bbox),), dtype=bool)
     gt_iou_all = np.zeros((len(dt_bbox), len(gt_bbox)))
 
-    import code
-    code.interact(local=dict(globals(), **locals()))
-
+    dt_assignment_idx = -np.ones((len(dt_bbox),), dtype=int)
     for i in range(len(dt_bbox[:, 0])):
         # compute iou for nearest/most overlapping gt_bbox
         gt_iou = []
@@ -157,6 +155,7 @@ if __name__ == "__main__":
         idx_max = gt_iou.index(max(gt_iou))
         iou_max = gt_iou[idx_max]
         dt_iou.append(iou_max)
+        dt_assignment_idx[i] = idx_max
 
       # TODO add puttext for TP/FN/FP etc
     # img_iou = show_groundtruth_and_prediction_bbox(img, smp, pred, iou=dt_iou)
@@ -179,11 +178,38 @@ if __name__ == "__main__":
     tp = np.logical_and(dt_scores >= CONF_THRESH, dt_iou >= IOU_THRESH)
     fp = np.logical_or(np.logical_and(dt_scores < CONF_THRESH, dt_iou >= IOU_THRESH), dt_iou < IOU_THRESH )
     # fn = np.logical_and(dt_scores >= CONF_THRESH, dt_iou < IOU_THRESH)
-    fn = np.zeros((len(gt_bbox),), dtype=bool)
+    gt_assigned = np.zeros((len(gt_bbox),), dtype=bool)
+    # dt_assigned = np.logical_or(tp, fp)
 
     # any gt_bbox that sums to zero has no detections on it
-    gt_sum = np.sum(gt_iou_all, axis=0)
-    fn = gt_sum == 0
+    # gt_sum = np.sum(gt_iou_all, axis=0)
+    # fn = gt_sum == 0
+    for j in range(len(gt_bbox)):
+
+        # find all matching dt_assignments fpr given gt_bbox:
+        # dt_idx = [x for x in dt_assignment_idx if j == dt_assignment_idx(x)]
+
+        if j in dt_assignment_idx :
+            # find idx of dt_assignment_idx that j matches to
+            # j = dt_assignment_idx[?]
+            # dt_idx = dt_assignment_idx.index(j)
+            # import code
+            # code.interact(local=dict(globals(), **locals()))
+            # if tp, then gt has not been assigne
+            dt_idx = []
+            for i in dt_assignment_idx:
+                if j == i:
+                    dt_idx.append(i)
+
+            if len(dt_idx) > 0:
+                for k in dt_idx:
+                    if tp[k]:
+                        gt_assigned[j] = True
+
+            # if tp[dt_idx]:
+            #     gt_assigned[j] = True
+
+    fn = np.logical_not(gt_assigned)
 
     # for tn, search gt_iou_all along dimension 1, if any sum to zero then tn is +1
 
@@ -211,7 +237,7 @@ if __name__ == "__main__":
     print('outcome = ', outcome)
     print(type(outcome))
 
-    img_iou = show_groundtruth_and_prediction_bbox(img, smp, pred, iou=dt_iou, outcome=outcome, trueneg=fn)
+    img_iou = show_groundtruth_and_prediction_bbox(img, smp, pred, iou=dt_iou, outcome=outcome, falseneg=fn)
     imgw= cv.cvtColor(img_iou, cv.COLOR_RGB2BGR)
     save_img_name = os.path.join('output', img_name[:-4] + '_outcome.png')
     cv.imwrite(save_img_name, imgw)
