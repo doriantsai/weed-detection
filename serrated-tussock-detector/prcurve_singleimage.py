@@ -10,34 +10,14 @@ import cv2 as cv
 import matplotlib.pyplot as plt
 import numpy as np
 
+from train import build_model
+
 from PIL import Image
+from get_prediction import get_prediction_image
 from inference import show_groundtruth_and_prediction_bbox, cv_imshow
 from SerratedTussockDataset import ToTensor, Rescale
 from torchvision.transforms import functional as tvtransfunc
-
-
-def compute_iou_bbox(boxA, boxB):
-    """
-    compute intersection over union for bounding boxes
-    box = [xmin, ymin, xmax, ymax], tensors
-    """
-    # determine the coordinates of the intersection rectangle
-    xA = max(boxA[0], boxB[0])
-    yA = max(boxA[1], boxB[1])
-    xB = min(boxA[2], boxB[2])
-    yB = min(boxA[3], boxB[3])
-
-    # compute area of intersection rectangle
-    interArea = max(0, xB - xA + 1) * max(0, yB - yA + 1)
-
-    # compute area of boxA and boxB
-    boxAArea = (boxA[2] - boxA[0] + 1) * (boxA[3] - boxA[1] + 1)
-    boxBArea = (boxB[2] - boxB[0] + 1) * (boxB[3] - boxB[1] + 1)
-
-    # compute iou
-    iou = interArea / (float(boxAArea + boxBArea - interArea))
-
-    return iou
+from prcurve import compute_iou_bbox, compute_outcome_image
 
 
 # ---------------------------------------------------------------------------- #
@@ -53,14 +33,30 @@ if __name__ == "__main__":
     #       check confidence score
     #       decide if FP or TP
     #       decide if FN or FP
-    IOU_THRESH = 0.5
-    CONF_THRESH = 0.7
+    root_dir = os.path.join('/home','dorian','Data','SerratedTussockDataset_v2')
 
+    # setup device
+    device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
-    root_dir = os.path.join('/home','dorian','Data','SerratedTussockDataset_v1')
+    # load model
+    num_classes = 2
+    class_names = ["_background_", "serrated tussock"]
+    # # load instance segmentation model pre-trained on coco:
+    # model = torchvision.models.detection.fasterrcnn_resnet50_fpn()
+    # # get number of input features for the classifier
+    # in_features = model.roi_heads.box_predictor.cls_score.in_features
+    # # replace the pre-trained head with a new one
+    # model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
+
+    model = build_model(num_classes=2)
+    save_name = 'fasterrcnn-serratedtussock-4'
+    save_path = os.path.join('output', save_name, save_name + '.pth')
+    # model.load_state_dict(torch.load(save_path))
+    model.load_state_dict(torch.load(save_path))
+    model.to(device)
 
     # load gt annotations:
-    idx = 10
+    idx = 106 # 10, 100, 90, 70
     json_file = os.path.join('Annotations', 'via_region_data.json')
     annotations = json.load(open(os.path.join(root_dir, json_file)))
     annotations = list(annotations.values())
@@ -70,7 +66,6 @@ if __name__ == "__main__":
     img_path = os.path.join(root_dir, 'Images', img_name)
     print(img_path)
     img = Image.open(img_path).convert("RGB")
-
 
     # select image - corresponding with img_name
     bbox = annotations[idx]['regions']
@@ -96,122 +91,37 @@ if __name__ == "__main__":
     print(img)
     print(smp)
 
-    # show:
-    # img_gt = show_groundtruth_and_prediction_bbox(img, smp)
-    # winname = 'groundtruth bboxes: ' + img_name
-    # cv_imshow(img_gt, winname)
+    MODEL_CONF_THRESH = 0.1
+    MODEL_IOU_THRESH = 0.5
+    pred, keep = get_prediction_image(model,
+                                        img,
+                                        MODEL_CONF_THRESH, # set low to allow FNs
+                                        MODEL_IOU_THRESH,
+                                        device,
+                                        class_names)
 
-    # plt.imshow(img_gt)
-    # plt.show()
-    # now get/show detections:
-    # for now, manually define them:
-    # [xmin, ymin, xmax, ymax]
-    dt_bbox = [[38, 39, 412, 464],
-            [240, 240, 851, 705],
-            [644, 73, 1023, 329],
-            [827, 600, 900, 750]]
-    dt_bbox = torch.as_tensor(dt_bbox, dtype=torch.float64)
+    OUTCOME_CONF_THRESH = 0.5
+    OUTCOME_IOU_THRESH = 0.5
+    outcomes = compute_outcome_image(pred,
+                                    smp,
+                                    OUTCOME_IOU_THRESH,
+                                    OUTCOME_CONF_THRESH)
+    #    outcomes = {'dt_outcome': dt_outcome, # detections, integer index for tp/fp/fn
+    #             'gt_outcome': gt_outcome, # groundtruths, integer index for fn
+    #             'dt_match': dt_match, # detections, boolean matched or not
+    #             'gt_match': gt_match, # gt, boolean matched or not
+    #             'fn_gt': fn_gt, # boolean for gt false negatives
+    #             'fn_dt': fn_dt, # boolean for dt false negatives
+    #             'tp': tp, # true positives for detections
+    #             'fp': fp, # false positives for detections
+    #             'dt_iou': dt_iou} # intesection over union scores for detections
 
-    # in corresponding order, the confidence scores
-    dt_scores = [0.65, 0.95, 0.45, 0.75]
-
-    # put into dictionary and then list form
-    pred = {
-        'boxes': dt_bbox,
-        'scores': dt_scores
-    }
-
-    # show
-    # img_gp = show_groundtruth_and_prediction_bbox(img, smp, pred)
-    # winname = 'gt (blue) and pred (pred): ' + img_name
-    # cv_imshow(img_gp, winname, 2000)
-
-    # compute IOU for each dt_bbox wrt gt_bbox:
-    # igt = 0
-    # idt = 0
-    # boxA = gt_bbox[igt, :]
-    # boxB = dt_bbox[idt, :]
-    # compute_iou_bbox(boxA, boxB)
-
-    # show IOU for each dt_box:
-    dt_iou = []
-    tp = np.zeros((len(dt_bbox),), dtype=bool)
-    fp = np.zeros((len(dt_bbox),), dtype=bool)
-    fn = np.zeros((len(dt_bbox),), dtype=bool)
-    # tn = np.zeros((len(gt_bbox),), dtype=bool)
-    gt_iou_all = np.zeros((len(dt_bbox), len(gt_bbox)))
-
-    dt_assignment_idx = -np.ones((len(dt_bbox),), dtype=int)
-    for i in range(len(dt_bbox[:, 0])):
-        # compute iou for nearest/most overlapping gt_bbox
-        gt_iou = []
-        for j in range(len(gt_bbox[:, 0])):
-            iou = compute_iou_bbox(dt_bbox[i, :], gt_bbox[j, :])
-            gt_iou.append(iou)
-
-        gt_iou_all[i, :] = np.array(gt_iou)
-
-        # find max iou from gt_iou list
-        idx_max = gt_iou.index(max(gt_iou))
-        iou_max = gt_iou[idx_max]
-        dt_iou.append(iou_max)
-        dt_assignment_idx[i] = idx_max
-
-      # TODO add puttext for TP/FN/FP etc
-    # img_iou = show_groundtruth_and_prediction_bbox(img, smp, pred, iou=dt_iou)
-    # imgw= cv.cvtColor(img_iou, cv.COLOR_RGB2BGR)
-    # save_img_name = os.path.join('output', img_name[:-4] + '_iou.png')
-    # cv.imwrite(save_img_name, imgw)
-    # winname = 'iou: ' + img_name
-    # cv_imshow(img_iou, winname, 2000)
-
-    # now determine if TP, FP, TN, FN
-    # TP: if our dt_bbox is sufficiently within a gt_bbox with a high-enough confidence score
-    #   we found the right thing
-    # FP: if our dt_bbox is a high confidence score, but is not sufficiently within a gt_bbox (iou is low)
-    #   we found the wrong thing
-    # FN: if our dd_bbox is within a gt_bbox, but has low confidence score
-    #   we didn't find the right thing
-    # TN: basically everything else in the scene, not wholely relevant for PR-curves
-    dt_iou = np.array(dt_iou)
-    dt_scores = np.array(dt_scores)
-    tp = np.logical_and(dt_scores >= CONF_THRESH, dt_iou >= IOU_THRESH)
-    fp = np.logical_or(np.logical_and(dt_scores < CONF_THRESH, dt_iou >= IOU_THRESH), dt_iou < IOU_THRESH )
-    # fn = np.logical_and(dt_scores >= CONF_THRESH, dt_iou < IOU_THRESH)
-    gt_assigned = np.zeros((len(gt_bbox),), dtype=bool)
-    # dt_assigned = np.logical_or(tp, fp)
-
-    # any gt_bbox that sums to zero has no detections on it
-    # gt_sum = np.sum(gt_iou_all, axis=0)
-    # fn = gt_sum == 0
-    for j in range(len(gt_bbox)):
-
-        # find all matching dt_assignments fpr given gt_bbox:
-        # dt_idx = [x for x in dt_assignment_idx if j == dt_assignment_idx(x)]
-
-        if j in dt_assignment_idx :
-            # find idx of dt_assignment_idx that j matches to
-            # j = dt_assignment_idx[?]
-            # dt_idx = dt_assignment_idx.index(j)
-            # import code
-            # code.interact(local=dict(globals(), **locals()))
-            # if tp, then gt has not been assigne
-            dt_idx = []
-            for i in dt_assignment_idx:
-                if j == i:
-                    dt_idx.append(i)
-
-            if len(dt_idx) > 0:
-                for k in dt_idx:
-                    if tp[k]:
-                        gt_assigned[j] = True
-
-            # if tp[dt_idx]:
-            #     gt_assigned[j] = True
-
-    fn = np.logical_not(gt_assigned)
-
-    # for tn, search gt_iou_all along dimension 1, if any sum to zero then tn is +1
+    tp = outcomes['tp']
+    fp = outcomes['fp']
+    fn_gt = outcomes['fn_gt']
+    fn_dt = outcomes['fn_dt']
+    fn = np.concatenate((fn_gt, fn_dt), axis=0)
+    gt = len(outcomes['gt_match'])
 
     print('true positives (if true)')
     print(tp)
@@ -219,30 +129,29 @@ if __name__ == "__main__":
     print(fp)
     print('false negatives (if true)')
     print(fn)
-    # print('true negatives (if true)')
-    # print(tn)
 
-    # TODO add puttext for TP/FN/FP etc
-    outcome = -np.ones((len(dt_bbox),), dtype=np.int16)
-    for i in range(len(outcome)):
-        if tp[i]:
-            outcome[i] = 0
-        elif fp[i]:
-            outcome[i] = 1
-        elif fn[i]:
-            outcome[i] = 2
-        else:
-            outcome[i] = 3
-            # this else should not happen for detections
-    print('outcome = ', outcome)
-    print(type(outcome))
+    tp_sum = np.sum(tp)
+    fp_sum = np.sum(fp)
+    fn_sum = np.sum(fn)
+    gt_sum = np.sum(gt)
 
-    img_iou = show_groundtruth_and_prediction_bbox(img, smp, pred, iou=dt_iou, outcome=outcome, falseneg=fn)
-    imgw= cv.cvtColor(img_iou, cv.COLOR_RGB2BGR)
-    save_img_name = os.path.join('output', img_name[:-4] + '_outcome.png')
+    print('tp sum: ', tp_sum)
+    print('fp sum: ', fp_sum)
+    print('fn sum: ', fn_sum)
+    print('gt sum: ', gt_sum)
+    print('tp + fn = ', tp_sum + fn_sum)
+
+     # show for given image:
+    img_out = show_groundtruth_and_prediction_bbox(img,
+                                                    smp,
+                                                    pred,
+                                                    outcomes=outcomes)
+
+    imgw = cv.cvtColor(img_out, cv.COLOR_RGB2BGR)
+    save_img_name = os.path.join('output', save_name, img_name[:-4] + '_outcome.png')
     cv.imwrite(save_img_name, imgw)
-    winname = 'iou: ' + img_name
-    cv_imshow(img_iou, winname, 2000)
+    winname = 'pr, single image: ' + img_name
+    cv_imshow(imgw, winname, 2000)
 
 
     # compute Precision, Recall:

@@ -385,6 +385,8 @@ if __name__ == "__main__":
         # pickle.dump(dataloader_val, f)
         # pickle.dump(hp, f)
 
+    # import code
+    # code.interact(local=dict(globals(), **locals()))
     # first, plot a sample from the training set (should be overfit)
     # model.to(device)
     INFER_ON_TRAINING = False

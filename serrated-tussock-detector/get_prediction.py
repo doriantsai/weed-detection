@@ -57,7 +57,12 @@ def get_prediction_batch(model, images, confidence_threshold, iou_threshold, dev
     return predictions, keep
 
 
-def get_prediction_image(model, image, confidence_threshold, iou_threshold, device, class_names):
+def get_prediction_image(model,
+                         image,
+                         confidence_threshold,
+                         nms_iou_threshold,
+                         device,
+                         class_names):
     """ take in model, image and confidence threshold,
     return bbox predictions for scores > threshold """
 
@@ -69,7 +74,7 @@ def get_prediction_image(model, image, confidence_threshold, iou_threshold, devi
     pred = model([image])
 
     # do non-maxima suppression
-    keep = torchvision.ops.nms(pred[0]['boxes'], pred[0]['scores'], iou_threshold)
+    keep = torchvision.ops.nms(pred[0]['boxes'], pred[0]['scores'], nms_iou_threshold)
     # import code
     # code.interact(local=dict(globals(), **locals()))
 
