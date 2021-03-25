@@ -232,7 +232,9 @@ def compute_outcome_image(pred,
     # TP: if dt_match True, also, scores above certain threshold
     tp = np.logical_and(dt_match, dt_scores >= DECISION_CONF_THRESH)
     # tp = np.logical_and(dt_scores >= CONF_THRESH, dt_iou >= IOU_THRESH)
-    fp = np.logical_or(np.logical_not(dt_match), np.logical_and(dt_match, dt_scores < DECISION_CONF_THRESH))
+    # fp = np.logical_not(dt_match)
+    fp = np.logical_or(np.logical_not(dt_match) , \
+        np.logical_and(dt_match, dt_scores < DECISION_CONF_THRESH))
     # fp = np.logical_or(np.logical_and(dt_scores < CONF_THRESH, dt_iou >= IOU_THRESH), dt_iou < IOU_THRESH )
     # dt_assigned = np.logical_or(tp, fp)
     # fn = np.zeros((len(gt_bbox),), dtype=bool)
@@ -443,16 +445,16 @@ if __name__ == "__main__":
 
     # set thresholds
     # model iou threshold - used for doing non-maxima suppression at the end of model output
-    NMS_IOU_THRESH = 0.5
+    NMS_IOU_THRESH = 0.7
     # model confidence threshold - used for thresholding model output
-    MODEL_REJECT_CONF_THRESH = 0.5
+    MODEL_REJECT_CONF_THRESH = 0.01
 
     # outcome iou threshold - used for determining how much overlap between
     # detection and groundtruth bounding boxes is sufficient to be a TP
     DECISION_IOU_THRESH = 0.5
     # outcome confidence threshold - used for determining how much confidence is
     # required to be a TP
-    DECISION_CONF_THRESH = np.linspace(start=0.9, stop=0.1, num=2, endpoint=True)
+    DECISION_CONF_THRESH = np.linspace(start=0.9, stop=0.1, num=3, endpoint=True)
     # OUTCOME_CONF_THRESH = np.array([0.4])
 
     # iterate over confidence threshold
@@ -460,7 +462,7 @@ if __name__ == "__main__":
     rec = []
     if len(DECISION_CONF_THRESH) <= 1:
         p, r = compute_single_pr_over_dataset(model,
-                                              dataset_val,
+                                              dataset_test,
                                               save_name,
                                               NMS_IOU_THRESH,
                                               MODEL_REJECT_CONF_THRESH,
@@ -474,7 +476,7 @@ if __name__ == "__main__":
             # get single pr over entire dataset,
             print('outcome confidence threshold: {}'.format(conf))
             p, r = compute_single_pr_over_dataset(model,
-                                                dataset_val,
+                                                dataset_test,
                                                 save_name,
                                                 NMS_IOU_THRESH,
                                                 MODEL_REJECT_CONF_THRESH,
@@ -491,7 +493,7 @@ if __name__ == "__main__":
     rec = np.array(rec)
     prec = np.array(prec)
     fig, ax = plt.subplots()
-    ax.plot(rec, prec)
+    ax.plot(rec, prec, marker='o', linestyle='dashed')
     plt.xlabel('recall')
     plt.ylabel('precision')
     plt.title('precision-recall for varying confidence')
