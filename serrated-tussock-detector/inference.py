@@ -437,7 +437,7 @@ if __name__ == "__main__":
 
     # test model inference on a single image to see if the predictions are changing
     # should be consistent/not change
-    INFER_ON_SINGLE_IMAGE = True
+    INFER_ON_SINGLE_IMAGE = False
     if INFER_ON_SINGLE_IMAGE:
         print('single image')
 
@@ -461,6 +461,10 @@ if __name__ == "__main__":
                                                     model_iou,
                                                     device,
                                                     CLASS_NAMES)
+
+                    # import code
+                    # code.interact(local=dict(globals(), **locals()))
+
                     print('iter: {} :: {}'.format(j, pred))
 
                 imgname = os.path.join('output', save_name, 'single_image_model_infer.png')
@@ -604,7 +608,7 @@ if __name__ == "__main__":
 
     # read in video using webcam.py's grab_webcam_video
     # run on a single frame within the video
-    INFER_ON_VIDEO = False
+    INFER_ON_VIDEO = True
     if INFER_ON_VIDEO:
         # get video
         # save video

@@ -447,14 +447,14 @@ if __name__ == "__main__":
     # model iou threshold - used for doing non-maxima suppression at the end of model output
     NMS_IOU_THRESH = 0.7
     # model confidence threshold - used for thresholding model output
-    MODEL_REJECT_CONF_THRESH = 0.01
+    MODEL_REJECT_CONF_THRESH = 0.01  # TODO HACK iterate over this threshold
 
     # outcome iou threshold - used for determining how much overlap between
     # detection and groundtruth bounding boxes is sufficient to be a TP
     DECISION_IOU_THRESH = 0.5
     # outcome confidence threshold - used for determining how much confidence is
     # required to be a TP
-    DECISION_CONF_THRESH = np.linspace(start=0.9, stop=0.1, num=3, endpoint=True)
+    DECISION_CONF_THRESH = np.linspace(start=0.9, stop=0.1, num=51, endpoint=True)
     # OUTCOME_CONF_THRESH = np.array([0.4])
 
     # iterate over confidence threshold
@@ -465,7 +465,7 @@ if __name__ == "__main__":
                                               dataset_test,
                                               save_name,
                                               NMS_IOU_THRESH,
-                                              MODEL_REJECT_CONF_THRESH,
+                                              DECISION_CONF_THRESH,
                                               DECISION_IOU_THRESH,
                                               DECISION_CONF_THRESH)
 
@@ -479,7 +479,7 @@ if __name__ == "__main__":
                                                 dataset_test,
                                                 save_name,
                                                 NMS_IOU_THRESH,
-                                                MODEL_REJECT_CONF_THRESH,
+                                                conf,
                                                 DECISION_IOU_THRESH,
                                                 conf)
             prec.append(p)
