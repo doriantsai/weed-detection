@@ -112,8 +112,8 @@ def convert_predictions_to_detections(predictions):
 # parameter settings:
 confidence_thresh = 0.6
 iou_thresh = 0.5  # use same iou threshold for model and tracker?
-tracker_iou_thresh = 0.3
-max_age = 1  # max # frames keep detection alive without current detection
+tracker_iou_thresh = 0.5
+max_age = 200  # max # frames keep detection alive without current detection
 min_hits = 3 # min # of frames of associated detections b4 track initialised
 colors = np.random.randint(0, 255, size=(32, 3), dtype='uint8') # used for display
 
