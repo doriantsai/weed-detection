@@ -12,9 +12,7 @@ from train import build_model
 from engine_st import evaluate
 
 
-def plot_prcurve(ax,
-                 prec_index,
-                 ccres)
+def plot_prcurve(ax, prec_index, ccres):
     """
     plot individual pr curve on given axes
     """
@@ -74,13 +72,13 @@ if __name__ == "__main__":
         hp = pickle.load(f)
 
     # finally, evaulate on the whole dataset
-    confidence_thresh = 0.8
+    confidence_thresh = 0.5
     iou_thresh = 0.5
 
     # evaluate model
     print('Evaluating model')
     # TODO extract dtScores/sorted in order to get confidence scores
-    # then would need to get 
+    # then would need to get
     mt_eval, ccres = evaluate(model,
                               dataloader_train,
                               device=device,
@@ -121,6 +119,7 @@ if __name__ == "__main__":
     i_iou = 0
     i_area = 0
     i_maxd = 1
+    i_cat = 0
     lbl_str = 'iou' + str(iou_param[i_iou]) + \
               ', a' + str(area_range_lbl[i_area]) + \
               ', md' + str(max_det[i_maxd])

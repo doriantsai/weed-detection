@@ -354,7 +354,8 @@ if __name__ == "__main__":
     # replace the pre-trained head with a new one
     model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
 
-    save_name = 'fasterrcnn-serratedtussock-4'
+    # save_name = 'fasterrcnn-serratedtussock-4'
+    save_name = 'Tussock_v0_0'
     save_path = os.path.join('output', save_name, save_name + '.pth')
     # model.load_state_dict(torch.load(save_path))
     model.load_state_dict(torch.load(save_path))
