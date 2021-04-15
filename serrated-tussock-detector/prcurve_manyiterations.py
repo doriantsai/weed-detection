@@ -7,6 +7,7 @@ import pickle
 import cv2 as cv
 import matplotlib.pyplot as plt
 import os
+import time
 
 from train import build_model
 from PIL import Image
@@ -412,13 +413,16 @@ if __name__ == "__main__":
     class_names = ['_background_', 'tussock']
 
     # in output folder, should contain pickle file, model path file, and is where the output goes
-    save_name = 'fasterrcnn-serratedtussock-4'
+    # save_name = 'fasterrcnn-serratedtussock-4'
+    save_name = 'Tussock_v0_8'
     model_save_path = os.path.join('output', save_name, save_name + '.pth')
     model.load_state_dict(torch.load(model_save_path))
 
     # setup dataset
-    root_dir = os.path.join('SerratedTussockDataset')
-    json_file = os.path.join('Annotations', 'via_region_data.json')
+    # root_dir = os.path.join('SerratedTussockDataset')
+    # json_file = os.path.join('Annotations', 'via_region_data.json')
+    root_dir = os.path.join('/home', 'dorian', 'Data', 'AOS_TussockDataset', 'Tussock_v0')
+    json_file = os.path.join('Annotations', 'annotations_tussock_21032526_G507_combined.json')
 
     # here, order matters (order in = order out)
     data_save_path = os.path.join('output', save_name, save_name + '.pkl')
@@ -447,7 +451,7 @@ if __name__ == "__main__":
     # model iou threshold - used for doing non-maxima suppression at the end of model output
     NMS_IOU_THRESH = 0.7
     # model confidence threshold - used for thresholding model output
-    MODEL_REJECT_CONF_THRESH = 0.01  # TODO HACK iterate over this threshold
+    MODEL_REJECT_CONF_THRESH = 0.01  # accept basically everything
 
     # outcome iou threshold - used for determining how much overlap between
     # detection and groundtruth bounding boxes is sufficient to be a TP
@@ -460,6 +464,9 @@ if __name__ == "__main__":
     # iterate over confidence threshold
     prec = []
     rec = []
+
+    start_time = time.time()
+
     if len(DECISION_CONF_THRESH) <= 1:
         p, r = compute_single_pr_over_dataset(model,
                                               dataset_test,
@@ -490,6 +497,13 @@ if __name__ == "__main__":
     print(prec)
     print(rec)
 
+    end_time = time.time()
+
+    sec = end_time - start_time
+    print('training time: {} sec'.format(sec))
+    print('training time: {} min'.format(sec / 60.0))
+    print('training time: {} hrs'.format(sec / 3600.0))
+
     rec = np.array(rec)
     prec = np.array(prec)
     fig, ax = plt.subplots()
@@ -498,7 +512,7 @@ if __name__ == "__main__":
     plt.ylabel('precision')
     plt.title('precision-recall for varying confidence')
     # TODO make dir if does not yet exist
-    save_plot_name = os.path.join('output', save_name, save_name + '_pr.png')
+    save_plot_name = os.path.join('output', save_name, save_name + '_val_pr.png')
     plt.savefig(save_plot_name)
 
     plt.show()

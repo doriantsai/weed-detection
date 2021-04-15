@@ -270,13 +270,17 @@ def show_groundtruth_and_prediction_bbox(image,
 
 @torch.no_grad()
 def infer_dataset(model,
-                  dataset,
+                  subdataset,
                   confidence_threshold,
                   iou_threshold,
                   save_folder_name,
                   device,
                   class_names,
-                  save_image_name=None):
+                  output_folder=None,
+                  dataset=None,
+                  wait_time=1000,
+                  imshow=True,
+                  img_name_suffix=None):
     """
     infer model on entire dataset
     """
@@ -284,8 +288,13 @@ def infer_dataset(model,
     model.eval()
     model.to(device)
     out = []
-    for image, sample in dataset:
+    for image, sample in subdataset:
         image_id = sample['image_id'].item()
+        if dataset is not None:
+            img_name = dataset.annotations[image_id]['filename'][:-4]
+        else:
+            img_name = str(image_id)
+
         pred, keep = get_prediction_image(model,
                                           image,
                                           confidence_threshold,
@@ -293,25 +302,40 @@ def infer_dataset(model,
                                           device,
                                           class_names)
         image_marked = show_groundtruth_and_prediction_bbox(image,
-                                                            sample,
-                                                            pred,
-                                                            keep)
+                                                            sample=sample,
+                                                            predictions=pred,
+                                                            keep=keep)
         if not os.path.isdir(os.path.join('output', save_folder_name)):
             os.mkdir(os.path.join('output', save_folder_name))
-        if save_image_name is None:
-            # dsname = f'{dataset=}'.split('=')[0]
-            image_name = os.path.join('output', save_folder_name,
-                                      'fasterrcnn-serratedtussock-' + 'dataset-' + str(image_id) + '.png')
+
+        if output_folder is None:
+            subfolder = 'dataset'
         else:
-            image_name = os.path.join('output', save_folder_name, save_image_name + '-' + str(image_id) + '.png')
+            subfolder = output_folder
+        if not os.path.isdir(os.path.join('output', save_folder_name, subfolder)):
+            os.mkdir(os.path.join('output', save_folder_name, subfolder))
+        # if output_folder is None:
+            # dsname = f'{dataset=}'.split('=')[0]
+
+        if img_name_suffix is None:
+            image_name = os.path.join('output',
+                                    save_folder_name,
+                                    subfolder,
+                                    img_name + '.png')
+        else:
+            image_name = os.path.join('output',
+                                    save_folder_name,
+                                    subfolder,
+                                    img_name + img_name_suffix + '.png')
 
         image_marked = cv.cvtColor(image_marked, cv.COLOR_RGB2BGR)
         cv.imwrite(image_name, image_marked)
-        winname = 'testing'
-        cv.namedWindow(winname, cv.WINDOW_NORMAL)
-        cv.imshow(winname, image_marked)
-        cv.waitKey(1000)
-        cv.destroyWindow(winname)
+        if imshow:
+            winname = 'testing'
+            cv.namedWindow(winname, cv.WINDOW_NORMAL)
+            cv.imshow(winname, image_marked)
+            cv.waitKey(wait_time)
+            cv.destroyWindow(winname)
 
         # save output
         # TODO HACK until output keep bug is solved:
@@ -345,19 +369,12 @@ if __name__ == "__main__":
 
     # model = build_modegit statl(nclasses)
 
-    num_classes = 2
+    model = build_model(num_classes=2)
     CLASS_NAMES = ["_background_", "serrated tussock"]
-    # load instance segmentation model pre-trained on coco:
-    model = torchvision.models.detection.fasterrcnn_resnet50_fpn()
-    # get number of input features for the classifier
-    in_features = model.roi_heads.box_predictor.cls_score.in_features
-    # replace the pre-trained head with a new one
-    model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
 
     # save_name = 'fasterrcnn-serratedtussock-4'
-    save_name = 'Tussock_v0_0'
+    save_name = 'Tussock_v0_8'
     save_path = os.path.join('output', save_name, save_name + '.pth')
-    # model.load_state_dict(torch.load(save_path))
     model.load_state_dict(torch.load(save_path))
 
     # setup dataset
@@ -377,20 +394,13 @@ if __name__ == "__main__":
         dataloader_val = pickle.load(f)
         hp = pickle.load(f)
 
-        # pickle.dump(dataset, f)
-        # pickle.dump(dataset_train, f)
-        # pickle.dump(dataset_val, f)
-        # pickle.dump(dataset_test, f)
-        # pickle.dump(dataloader_test, f)
-        # pickle.dump(dataloader_train, f)
-        # pickle.dump(dataloader_val, f)
-        # pickle.dump(hp, f)
-
-    # import code
-    # code.interact(local=dict(globals(), **locals()))
-    # first, plot a sample from the training set (should be overfit)
-    # model.to(device)
     INFER_ON_TRAINING = False
+    INFER_ON_TEST = False
+    INFER_ON_SINGLE_IMAGE = True
+    INFER_ON_JOH = False
+    INFER_ON_VIDEO = False
+    INFER_ON_VAL = False
+
     if INFER_ON_TRAINING:
         print('training set')
         # infer on entire dataset + save images
@@ -403,44 +413,16 @@ if __name__ == "__main__":
                                  save_name,
                                  device,
                                  CLASS_NAMES,
-                                 'dataset-train')
-
-        # infer on single batch from dataloader_train
-        # model.eval()
-        # imgs_train, smps_train = next(iter(dataloader_train))
-        # confidence_thresh = 0.9
-        # iou_thresh = 0.5
-        # bs = len(imgs_train)
-        # model.to(device)
-        # # imgs_train.to(device)
-        # for i in range(bs):
-        #     print(i)
-        #     # figi, axi = show_image_bbox(imgs_train[i], smps_train[i])
-        #     pred, keep = get_prediction_image(model, imgs_train[i], confidence_thresh, iou_thresh, device, CLASS_NAMES)
-        #     img = show_groundtruth_and_prediction_bbox(imgs_train[i],
-        #                                                      smps_train[i],
-        #                                                      pred,
-        #                                                      keep)
-        #     imgname = os.path.join('output', 'fasterrcnn-serratedtussock-train-' + str(i) + '.png')
-        #     # plt.savefig()
-        #     # plt.show()
-        #     # time.sleep(1) # sleep for 1 second
-        #     # plt.close(figi)
-        #     img = cv.cvtColor(img, cv.COLOR_RGB2BGR)
-        #     cv.imwrite(imgname, img)
-        #     winname = 'training'
-        #     cv.namedWindow(winname, cv.WINDOW_GUI_NORMAL)
-        #     # img = cv.cvtColor(img, cv.COLOR_RGB2BGR)
-        #     cv.imshow(winname, img)
-        #     cv.waitKey(2000)  # wait for 2 sec
-        #     cv.destroyWindow(winname)
-
+                                 output_folder='train',
+                                 dataset=dataset_train.dataset.dataset,
+                                 imshow=False,
+                                 img_name_suffix='_train')
 
     # test model inference on a single image to see if the predictions are changing
     # should be consistent/not change
-    INFER_ON_SINGLE_IMAGE = False
+
     if INFER_ON_SINGLE_IMAGE:
-        print('single image')
+        print('single test image')
 
         with torch.no_grad():
             # model.eval()
@@ -463,9 +445,6 @@ if __name__ == "__main__":
                                                     device,
                                                     CLASS_NAMES)
 
-                    # import code
-                    # code.interact(local=dict(globals(), **locals()))
-
                     print('iter: {} :: {}'.format(j, pred))
 
                 imgname = os.path.join('output', save_name, 'single_image_model_infer.png')
@@ -475,14 +454,31 @@ if __name__ == "__main__":
 
                 print(pred)
 
-    # TODO interpolate from PR curve, the confidence threshold
-    INFER_ON_TEST = False
+    if INFER_ON_VAL:
+        print('validation set')
+
+        confidence_thresh = 0.5
+        iou_thresh = 0.5
+        out_test = infer_dataset(model,
+                                 dataset_val,
+                                 confidence_thresh,
+                                 iou_thresh,
+                                 save_name,
+                                 device,
+                                 CLASS_NAMES,
+                                 output_folder='validation',
+                                 dataset=dataset_val.dataset.dataset,
+                                 imshow=True,
+                                 img_name_suffix='_val')
+
+        # save output
+        save_output_test = os.path.join('output', save_name, 'predictions_test.json')
+        with open(save_output_test, 'w') as out_file:
+            json.dump(out_test, ann_file, indent=4)
+
     if INFER_ON_TEST:
         print('testing set')
-        # model.eval()
 
-        # this code snippet only runs on a single iteration of the dataset
-        # imgs_test, smps_test = next(iter(dataloader_test))
         confidence_thresh = 0.8
         iou_thresh = 0.5
         out_test = infer_dataset(model,
@@ -492,7 +488,8 @@ if __name__ == "__main__":
                                  save_name,
                                  device,
                                  CLASS_NAMES,
-                                 'dataset-test')
+                                 output_folder='dataset-test',
+                                 dataset=dataset_test.dataset)
 
         # save output
         save_output_test = os.path.join('output', save_name, 'predictions_test.json')
@@ -500,66 +497,8 @@ if __name__ == "__main__":
             json.dump(out_test, ann_file, indent=4)
 
 
-
-        # convert per image results to per box output:
-        # create a list with each box as an entry, with entries:
-        # image_id, category_id, bbox, score
-        # out = []
-        # for outputs in out_test:
-        #     image_id = int(outputs['image_id'])
-        #     print(image_id)
-
-        # bs = len(imgs_test)
-        # model.to(device)
-        # imgs_test.to(device)
-        # for i in range(bs):
-        #     pred, keep = get_prediction(model, imgs_test[i], confidence_thresh, iou_thresh, device, CLASS_NAMES)
-        #     img = show_groundtruth_and_prediction_bbox(imgs_test[i], smps_test[i], pred, keep)
-        #     imgname = os.path.join('output', save_name, 'fasterrcnn-serratedtussock-test-' + str(i) + '.png')
-        #     img = cv.cvtColor(img, cv.COLOR_RGB2BGR)
-        #     cv.imwrite(imgname, img)
-        #     winname = 'testing'
-        #     cv.namedWindow(winname, cv.WINDOW_NORMAL)
-
-        #     cv.imshow(winname, img)
-        #     cv.waitKey(2000)  # wait for 2 sec
-        #     cv.destroyWindow(winname)
-
-        # this code runs on the entire test dataset
-        # for image, sample in dataset_test:
-        #     image_id = sample['image_id']
-        #     print('image_id: {}'.format(image_id))
-        #     pred, keep = get_prediction(model,
-        #                                 image,
-        #                                 confidence_thresh,
-        #                                 iou_thresh,
-        #                                 device,
-        #                                 CLASS_NAMES)
-
-        #     image_marked = show_groundtruth_and_prediction_bbox(image,
-        #                                                         sample,
-        #                                                         pred,
-        #                                                         keep)
-
-        #     if not os.path.isdir(os.path.join('output', save_name)):
-        #         os.mkdir(os.path.join('output', save_name))
-        #     image_name = os.path.join('output', save_name, 'fasterrcnn-serratedtussock-test-' + str(image_id) + '.png')
-        #     image_marked = cv.cvtColor(image_marked, cv.COLOR_RGB2BGR)
-        #     cv.imwrite(image_name, image_marked)
-        #     winname = 'testing'
-        #     cv.namedWindow(winname, cv.WINDOW_NORMAL)
-        #     cv.imshow(winname, image_marked)
-        #     cv.waitKey(2000)
-        #     cv.destroyWindow(winname)
-
-
-
-
-
-   # --------------- #
-   # try joh's images
-
-    INFER_ON_JOH = False
+    # --------------- #
+    # try joh's images
     if INFER_ON_JOH:
         print('joh image set')
         # create a new dataset, run inference
@@ -580,37 +519,14 @@ if __name__ == "__main__":
                       save_name,
                       device,
                       CLASS_NAMES,
-                      'dataset-joh')
-
-        # imgs_joh, smps_joh = next(iter(dataloader_joh))
-        # confidence_thresh = 0.6
-        # iou_thresh = 0.5
-        # model.eval()
-        # model.to(device)
-        # for i in range(bs):
-        #     pred, keep = get_prediction(model, imgs_joh[i], confidence_thresh, iou_thresh, device, CLASS_NAMES)
-        #     img = show_groundtruth_and_prediction_bbox(imgs_joh[i], smps_joh[i], pred, keep)
-        #     # plt.savefig(os.path.join('output', 'fasterrcnn-serratedtussock-testjoh-' + str(i) + '.png'))
-        #     imgname = os.path.join('output', 'fasterrcnn-serratedtussock-testjoh-' + str(i) + '.png')
-        #     # plt.savefig()
-        #     # plt.show()
-        #     # time.sleep(1) # sleep for 1 second
-        #     # plt.close(figi)
-        #     img = cv.cvtColor(img, cv.COLOR_RGB2BGR)
-        #     cv.imwrite(imgname, img)
-        #     winname = 'testingjoh'
-        #     cv.namedWindow(winname, cv.WINDOW_NORMAL)
-
-        #     cv.imshow(winname, img)
-        #     cv.waitKey(2000)  # wait for 2 sec
-        #     cv.destroyWindow(winname)
+                      output_folder='dataset-joh',
+                      dataset=dataset_joh)
 
 
-
-    # read in video using webcam.py's grab_webcam_video
-    # run on a single frame within the video
-    INFER_ON_VIDEO = True
     if INFER_ON_VIDEO:
+        # read in video using webcam.py's grab_webcam_video
+        # run on a single frame within the video
+
         # get video
         # save video
         # read in video
@@ -639,8 +555,6 @@ if __name__ == "__main__":
 
         # vw = cv.VideoWriter_fourcc(*'XVID')
         # out = cv.VideoWriter(outpath, vw, fps, (int(w), int(h)))
-
-
         vid_out = cv.VideoWriter(video_name_out,
                                  fourcc=vid_w,
                                  fps=fps,
@@ -670,8 +584,6 @@ if __name__ == "__main__":
             # TODO consider how to skip frames
 
             if ret:
-
-
                 # convert image from BGR to RGB
                 frame = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
 
@@ -696,12 +608,6 @@ if __name__ == "__main__":
                 iou_thresh = 0.5
                 model.eval()
 
-                # import code
-                # code.interact(local=dict(globals(), **locals()))
-                # if torch.cuda.is_available():
-                #     imgs = imgs.to(device)
-                #     lbls = lbls.to(device)
-
                 pred, keep = get_prediction_image(model, frame_t, confidence_thresh, iou_thresh, device, CLASS_NAMES)
                 img = show_groundtruth_and_prediction_bbox(image=frame_t,
                                                            predictions=pred,
@@ -709,27 +615,12 @@ if __name__ == "__main__":
                 # save image for now
                 # imgname = os.path.join('output', 'webcam','fasterrcnn-serratedtussock-video-' + str(i).zfill(3) + '.png')
 
+                # write image to video
                 img = cv.cvtColor(img, cv.COLOR_RGB2BGR)
-
-                # cv.imwrite(imgname, img)
-
-
-
-                # TODO string must have 0's in front - format the number, so that image files are ordered sequentially
-                # plt.savefig()
-                # plt.close(figi)
-                # plt.show()
-                # TODO close the figure somehow
-
-                # TODO # write to a new video
-
                 vid_out.write(img)
 
                 # increment frame counter
                 i += 1
-
-                # convert imshow frame to BGR (because OpenCV)
-                # TODO show annotations from fig i/axi?
 
                 cv.imshow('frame', img)
 
