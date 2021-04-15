@@ -51,13 +51,13 @@ if __name__ == "__main__":
 
     # ------------------------------ #
     # hyperparameters
-    batch_size = 8
-    num_workers = 0
+    batch_size = 10
+    num_workers = 10
     learning_rate = 0.005 # was 0.005 for v1
-    momentum = 0.9
+    momentum = 0.8
     weight_decay = 0.0001
-    num_epochs = 50
-    step_size = round(num_epochs/5)
+    num_epochs = 40
+    step_size = round(num_epochs/2)
 
     # make a hyperparameter dictionary
     hp={}
@@ -71,7 +71,7 @@ if __name__ == "__main__":
     # ------------------------------ #
     # directories
     # TODO add date/time to filename
-    save_name = 'Tussock_v0_0'
+    save_name = 'Tussock_v0_8'
     # save_name = 'fasterrcnn-serratedtussock-4'
     save_folder = os.path.join('output', save_name)
     if not os.path.isdir(save_folder):
@@ -114,7 +114,8 @@ if __name__ == "__main__":
 
     # split into training, validation and testing - note: we're only after the indices here
     nimg = len(dataset_tform_test)
-    ntrain_val = 569 # select number of images for training dataset
+    ntrain_val = 501 # select number of images for training dataset
+    # 570 images total, so 50 images for testing
     dataset_train_and_val, dataset_test = torch.utils.data.random_split(dataset_tform_test,
                                                 [ntrain_val, nimg - ntrain_val])
 
@@ -145,6 +146,18 @@ if __name__ == "__main__":
                                                   shuffle=False,
                                                   num_workers=num_workers,
                                                   collate_fn=utils.collate_fn)
+
+    # should also save the training and testing datasets/loaders for easier "test.py" setup
+    with open(save_detector_train_path, 'wb') as f:
+        pickle.dump(dataset_tform_test, f)
+        pickle.dump(dataset_tform_train, f)
+        pickle.dump(dataset_train, f)
+        pickle.dump(dataset_val, f)
+        pickle.dump(dataset_test, f)
+        pickle.dump(dataloader_test, f)
+        pickle.dump(dataloader_train, f)
+        pickle.dump(dataloader_val, f)
+        pickle.dump(hp, f)
 
     # TODO test if dataloader_train has randomly horizontal flipped images
     # imgs_t, smps_t = next(iter(dataloader_train))
@@ -193,6 +206,8 @@ if __name__ == "__main__":
     # set validation epoch frequency
     val_epoch = 2
 
+    # set savepoint epoch frequency
+    snapshot_epoch = 5
 
     # ------------------------------ #
     # training
@@ -206,7 +221,7 @@ if __name__ == "__main__":
         mt, mv = train_one_epoch(model,
                                  optimizer,
                                  dataloader_train,
-                                 dataloader_val,
+                                 dataloader_test,
                                  device,
                                  epoch,
                                  val_epoch,
@@ -232,6 +247,19 @@ if __name__ == "__main__":
         if (epoch % val_epoch) == (val_epoch - 1):
             writer.add_scalar('Detector/Validation_Loss', mv.loss.median, epoch + 1)
 
+        if (epoch % snapshot_epoch) == (snapshot_epoch - 1):
+            print('saving snapshot at epoch: {}'.format(epoch))
+
+            # save epoch
+            # save_path = os.path.join(save_folder, save_name + '.pth')
+            if not os.path.isdir(os.path.join(save_folder, 'snapshots')):
+                os.mkdir(os.path.join(save_folder, 'snapshots'))
+            snapshot_name = os.path.join(save_folder,
+                                            'snapshots',
+                                            save_name + '_epoch' + str(epoch) + '.pth')
+            torch.save(model.state_dict(), snapshot_name)
+            print('snapshot name: {}',format(snapshot_name))
+
 
     # for non-max-suppression, need:
     # conf = 0.7
@@ -255,26 +283,16 @@ if __name__ == "__main__":
 
     # save trained model for inference
     torch.save(model.state_dict(), save_path)
-    x = {'state_dict': model.state_dict(),
-    'hp': hp
-    }
-    torch.save(x,save_path)
+    # x = {'state_dict': model.state_dict(),
+    # 'hp': hp
+    # }
+    # torch.save(x,save_path)
     print('model saved: {}'.format(save_path))
     # suggested code from Sam to load the state dictionary
     # model.load_state_dict(file['state_dict'])
     # print(file['hp'])
 
-    # should also save the training and testing datasets/loaders for easier "test.py" setup
-    with open(save_detector_train_path, 'wb') as f:
-        pickle.dump(dataset_tform_test, f)
-        pickle.dump(dataset_tform_train, f)
-        pickle.dump(dataset_train, f)
-        pickle.dump(dataset_val, f)
-        pickle.dump(dataset_test, f)
-        pickle.dump(dataloader_test, f)
-        pickle.dump(dataloader_train, f)
-        pickle.dump(dataloader_val, f)
-        pickle.dump(hp, f)
+
 
 
     # see inference.py for running model on images/datasets
