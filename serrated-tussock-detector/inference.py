@@ -270,14 +270,14 @@ def show_groundtruth_and_prediction_bbox(image,
 
 @torch.no_grad()
 def infer_dataset(model,
-                  subdataset,
+                  subdataset, # the sub-dataset object that has the relevant number of images in the set (eg test/train)
                   confidence_threshold,
                   iou_threshold,
                   save_folder_name,
                   device,
                   class_names,
                   output_folder=None,
-                  dataset=None,
+                  dataset=None, # top-level dataset object that has the annotations
                   wait_time=1000,
                   imshow=True,
                   img_name_suffix=None):
@@ -287,7 +287,9 @@ def infer_dataset(model,
 
     model.eval()
     model.to(device)
-    out = []
+    out = []  # raw output from the model (apparently used somewhere?)
+    predictions = []  # predictions from the model
+
     for image, sample in subdataset:
         image_id = sample['image_id'].item()
         if dataset is not None:
@@ -301,6 +303,7 @@ def infer_dataset(model,
                                           iou_threshold,
                                           device,
                                           class_names)
+
         image_marked = show_groundtruth_and_prediction_bbox(image,
                                                             sample=sample,
                                                             predictions=pred,
@@ -352,8 +355,9 @@ def infer_dataset(model,
         # res = {sample["image_id"].item(): outnumpy}
 
         out.append(outnumpy)
+        predictions.append(pred)
 
-    return out
+    return out, predictions
 
 
 
@@ -406,17 +410,17 @@ if __name__ == "__main__":
         # infer on entire dataset + save images
         confidence_thresh = 0.5
         iou_thresh = 0.5
-        out_test = infer_dataset(model,
-                                 dataset_train,
-                                 confidence_thresh,
-                                 iou_thresh,
-                                 save_name,
-                                 device,
-                                 CLASS_NAMES,
-                                 output_folder='train',
-                                 dataset=dataset_train.dataset.dataset,
-                                 imshow=False,
-                                 img_name_suffix='_train')
+        out_test, predictions = infer_dataset(model,
+                                                dataset_train,
+                                                confidence_thresh,
+                                                iou_thresh,
+                                                save_name,
+                                                device,
+                                                CLASS_NAMES,
+                                                output_folder='train',
+                                                dataset=dataset_train.dataset.dataset,
+                                                imshow=False,
+                                                img_name_suffix='_train')
 
     # test model inference on a single image to see if the predictions are changing
     # should be consistent/not change
@@ -459,7 +463,7 @@ if __name__ == "__main__":
 
         confidence_thresh = 0.5
         iou_thresh = 0.5
-        out_test = infer_dataset(model,
+        out_test, pred_test = infer_dataset(model,
                                  dataset_val,
                                  confidence_thresh,
                                  iou_thresh,
@@ -481,7 +485,7 @@ if __name__ == "__main__":
 
         confidence_thresh = 0.8
         iou_thresh = 0.5
-        out_test = infer_dataset(model,
+        out_test, pred_test = infer_dataset(model,
                                  dataset_test,
                                  confidence_thresh,
                                  iou_thresh,

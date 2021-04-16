@@ -421,8 +421,8 @@ if __name__ == "__main__":
     # setup dataset
     # root_dir = os.path.join('SerratedTussockDataset')
     # json_file = os.path.join('Annotations', 'via_region_data.json')
-    root_dir = os.path.join('/home', 'dorian', 'Data', 'AOS_TussockDataset', 'Tussock_v0')
-    json_file = os.path.join('Annotations', 'annotations_tussock_21032526_G507_combined.json')
+    # root_dir = os.path.join('/home', 'dorian', 'Data', 'AOS_TussockDataset', 'Tussock_v0')
+    # json_file = os.path.join('Annotations', 'annotations_tussock_21032526_G507_combined.json')
 
     # here, order matters (order in = order out)
     data_save_path = os.path.join('output', save_name, save_name + '.pkl')
@@ -451,7 +451,7 @@ if __name__ == "__main__":
     # model iou threshold - used for doing non-maxima suppression at the end of model output
     NMS_IOU_THRESH = 0.7
     # model confidence threshold - used for thresholding model output
-    MODEL_REJECT_CONF_THRESH = 0.01  # accept basically everything
+    # MODEL_REJECT_CONF_THRESH = 0.01  # accept basically everything
 
     # outcome iou threshold - used for determining how much overlap between
     # detection and groundtruth bounding boxes is sufficient to be a TP
