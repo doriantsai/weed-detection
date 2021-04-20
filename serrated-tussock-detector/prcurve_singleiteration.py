@@ -202,7 +202,8 @@ def compute_single_pr_over_dataset(model,
                                    MODEL_REFJECT_CONF_THRESH,
                                    DECISION_IOU_THRESH,
                                    DECISION_CONF_THRESH,
-                                   imsave=False):
+                                   imsave=False,
+                                   dataset_annotations=None):
     model.eval()
     model.to(device)
 
@@ -217,8 +218,10 @@ def compute_single_pr_over_dataset(model,
     for image, sample in dataset:
 
         image_id = sample['image_id'].item()
-        img_name = 'st' + str(image_id).zfill(3)
-
+        if dataset_annotations is not None:
+            img_name = dataset_annotations[image_id]['filename'][:-4]
+        else:
+            img_name = 'st' + str(image_id).zfill(3)
 
         # get predictions
         pred = predictions[idx]
@@ -288,13 +291,159 @@ def compute_single_pr_over_dataset(model,
     print('precision = {}'.format(prec))
     print('recall = {}'.format(rec))
 
-    f1score = 2 * (prec * rec) / (prec + rec)
+    f1score = compute_f1score(prec, rec)
+
     print('f1 score = {}'.format(f1score))
     # 1 is good, 0 is bad
 
     return dataset_outcomes, prec, rec, f1score
 
 
+def compute_f1score(p, r):
+    return 2 * (p * r) / (p + r)
+
+
+def extend_pr(prec, rec, conf, n_points=101, PLOT=False, save_name='outcomes'):
+    """ extend precision and recall vectors from 0-1 """
+
+    # "smooth" out precision-recall curve by taking max of precision points
+    # for when r is very small (takes the top of the stairs )
+    # take max:
+    diff_thresh = 0.001
+    dif = np.diff(rec)
+    prec_new = [prec[0]]
+    for i, d in enumerate(dif):
+        if d < diff_thresh:
+            prec_new.append(prec_new[-1])
+        else:
+            prec_new.append(prec[i+1])
+    prec_new = np.array(prec_new)
+    # print(prec_new)
+
+    if PLOT:
+        fig, ax = plt.subplots()
+        ax.plot(rec, prec, marker='o', linestyle='dashed', label='original')
+        ax.plot(rec, prec_new, marker='x', color='red', linestyle='solid', label='max-binned')
+        plt.xlabel('recall')
+        plt.ylabel('precision')
+        plt.title('prec-rec, max-binned')
+        ax.legend()
+        save_plot_name = os.path.join('output', save_name, save_name + '_test_pr_smooth.png')
+        plt.savefig(save_plot_name)
+
+    # now, expand prec/rec values to extent of the whole precision/recall space:
+    rec_x = np.linspace(0, 1, num=n_points, endpoint=True)
+
+    # create prec_x by concatenating vectors first
+    prec_temp = []
+    rec_temp = []
+    conf_temp = []
+    for r in rec_x:
+        if r < rec[0]:
+            prec_temp.append(prec_new[0])
+            rec_temp.append(r)
+            conf_temp.append(conf[0])
+
+    for i, r in enumerate(rec):
+        prec_temp.append(prec_new[i])
+        rec_temp.append(r)
+        conf_temp.append(conf[i])
+
+    for r in rec_x:
+        if r >= rec[-1]:
+            prec_temp.append(0)
+            rec_temp.append(r)
+            conf_temp.append(conf[-1])
+
+    prec_temp = np.array(prec_temp)
+    rec_temp = np.array(rec_temp)
+    conf_temp = np.array(conf_temp)
+
+    # now interpolate:
+    # prec_x = np.interp(rec_x, rec_temp, prec_temp)
+    prec_interpolator = interp1d(rec_temp, prec_temp, kind='linear')
+    prec_x = prec_interpolator(rec_x)
+
+    conf_interpolator = interp1d(rec_temp, conf_temp, kind='linear')
+    conf_x = conf_interpolator(rec_x)
+
+    if PLOT:
+        fig, ax = plt.subplots()
+        ax.plot(rec_temp, prec_temp, color='blue', linestyle='dashed', label='combined')
+        ax.plot(rec, prec_new, marker='x', color='red', linestyle='solid', label='max-binned')
+        ax.plot(rec_x, prec_x, color='green', linestyle='dotted', label='interp')
+        plt.xlabel('recall')
+        plt.ylabel('precision')
+        plt.title('prec-rec, interpolated')
+        ax.legend()
+        save_plot_name = os.path.join('output', save_name, save_name + '_test_pr_interp.png')
+        plt.savefig(save_plot_name)
+        # plt.show()
+
+    # make the "official" plot:
+    p_out = prec_x
+    r_out = rec_x
+    c_out = conf_x
+    return p_out, r_out, c_out
+
+
+def compute_ap(p, r):
+    """ compute ap score """
+    n = len(r) - 1
+    ap = np.sum( (r[1:n] - r[0:n-1]) * p[1:n] )
+    return ap
+
+
+def get_confidence_from_pr(p, r, c, f1, pg=None, rg=None):
+    """ interpolate confidence threshold from p, r and goal values. If no goal
+    values, then provide the "best" conf, corresponding to the pr-pair closest
+    to the ideal (1,1)
+    """
+    # TODO check p, r are valid
+    # if Pg is not none,
+    #   check Pg is valid, if not, set it at appropriate value
+    # if Rg is not none, then
+    #   check if Rg is valid, if not, set appropriate value
+    if pg is not None and rg is not None:
+        # print('TODO: check if pg, rg are valid')
+        # find the nearest pg-pair, find the nearest index to said pair
+        prg = np.array([pg, rg])
+        pr = np.array([p, r])
+        dist = np.sqrt(np.sum((pr - prg)**2, axis=1))
+        # take min dist
+        idistmin = np.argmin(dist, axis=1)
+        pact = p[idistmin]
+        ract = r[idistmin]
+
+        # now interpolate for cg
+        f = interp1d(r, c)
+        cg = f(ract)
+
+    elif pg is None and rg is not None:
+        # TODO search for best pg given rg
+        # pg = 1
+        # we use rg to interpolate for cg:
+        f = interp1d(r, c, bounds_error=False, fill_value=(c[0], c[-1]))
+        cg = f(rg)
+
+    elif rg is None and pg is not None:
+        # we use pg to interpolate for cg
+        # print('using p to interp c')
+        f = interp1d(p, c, bounds_error=False, fill_value=(c[-1], c[0]))
+        cg = f(pg)
+
+    else:
+        # find p,r closest to (1,1) being max of f1 score
+        if1max = np.argmax(f1)
+        rmax = r[if1max]
+        f = interp1d(r, c)
+        cg = f(rmax)
+
+    # we use r to interpolate with c
+
+    return cg
+
+# ---------------------------------------------------------------------------- #
 if __name__ == "__main__":
 
     # load model
@@ -347,7 +496,6 @@ if __name__ == "__main__":
     DECISION_CONF_THRESH = np.linspace(0.95, 0.05, num=11, endpoint=True)
     DECISION_CONF_THRESH = np.array(DECISION_CONF_THRESH, ndmin=1)
 
-
     prec = []
     rec = []
     f1score = []
@@ -362,7 +510,8 @@ if __name__ == "__main__":
                                                                     conf,
                                                                     DECISION_IOU_THRESH,
                                                                     conf,
-                                                                    imsave=False)
+                                                                    imsave=False,
+                                                                    dataset_annotations=dataset_test.dataset.annotations)
 
         # single-line for copy/paste in terminal:
         # d, p, r, f1 = compute_single_pr_over_dataset(model, dataset_test, predictions, NMS_IOU_THRESH, conf, DECISION_IOU_THRESH, conf, imsave=True)
@@ -405,77 +554,8 @@ if __name__ == "__main__":
     # we do this by binning the recall values, and taking the max precision from
     # each bin
 
-
-    # take max:
-    diff_thresh = 0.001
-    dif = np.diff(rec)
-    prec_new = [prec[0]]
-    for i, d in enumerate(dif):
-        if d < diff_thresh:
-            prec_new.append(prec_new[-1])
-        else:
-            prec_new.append(prec[i+1])
-    prec_new = np.array(prec_new)
-    print(prec_new)
-
-
-
-    fig, ax = plt.subplots()
-    ax.plot(rec, prec, marker='o', linestyle='dashed', label='original')
-    ax.plot(rec, prec_new, marker='x', color='red', linestyle='solid', label='max-binned')
-    plt.xlabel('recall')
-    plt.ylabel('precision')
-    plt.title('prec-rec, max-binned')
-    ax.legend()
-    save_plot_name = os.path.join('output', save_name, save_name + '_test_pr_smooth.png')
-    plt.savefig(save_plot_name)
-
-    # now, expand prec/rec values to extent of the whole precision/recall space:
-    rec_x = np.linspace(0, 1, num=101, endpoint=True)
-
-    # create prec_x by concatenating vectors first
-    prec_temp = []
-    rec_temp = []
-    for r in rec_x:
-        if r < rec[0]:
-            prec_temp.append(prec_new[0])
-            rec_temp.append(r)
-
-    for i, r in enumerate(rec):
-        prec_temp.append(prec_new[i])
-        rec_temp.append(r)
-
-    for r in rec_x:
-        if r >= rec[-1]:
-            prec_temp.append(0)
-            rec_temp.append(r)
-
-    prec_temp = np.array(prec_temp)
-    rec_temp = np.array(rec_temp)
-
-    # now interpolate:
-    # prec_x = np.interp(rec_x, rec_temp, prec_temp)
-    prec_interpolator = interp1d(rec_temp, prec_temp, kind='linear')
-    prec_x = prec_interpolator(rec_x)
-
-    fig, ax = plt.subplots()
-    ax.plot(rec_temp, prec_temp, color='blue', linestyle='dashed', label='combined')
-    ax.plot(rec, prec_new, marker='x', color='red', linestyle='solid', label='max-binned')
-    ax.plot(rec_x, prec_x, color='green', linestyle='dotted', label='interp')
-    plt.xlabel('recall')
-    plt.ylabel('precision')
-    plt.title('prec-rec, interpolated')
-    ax.legend()
-    save_plot_name = os.path.join('output', save_name, save_name + '_test_pr_interp.png')
-    plt.savefig(save_plot_name)
-    # plt.show()
-
-    # make the "official" plot:
-    p_final = prec_x
-    r_final = rec_x
-
-    n = len(r_final) - 1
-    ap = np.sum( (r_final[1:n] - r_final[0:n-1]) * p_final[1:n] )
+    p_final, r_final, c_final, = extend_pr(prec, rec, DECISION_CONF_THRESH)
+    ap = compute_ap(p_final, r_final)
 
     fig, ax = plt.subplots()
     ax.plot(r_final, p_final)
@@ -494,11 +574,23 @@ if __name__ == "__main__":
     res = {'precision': p_final,
            'recall': r_final,
            'ap': ap,
-           'f1score': f1score}
+           'f1score': f1score,
+           'confidence': c_final}
     save_file = os.path.join('output', save_name, save_name + '_prcurve.pkl')
     with open(save_file, 'wb') as f:
         pickle.dump(res, f)
 
+    # choose to do/save outcomes from a specific setting:
+    # conf = 0.5
+    # d, p, r, f1 = compute_single_pr_over_dataset(model,
+    #                                             dataset_test,
+    #                                             predictions,
+    #                                             NMS_IOU_THRESH,
+    #                                             conf,
+    #                                             DECISION_IOU_THRESH,
+    #                                             conf,
+    #                                             imsave=True,
+    #                                             dataset_annotations=dataset_test.dataset.annotations)
 
     # TODO
     # 95% precision, what confidence value?

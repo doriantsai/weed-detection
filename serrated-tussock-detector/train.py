@@ -53,10 +53,10 @@ if __name__ == "__main__":
     # hyperparameters
     batch_size = 10
     num_workers = 10
-    learning_rate = 0.005 # was 0.005 for v1
-    momentum = 0.8
+    learning_rate = 0.005 # was 0.005 for v9
+    momentum = 0.9
     weight_decay = 0.0001
-    num_epochs = 40
+    num_epochs = 100
     step_size = round(num_epochs/2)
 
     # make a hyperparameter dictionary
@@ -71,7 +71,7 @@ if __name__ == "__main__":
     # ------------------------------ #
     # directories
     # TODO add date/time to filename
-    save_name = 'Tussock_v0_8'
+    save_name = 'Tussock_v0_12'
     # save_name = 'fasterrcnn-serratedtussock-4'
     save_folder = os.path.join('output', save_name)
     if not os.path.isdir(save_folder):
@@ -92,7 +92,7 @@ if __name__ == "__main__":
     save_detector_train_path = os.path.join('.', 'output', save_name, save_name + '.pkl')
 
     # setup transforms to operate on dataset images
-    rescale_size = 800
+    rescale_size = 2056
     tforms_train = Compose([Rescale(rescale_size),
                             RandomHorizontalFlip(0.5),
                             Blur(5, (0.5, 2.0)),
