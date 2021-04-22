@@ -22,7 +22,6 @@ from inference import show_groundtruth_and_prediction_bbox, cv_imshow, infer_dat
 from get_prediction import get_prediction_image, threshold_predictions
 from find_file import find_file
 
-
 def compute_iou_bbox(boxA, boxB):
     """
     compute intersection over union for bounding boxes
@@ -202,6 +201,7 @@ def compute_single_pr_over_dataset(model,
                                    MODEL_REFJECT_CONF_THRESH,
                                    DECISION_IOU_THRESH,
                                    DECISION_CONF_THRESH,
+                                   device,
                                    imsave=False,
                                    dataset_annotations=None):
     model.eval()
@@ -443,6 +443,114 @@ def get_confidence_from_pr(p, r, c, f1, pg=None, rg=None):
 
     return cg
 
+
+def get_prcurve(model, dataset, confidence_thresh, nms_iou_thresh, decision_iou_thresh, save_folder_name, device):
+    # infer on 0-decision threshold
+    # iterate over diff thresholds
+    # extend_pr
+    # compute_ap
+    # save output
+
+    # infer on dataset with 0-decision threshold
+    out_raw, predictions = infer_dataset(model,
+                                        dataset,
+                                        confidence_threshold=0,
+                                        iou_threshold=nms_iou_thresh,
+                                        save_folder_name=save_folder_name,
+                                        device=device,
+                                        output_folder='prcurve_predictions',
+                                        imshow=False,
+                                        img_name_suffix='_prcurve_0')
+
+    # iterate over different decision thresholds
+    prec = []
+    rec = []
+    f1score = []
+    start_time = time.time()
+    for c, conf in enumerate(confidence_thresh):
+        print('{}: outcome confidence threshold: {}'.format(c, conf))
+        dataset_outcomes, p, r, f1 = compute_single_pr_over_dataset(model,
+                                                                    dataset,
+                                                                    predictions,
+                                                                    save_folder_name,
+                                                                    nms_iou_thresh,
+                                                                    conf,
+                                                                    decision_iou_thresh,
+                                                                    conf,
+                                                                    device,
+                                                                    imsave=False,
+                                                                    dataset_annotations=dataset.dataset.annotations)
+
+        # single-line for copy/paste in terminal:
+        # d, p, r, f1 = compute_single_pr_over_dataset(model, dataset_test, predictions, NMS_IOU_THRESH, conf, DECISION_IOU_THRESH, conf, imsave=True)
+        prec.append(p)
+        rec.append(r)
+        f1score.append(f1)
+        # do we care about dataset_outcomes?
+
+    end_time = time.time()
+
+    sec = end_time - start_time
+    print('training time: {} sec'.format(sec))
+    print('training time: {} min'.format(sec / 60.0))
+    print('training time: {} hrs'.format(sec / 3600.0))
+
+    # plot raw PR curve
+    rec = np.array(rec)
+    prec = np.array(prec)
+    fig, ax = plt.subplots()
+    ax.plot(rec, prec, marker='o', linestyle='dashed')
+    plt.xlabel('recall')
+    plt.ylabel('precision')
+    plt.title('precision-recall for varying confidence')
+    save_plot_name = os.path.join('output', save_folder_name, save_folder_name + '_test_pr.png')
+    plt.savefig(save_plot_name)
+    # plt.show()
+
+    # plot F1score
+    f1score = np.array(f1score)
+    # fig, ax = plt.subplots()
+    # ax.plot(rec, f1score, marker='o', linestyle='dashed')
+    # plt.xlabel('recall')
+    # plt.ylabel('f1 score')
+    # plt.title('f1 score vs recall for varying confidence')
+    # save_plot_name = os.path.join('output', save_name, save_name + '_test_f1r.png')
+    # plt.savefig(save_plot_name)
+    # plt.show()
+
+    # smooth the PR curve: take the max precision values along the recall curve
+    # we do this by binning the recall values, and taking the max precision from
+    # each bin
+
+    p_final, r_final, c_final, = extend_pr(prec, rec, confidence_thresh)
+    ap = compute_ap(p_final, r_final)
+
+    fig, ax = plt.subplots()
+    ax.plot(r_final, p_final)
+    plt.xlabel('recall')
+    plt.ylabel('precision')
+    plt.title('prec-rec curve, iou={}, ap = {:.2f}'.format(decision_iou_thresh, ap))
+    # ax.legend()
+    save_plot_name = os.path.join('output', save_folder_name, save_folder_name + '_test_pr_final.png')
+    plt.savefig(save_plot_name)
+    # plt.show()
+
+    print('ap score: {:.5f}'.format(ap))
+    print('max f1 score: {:.5f}'.format(max(f1score)))
+
+    # save ap, f1score, precision, recall, etc
+    res = {'precision': p_final,
+           'recall': r_final,
+           'ap': ap,
+           'f1score': f1score,
+           'confidence': c_final}
+    save_file = os.path.join('output', save_folder_name, save_folder_name + '_prcurve.pkl')
+    with open(save_file, 'wb') as f:
+        pickle.dump(res, f)
+
+    return res
+
+
 # ---------------------------------------------------------------------------- #
 if __name__ == "__main__":
 
@@ -482,110 +590,23 @@ if __name__ == "__main__":
         dataloader_val = pickle.load(f)
         hp = pickle.load(f)
 
-    # infer on dataset with 0-decision threshold
-    out_raw, predictions = infer_dataset(model,
-                                        dataset_test,
-                                        confidence_threshold=0,
-                                        iou_threshold=0.5,
-                                        save_folder_name=save_name,
-                                        device=device,
-                                        output_folder='prcurve_predictions',
-                                        imshow=False,
-                                        img_name_suffix='_prcurve_0')
+    nms_iou_thresh = 0.5
+    decision_iou_thresh = 0.5
+    # DECISION_CONF_THRESH = 0.5
+    confidence_thresh = np.linspace(0.95, 0.05, num=11, endpoint=True)
+    confidence_thresh = np.array(confidence_thresh, ndmin=1)
 
+    # call get_prcurve()
+    results = get_prcurve(model,
+                          dataset_test,
+                          confidence_thresh,
+                          nms_iou_thresh,
+                          decision_iou_thresh,
+                          model_name,
+                          device)
     # compute AP
     # choose best F1 score?
     # report 95% recall and 95% precision values
-
-    NMS_IOU_THRESH = 0.5
-    DECISION_IOU_THRESH = 0.5
-    # DECISION_CONF_THRESH = 0.5
-    DECISION_CONF_THRESH = np.linspace(0.95, 0.05, num=11, endpoint=True)
-    DECISION_CONF_THRESH = np.array(DECISION_CONF_THRESH, ndmin=1)
-
-    prec = []
-    rec = []
-    f1score = []
-    start_time = time.time()
-    for c, conf in enumerate(DECISION_CONF_THRESH):
-        print('{}: outcome confidence threshold: {}'.format(c, conf))
-        dataset_outcomes, p, r, f1 = compute_single_pr_over_dataset(model,
-                                                                    dataset_test,
-                                                                    predictions,
-                                                                    save_name,
-                                                                    NMS_IOU_THRESH,
-                                                                    conf,
-                                                                    DECISION_IOU_THRESH,
-                                                                    conf,
-                                                                    imsave=False,
-                                                                    dataset_annotations=dataset_test.dataset.annotations)
-
-        # single-line for copy/paste in terminal:
-        # d, p, r, f1 = compute_single_pr_over_dataset(model, dataset_test, predictions, NMS_IOU_THRESH, conf, DECISION_IOU_THRESH, conf, imsave=True)
-        prec.append(p)
-        rec.append(r)
-        f1score.append(f1)
-        # do we care about dataset_outcomes?
-
-    end_time = time.time()
-
-    sec = end_time - start_time
-    print('training time: {} sec'.format(sec))
-    print('training time: {} min'.format(sec / 60.0))
-    print('training time: {} hrs'.format(sec / 3600.0))
-
-    # plot raw PR curve
-    rec = np.array(rec)
-    prec = np.array(prec)
-    fig, ax = plt.subplots()
-    ax.plot(rec, prec, marker='o', linestyle='dashed')
-    plt.xlabel('recall')
-    plt.ylabel('precision')
-    plt.title('precision-recall for varying confidence')
-    save_plot_name = os.path.join('output', save_name, save_name + '_test_pr.png')
-    plt.savefig(save_plot_name)
-    # plt.show()
-
-    # plot F1score
-    f1score = np.array(f1score)
-    fig, ax = plt.subplots()
-    ax.plot(rec, f1score, marker='o', linestyle='dashed')
-    plt.xlabel('recall')
-    plt.ylabel('f1 score')
-    plt.title('f1 score vs recall for varying confidence')
-    save_plot_name = os.path.join('output', save_name, save_name + '_test_f1r.png')
-    plt.savefig(save_plot_name)
-    # plt.show()
-
-    # smooth the PR curve: take the max precision values along the recall curve
-    # we do this by binning the recall values, and taking the max precision from
-    # each bin
-
-    p_final, r_final, c_final, = extend_pr(prec, rec, DECISION_CONF_THRESH)
-    ap = compute_ap(p_final, r_final)
-
-    fig, ax = plt.subplots()
-    ax.plot(r_final, p_final)
-    plt.xlabel('recall')
-    plt.ylabel('precision')
-    plt.title('prec-rec curve, iou={}, ap = {:.2f}'.format(DECISION_IOU_THRESH, ap))
-    # ax.legend()
-    save_plot_name = os.path.join('output', save_name, save_name + '_test_pr_final.png')
-    plt.savefig(save_plot_name)
-    plt.show()
-
-    print('ap score: {:.5f}'.format(ap))
-    print('max f1 score: {:.5f}'.format(max(f1score)))
-
-    # save ap, f1score, precision, recall, etc
-    res = {'precision': p_final,
-           'recall': r_final,
-           'ap': ap,
-           'f1score': f1score,
-           'confidence': c_final}
-    save_file = os.path.join('output', save_name, save_name + '_prcurve.pkl')
-    with open(save_file, 'wb') as f:
-        pickle.dump(res, f)
 
     # choose to do/save outcomes from a specific setting:
     # conf = 0.5
