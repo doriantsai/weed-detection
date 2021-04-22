@@ -20,6 +20,7 @@ from train import build_model
 from PIL import Image
 from inference import show_groundtruth_and_prediction_bbox, cv_imshow, infer_dataset
 from get_prediction import get_prediction_image, threshold_predictions
+from find_file import find_file
 
 
 def compute_iou_bbox(boxA, boxB):
@@ -191,7 +192,6 @@ def compute_outcome_image(pred,
                 'gt_iou_all': gt_iou_all,
                 'cost': cost}
     return outcomes
-
 
 
 def compute_single_pr_over_dataset(model,
@@ -456,12 +456,21 @@ if __name__ == "__main__":
     model = build_model(num_classes=2)
     class_names = ['__background__', 'tussock']
 
-    save_name = 'Tussock_v0_8'
-    model_save_path = os.path.join('output', save_name, save_name + '.pth')
-    model.load_state_dict(torch.load(model_save_path))
+    save_name = 'Tussock_v0_11'
+    model_name = 'Tussock_v0_11'
+    model_folder = os.path.join('output', model_name)
+    saved_model_name = find_file('.pth', model_folder)
+    # save_path = os.path.join('output', save_name, save_name + '.pth')
+    saved_model_path = os.path.join(model_folder, saved_model_name[0])
+    model.load_state_dict(torch.load(saved_model_path))
+    print('loading model: {}'.format(saved_model_path))
 
     # dataset location
-    data_save_path = os.path.join('.', 'output', save_name, save_name + '.pkl')
+    dataset_name = 'Tussock_v0'
+    data_save_path = os.path.join('output',
+                                'dataset',
+                                dataset_name,
+                                dataset_name + '.pkl')
     with open(data_save_path, 'rb') as f:
         dataset_tform_test = pickle.load(f)
         dataset_tform_train = pickle.load(f)
@@ -480,9 +489,7 @@ if __name__ == "__main__":
                                         iou_threshold=0.5,
                                         save_folder_name=save_name,
                                         device=device,
-                                        class_names=class_names,
                                         output_folder='prcurve_predictions',
-                                        dataset=dataset_test.dataset,
                                         imshow=False,
                                         img_name_suffix='_prcurve_0')
 

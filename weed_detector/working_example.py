@@ -23,7 +23,6 @@ from PIL import Image
 # output from model input
 # for more complete example, see inference.py
 
-
 # setup device, use gpu if possible
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 

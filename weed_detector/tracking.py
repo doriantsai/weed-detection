@@ -173,8 +173,7 @@ while (cap.isOpened() and i < MAX_FRAMES):
                                           frame_t,
                                           confidence_thresh,
                                           iou_thresh,
-                                          device,
-                                          class_names)
+                                          device)
 
         # convert predictions to detections for tracking:
         detections = convert_predictions_to_detections(pred)
