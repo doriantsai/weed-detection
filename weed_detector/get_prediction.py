@@ -61,8 +61,7 @@ def get_prediction_image(model,
                          image,
                          confidence_threshold,
                          nms_iou_threshold,
-                         device,
-                         class_names):
+                         device):
     """ take in model, image and confidence threshold,
     return bbox predictions for scores > threshold """
 

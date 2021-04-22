@@ -23,14 +23,7 @@ from PIL import Image
 import time
 from get_prediction import get_prediction_image
 from engine_st import evaluate
-
-# def matplotlib_imshow(img):
-#     # image in, probably as a tensor
-#     # want to show image using plt.imshow(img)
-#     # img = img / 2 + 0.5     # unnormalize
-#     imgnp = img.cpu().numpy()
-#     plt.imshow(np.transpose(imgnp, (1, 2, 0)))
-#     return plt
+from find_file import find_file
 
 def cv_imshow(img, winname, wait_time=2000):
     img = cv.cvtColor(img, cv.COLOR_RGB2BGR)
@@ -38,51 +31,6 @@ def cv_imshow(img, winname, wait_time=2000):
     cv.imshow(winname, img)
     cv.waitKey(wait_time)
     cv.destroyWindow(winname)
-
-
-# def show_single_bbox(img, bb, color='red'):
-#     # put bounding box onto image
-#     # bb is a numpy array or tensor?
-#     # TODO convert to opencv -> cv.rectangle
-#     bb = np.array(bb.cpu(), dtype=np.float32)
-#     rect = mpp.Rectangle((bb[0], bb[1]),
-#                           bb[2] - bb[0],
-#                           bb[3] - bb[1],
-#                           color=color,
-#                           fill=False,
-#                           linewidth=3)
-
-
-# def show_image_bbox(image, sample, color='blue'):
-#     # show image and bounding box together
-#     # matplotlib_imshow(image)
-#     # TODO convert to opencv -> cv.rectangle
-#     imgnp = image.cpu().numpy()
-
-#     fig, ax = plt.subplots(1)
-
-#     ax.imshow(np.transpose(imgnp, (1, 2, 0)))
-
-#     boxes = sample['boxes']
-#     nbb, _ = boxes.size()
-
-#     print(imgnp.shape)
-
-#     for i in range(nbb):
-#         print('plot box {}'.format(i))
-#         bb = np.array(boxes[i, :].cpu(), dtype=np.float32)
-#         print(bb)  # [xmin, ymin, xmax, ymax]
-#         rect = mpp.Rectangle((bb[0], bb[1]),
-#                              bb[2] - bb[0],
-#                              bb[3] - bb[1],
-#                              color=color,
-#                              fill=False,
-#                              linewidth=3)
-#         ax.add_patch(rect)
-
-#         # plt.gca().add_patch(show_single_bbox(image, boxes[i, :]))
-
-#     return fig, ax
 
 
 def show_groundtruth_and_prediction_bbox(image,
@@ -109,12 +57,8 @@ def show_groundtruth_and_prediction_bbox(image,
         image = image[(2, 0, 1), :, :]
 
     imgnp = image.cpu().numpy()
-    # fig, ax = plt.subplots(1)
     if transpose_channels:
-        # ax.imshow(np.transpose(imgnp, (1, 2, 0)))
         imgnp = np.transpose(imgnp, (1, 2, 0))
-    # else:
-    #     ax.imshow(imgnp)
 
     # with opencv, need to normalize the image to 0,255 range:
     # assuming it's coming in
@@ -136,22 +80,11 @@ def show_groundtruth_and_prediction_bbox(image,
             nbb_gt, _ = boxes_gt.size()
             for i in range(nbb_gt):
                 bb = np.array(boxes_gt[i,:].cpu(), dtype=np.float32)
-
-                # rect = mpp.Rectangle((bb[0], bb[1]),
-                #                     bb[2] - bb[0],
-                #                     bb[3] - bb[1],
-                #                     color=sample_color,
-                #                     fill=False,
-                #                     linewidth=3)
-                # import code
-                # code.interact(local=dict(globals(), **locals()))
-
                 imgnp = cv.rectangle(imgnp,
                                      (int(bb[0]), int(bb[1])),
                                      (int(bb[2]), int(bb[3])),
                                      color=sample_color,
                                      thickness=gt_box_thick)
-                # ax.add_patch(rect)
 
     # second, plot predictions
     if not predictions is None:
@@ -270,14 +203,12 @@ def show_groundtruth_and_prediction_bbox(image,
 
 @torch.no_grad()
 def infer_dataset(model,
-                  subdataset, # the sub-dataset object that has the relevant number of images in the set (eg test/train)
+                  dataset,
                   confidence_threshold,
                   iou_threshold,
                   save_folder_name,
                   device,
-                  class_names,
                   output_folder=None,
-                  dataset=None, # top-level dataset object that has the annotations
                   wait_time=1000,
                   imshow=True,
                   img_name_suffix=None):
@@ -289,11 +220,13 @@ def infer_dataset(model,
     model.to(device)
     out = []  # raw output from the model (apparently used somewhere?)
     predictions = []  # predictions from the model
-
-    for image, sample in subdataset:
+    print('images to infer: {}'.format(len(dataset)))
+    for image, sample in dataset:
+        # print()
         image_id = sample['image_id'].item()
+
         if dataset is not None:
-            img_name = dataset.annotations[image_id]['filename'][:-4]
+            img_name = dataset.dataset.annotations[image_id]['filename'][:-4]
         else:
             img_name = str(image_id)
 
@@ -301,8 +234,7 @@ def infer_dataset(model,
                                           image,
                                           confidence_threshold,
                                           iou_threshold,
-                                          device,
-                                          class_names)
+                                          device)
 
         image_marked = show_groundtruth_and_prediction_bbox(image,
                                                             sample=sample,
@@ -347,15 +279,13 @@ def infer_dataset(model,
         # convert from tensor gpu to tensor cpu
         outnumpy = [{k: v.cpu().numpy() for k, v in t.items()} for t in outtensor]
 
-        # import code
-        # code.interact(local=dict(globals(), **locals()))
-        # outnumpy[0]["image_id"] = image_id
-        # need to zip w/ targets
-        # res = {target["image_id"].item(): output for target, output in zip(targets, outputs)}
-        # res = {sample["image_id"].item(): outnumpy}
-
         out.append(outnumpy)
         predictions.append(pred)
+
+    # save output
+    # save_output_test = os.path.join('output', model_name, model_name + 'inference_val.json')
+    # with open(save_output_test, 'w') as out_file:
+    #     json.dump(out_test, out_file, indent=4)
 
     return out, predictions
 
@@ -365,6 +295,7 @@ def infer_dataset(model,
 if __name__ == "__main__":
 
     # test the detector model by plotting a sample image
+    print('Model inference')
 
     # setup device
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
@@ -377,30 +308,37 @@ if __name__ == "__main__":
     CLASS_NAMES = ["_background_", "serrated tussock"]
 
     # save_name = 'fasterrcnn-serratedtussock-4'
-    save_name = 'Tussock_v0_8'
-    save_path = os.path.join('output', save_name, save_name + '.pth')
-    model.load_state_dict(torch.load(save_path))
+    model_name = 'Tussock_v0_11'
+    model_folder = os.path.join('output', model_name)
+    saved_model_name = find_file('.pth', model_folder)
+    # save_path = os.path.join('output', save_name, save_name + '.pth')
+    saved_model_path = os.path.join(model_folder, saved_model_name[0])
+    model.load_state_dict(torch.load(saved_model_path))
+    print('loading model: {}'.format(saved_model_path))
 
-    # setup dataset
-    root_dir = os.path.join('SerratedTussockDataset')
-    json_file = os.path.join('Annotations', 'via_region_data.json')
+    # ann_file = os.path.join(model_folder, model_name + '_inference.json')
 
     # load stuff:
-    data_save_path = os.path.join('.', 'output', save_name, save_name + '.pkl')
+    dataset_name = 'Tussock_v0'
+    data_save_path = os.path.join('output',
+                                'dataset',
+                                dataset_name,
+                                dataset_name + '.pkl')
+    print('loading datasets: {}'.format(data_save_path))
     with open(data_save_path, 'rb') as f:
-        dataset_tform_test = pickle.load(f)
-        dataset_tform_train = pickle.load(f)
-        dataset_train = pickle.load(f)
-        dataset_val = pickle.load(f)
-        dataset_test = pickle.load(f)
-        dataloader_test = pickle.load(f)
-        dataloader_train = pickle.load(f)
-        dataloader_val = pickle.load(f)
+        ds_tform_test = pickle.load(f)
+        ds_tform_train = pickle.load(f)
+        ds_train = pickle.load(f)
+        ds_val = pickle.load(f)
+        ds_test = pickle.load(f)
+        dl_test = pickle.load(f)
+        dl_train = pickle.load(f)
+        dl_val = pickle.load(f)
         hp = pickle.load(f)
 
     INFER_ON_TRAINING = False
-    INFER_ON_TEST = False
-    INFER_ON_SINGLE_IMAGE = True
+    INFER_ON_TEST = True
+    INFER_ON_SINGLE_IMAGE = False
     INFER_ON_JOH = False
     INFER_ON_VIDEO = False
     INFER_ON_VAL = False
@@ -411,16 +349,14 @@ if __name__ == "__main__":
         confidence_thresh = 0.5
         iou_thresh = 0.5
         out_test, predictions = infer_dataset(model,
-                                                dataset_train,
-                                                confidence_thresh,
-                                                iou_thresh,
-                                                save_name,
-                                                device,
-                                                CLASS_NAMES,
-                                                output_folder='train',
-                                                dataset=dataset_train.dataset.dataset,
-                                                imshow=False,
-                                                img_name_suffix='_train')
+                                            ds_train,
+                                            confidence_thresh,
+                                            iou_thresh,
+                                            model_name,
+                                            device,
+                                            output_folder='train',
+                                            imshow=False,
+                                            img_name_suffix='_train')
 
     # test model inference on a single image to see if the predictions are changing
     # should be consistent/not change
@@ -431,7 +367,7 @@ if __name__ == "__main__":
         with torch.no_grad():
             # model.eval()
             model.to(device)
-            imgs, smps = next(iter(dataloader_test))
+            imgs, smps = next(iter(dl_test))
             model_conf = 0.5
             model_iou = 0.5
             bs = 1
@@ -446,12 +382,11 @@ if __name__ == "__main__":
                                                     img,
                                                     model_conf,
                                                     model_iou,
-                                                    device,
-                                                    CLASS_NAMES)
+                                                    device)
 
                     print('iter: {} :: {}'.format(j, pred))
 
-                imgname = os.path.join('output', save_name, 'single_image_model_infer.png')
+                imgname = os.path.join('output', model_name, 'single_image_model_infer.png')
                 img_out = show_groundtruth_and_prediction_bbox(img, smp, pred)
                 cv.imwrite(imgname, img_out)
                 cv_imshow(img_out, winname='single image')
@@ -464,21 +399,14 @@ if __name__ == "__main__":
         confidence_thresh = 0.5
         iou_thresh = 0.5
         out_test, pred_test = infer_dataset(model,
-                                 dataset_val,
+                                 ds_val,
                                  confidence_thresh,
                                  iou_thresh,
-                                 save_name,
+                                 model_name,
                                  device,
-                                 CLASS_NAMES,
                                  output_folder='validation',
-                                 dataset=dataset_val.dataset.dataset,
                                  imshow=True,
                                  img_name_suffix='_val')
-
-        # save output
-        save_output_test = os.path.join('output', save_name, 'predictions_test.json')
-        with open(save_output_test, 'w') as out_file:
-            json.dump(out_test, ann_file, indent=4)
 
     if INFER_ON_TEST:
         print('testing set')
@@ -486,19 +414,13 @@ if __name__ == "__main__":
         confidence_thresh = 0.8
         iou_thresh = 0.5
         out_test, pred_test = infer_dataset(model,
-                                 dataset_test,
+                                 ds_test,
                                  confidence_thresh,
                                  iou_thresh,
-                                 save_name,
+                                 model_name,
                                  device,
-                                 CLASS_NAMES,
                                  output_folder='dataset-test',
-                                 dataset=dataset_test.dataset)
-
-        # save output
-        save_output_test = os.path.join('output', save_name, 'predictions_test.json')
-        with open(save_output_test, 'w') as out_file:
-            json.dump(out_test, ann_file, indent=4)
+                                 imshow=False)
 
 
     # --------------- #
@@ -520,9 +442,8 @@ if __name__ == "__main__":
                       dataset_joh,
                       confidence_thresh,
                       iou_thresh,
-                      save_name,
+                      model_name,
                       device,
-                      CLASS_NAMES,
                       output_folder='dataset-joh',
                       dataset=dataset_joh)
 
@@ -574,7 +495,7 @@ if __name__ == "__main__":
         # read in the video,
 
         i = 0
-        MAX_VIDEO_FRAMES = 10000
+        MAX_VIDEO_FRAMES = 1000
         # send model to GPU for speed
         model.to(device)
 
@@ -612,7 +533,7 @@ if __name__ == "__main__":
                 iou_thresh = 0.5
                 model.eval()
 
-                pred, keep = get_prediction_image(model, frame_t, confidence_thresh, iou_thresh, device, CLASS_NAMES)
+                pred, keep = get_prediction_image(model, frame_t, confidence_thresh, iou_thresh, device)
                 img = show_groundtruth_and_prediction_bbox(image=frame_t,
                                                            predictions=pred,
                                                            keep=keep)
