@@ -48,7 +48,8 @@ def split_dataset(root_dir,
                                             transforms=tforms_test)
 
     # class definitions
-    class_names = ["_background_", "serrated tussock"]
+    # class_names = ["_background_", "serrated tussock"]
+    class_names = ["_background_", "horehound"]
 
     # split into training, validation and testing - note: we're only after the indices here
     nimg = len(ds_tform_test)
@@ -124,11 +125,16 @@ if __name__ == "__main__":
     hp['rescale_size'] = rescale_size
 
     # dataset folder/file settings
-    dataset_name = 'Tussock_v0'
-    root_dir = os.path.join(os.sep, 'home', 'dorian', 'Data', 'AOS_TussockDataset', 'Tussock_v0')
-    json_file = os.path.join('Annotations', 'annotations_tussock_21032526_G507_combined.json')
 
-    dataset_lengths = (500, 1, 69)
+    dataset_name = 'Horehound_v0'
+    root_dir = os.path.join(os.sep, 'home', 'dorian', 'Data', 'AOS_TussockDataset', 'Horehound_v0')
+    json_file = os.path.join('Annotations', 'annotations_horehound_210326_G507_location2.json')
+    # dataset_name = 'Tussock_v0'
+    # root_dir = os.path.join(os.sep, 'home', 'dorian', 'Data', 'AOS_TussockDataset', 'Tussock_v0')
+    # json_file = os.path.join('Annotations', 'annotations_tussock_21032526_G507_combined.json')
+
+    # dataset_lengths = (500, 1, 69)
+    dataset_lengths = (200, 1, 49)
     split_dataset(root_dir,
                 json_file,
                 hp,

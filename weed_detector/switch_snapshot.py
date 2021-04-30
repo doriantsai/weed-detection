@@ -57,10 +57,12 @@ def switch_snapshot(model_save_name, epoch):
 # --------------------------------------------------------------------------- #
 if __name__ == "__main__":
     # model to be replaced by a snapshot
-    model_save_name =  'Tussock_v0_11'
+    # model_save_name =  'Tussock_v0_14'
+    model_save_name =  'Horehound_v0_1'
+
 
     # snapshot:
-    epoch = 25
+    epoch = 15
     sr = switch_snapshot(model_save_name, epoch)
 
     # TODO:
