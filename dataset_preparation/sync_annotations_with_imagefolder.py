@@ -11,8 +11,10 @@ import os
 import json
 
 # set directories
-root_dir = os.path.join('/home', 'dorian', 'Data', 'AOS_TussockDataset', 'Tussock_v0')
-image_dir = os.path.join(root_dir, 'Test_Images')
+# root_dir = os.path.join('/home', 'dorian', 'Data', 'AOS_TussockDataset', 'Tussock_v0', 'Occluded_Cases')
+root_dir = os.path.join('/home', 'dorian', 'Data', 'AOS_TussockDataset', 'Tussock_v0_mini')
+
+image_dir = os.path.join(root_dir, 'Images')
 annotation_dir = os.path.join(root_dir, 'Annotations')
 
 # set files
@@ -20,7 +22,7 @@ annotation_dir = os.path.join(root_dir, 'Annotations')
 # ie all images in Tusock**positivetags folders
 # TODO combine all json files from positivetags folders (to include negative images)
 annotations_master = os.path.join(annotation_dir, 'annotations_tussock_21032526_G507_combined_all.json')
-annotations_out = os.path.join(annotation_dir, 'ann_new.json')
+annotations_out = os.path.join(annotation_dir, 'annotations_tussock_21032526_G507_mini.json')
 
 # read in annotations_master
 annotations_master = json.load(open(annotations_master))

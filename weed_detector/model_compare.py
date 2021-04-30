@@ -18,14 +18,19 @@ import matplotlib.pyplot as plt
 from find_file import find_file
 from prcurve_singleiteration import get_prcurve
 from train import build_model
+from split_dataset import collate_fn  # TODO move this into SerratedTussockDataset
 
+
+IMSHOW = False
 
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
 # list models to compare:
 # we need full path names
-model_names = ['Tussock_v0_8',
-               'Tussock_v0_12']
+# model_names = ['Tussock_v0_13',
+#                'Tussock_v0_14']
+model_names = ['Horehound_v0_0',
+               'Horehound_v0_1']
 
 model_folders = []
 saved_model_names = []
@@ -63,7 +68,7 @@ with open(data_save_path, 'rb') as f:
 nms_iou_thresh = 0.5
 decision_iou_thresh = 0.5
 # DECISION_CONF_THRESH = 0.5
-confidence_thresh = np.linspace(0.95, 0.05, num=11, endpoint=True)
+confidence_thresh = np.linspace(0.99, 0.01, num=101, endpoint=True)
 confidence_thresh = np.array(confidence_thresh, ndmin=1)
 
 res = []
@@ -84,7 +89,8 @@ for m in model_names:
                           nms_iou_thresh,
                           decision_iou_thresh,
                           m,
-                          device)
+                          device,
+                          imsave=False)
     res.append(results)
 
 
@@ -106,7 +112,16 @@ ax.legend()
 plt.xlabel('recall')
 plt.ylabel('precision')
 plt.title('model comparison: PR curve')
-plt.show()
+
+mdl_names_str = "".join(model_names)
+save_plot_name = os.path.join('output', 'model_compare_' +  mdl_names_str + '.png')
+plt.savefig((save_plot_name))
+if IMSHOW:
+    plt.show()
+
+print('model comparison complete')
+for i, m in enumerate(model_names):
+    print(str(i) + ' model: ' + m)
 
 import code
 code.interact(local=dict(globals(), **locals()))

@@ -21,6 +21,8 @@ from PIL import Image
 from inference import show_groundtruth_and_prediction_bbox, cv_imshow, infer_dataset
 from get_prediction import get_prediction_image, threshold_predictions
 from find_file import find_file
+from split_dataset import collate_fn
+
 
 def compute_iou_bbox(boxA, boxB):
     """
@@ -252,8 +254,10 @@ def compute_single_pr_over_dataset(model,
                                             save_name,
                                             'outcomes',
                                             'conf_thresh_' + str(DECISION_CONF_THRESH))
-            if not os.path.exists(save_folder_name):
-                os.mkdir(save_folder_name)
+            # if not os.path.exists(save_folder_name):
+
+            #     os.mkdir(save_folder_name)
+            os.makedirs(save_folder_name, exist_ok=True)
             save_img_name = os.path.join(save_folder_name, img_name + '_outcome.png')
             cv.imwrite(save_img_name, imgw)
             # winname = 'outcome: ' + img_name
@@ -328,6 +332,7 @@ def extend_pr(prec, rec, conf, n_points=101, PLOT=False, save_name='outcomes'):
         plt.ylabel('precision')
         plt.title('prec-rec, max-binned')
         ax.legend()
+        os.makedirs(os.path.join('output', save_name), exist_ok=True)
         save_plot_name = os.path.join('output', save_name, save_name + '_test_pr_smooth.png')
         plt.savefig(save_plot_name)
 
@@ -376,6 +381,7 @@ def extend_pr(prec, rec, conf, n_points=101, PLOT=False, save_name='outcomes'):
         plt.ylabel('precision')
         plt.title('prec-rec, interpolated')
         ax.legend()
+        os.makedirs(os.path.join('output', save_name), exist_ok=True)
         save_plot_name = os.path.join('output', save_name, save_name + '_test_pr_interp.png')
         plt.savefig(save_plot_name)
         # plt.show()
@@ -444,7 +450,15 @@ def get_confidence_from_pr(p, r, c, f1, pg=None, rg=None):
     return cg
 
 
-def get_prcurve(model, dataset, confidence_thresh, nms_iou_thresh, decision_iou_thresh, save_folder_name, device):
+def get_prcurve(model,
+                dataset,
+                confidence_thresh,
+                nms_iou_thresh,
+                decision_iou_thresh,
+                save_folder_name,
+                device,
+                imshow=False,
+                imsave=False):
     # infer on 0-decision threshold
     # iterate over diff thresholds
     # extend_pr
@@ -459,7 +473,7 @@ def get_prcurve(model, dataset, confidence_thresh, nms_iou_thresh, decision_iou_
                                         save_folder_name=save_folder_name,
                                         device=device,
                                         output_folder='prcurve_predictions',
-                                        imshow=False,
+                                        imshow=imshow,
                                         img_name_suffix='_prcurve_0')
 
     # iterate over different decision thresholds
@@ -478,7 +492,7 @@ def get_prcurve(model, dataset, confidence_thresh, nms_iou_thresh, decision_iou_
                                                                     decision_iou_thresh,
                                                                     conf,
                                                                     device,
-                                                                    imsave=False,
+                                                                    imsave=imsave,
                                                                     dataset_annotations=dataset.dataset.annotations)
 
         # single-line for copy/paste in terminal:
@@ -562,10 +576,14 @@ if __name__ == "__main__":
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
     model = build_model(num_classes=2)
-    class_names = ['__background__', 'tussock']
+    # class_names = ['__background__', 'tussock']
+    class_names = ['__background__', 'horehound']
 
-    save_name = 'Tussock_v0_11'
-    model_name = 'Tussock_v0_11'
+    # save_name = 'Tussock_v0_11'
+    # model_name = 'Tussock_v0_11'
+    save_name = 'Horehound_v0_1'
+    model_name = 'Horehound_v0_1'
+
     model_folder = os.path.join('output', model_name)
     saved_model_name = find_file('.pth', model_folder)
     # save_path = os.path.join('output', save_name, save_name + '.pth')
@@ -574,7 +592,9 @@ if __name__ == "__main__":
     print('loading model: {}'.format(saved_model_path))
 
     # dataset location
-    dataset_name = 'Tussock_v0'
+    # dataset_name = 'Tussock_v0'
+    dataset_name = 'Horehound_v0'
+
     data_save_path = os.path.join('output',
                                 'dataset',
                                 dataset_name,
@@ -593,7 +613,7 @@ if __name__ == "__main__":
     nms_iou_thresh = 0.5
     decision_iou_thresh = 0.5
     # DECISION_CONF_THRESH = 0.5
-    confidence_thresh = np.linspace(0.95, 0.05, num=11, endpoint=True)
+    confidence_thresh = np.linspace(0.99, 0.01, num=101, endpoint=True)
     confidence_thresh = np.array(confidence_thresh, ndmin=1)
 
     # call get_prcurve()
@@ -603,7 +623,8 @@ if __name__ == "__main__":
                           nms_iou_thresh,
                           decision_iou_thresh,
                           model_name,
-                          device)
+                          device,
+                          imsave=True)
     # compute AP
     # choose best F1 score?
     # report 95% recall and 95% precision values

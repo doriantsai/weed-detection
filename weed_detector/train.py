@@ -54,7 +54,8 @@ if __name__ == "__main__":
 
     # ------------------------------ #
     LOAD_DATASET = True
-    dataset_name = 'Tussock_v0'
+    # dataset_name = 'Tussock_v0'
+    dataset_name = 'Horehound_v0'
     if LOAD_DATASET:
         # dataset pickle file should be located in:
         # save_dataset_folder = os.path.join('output','dataset', dataset_name)
@@ -89,7 +90,8 @@ if __name__ == "__main__":
     # ------------------------------ #
     # directories
     # TODO add date/time to filename
-    model_save_name = 'Tussock_v0_12'
+    # model_save_name = 'Tussock_v0_15'
+    model_save_name = 'Horehound_v0_1'
     # save_name = 'fasterrcnn-serratedtussock-4'
     save_folder = os.path.join('output', model_save_name)
     if not os.path.isdir(save_folder):
