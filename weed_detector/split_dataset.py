@@ -12,9 +12,9 @@ from SerratedTussockDataset import SerratedTussockDataset, RandomHorizontalFlip,
 import torch
 import numpy as np
 
+
 def collate_fn(batch):
     return tuple(zip(*batch))
-
 
 def split_dataset(root_dir,
                   json_file,
