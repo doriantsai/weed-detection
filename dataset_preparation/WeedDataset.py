@@ -1,5 +1,9 @@
 #! /usr/bin/env python
 
+"""
+weed dataset object and associated transforms as classes
+"""
+
 import os
 import numpy as np
 import torch
@@ -15,8 +19,8 @@ from torchvision.transforms import functional as tvtransfunc
 from torchvision.datasets.video_utils import VideoClips
 
 
-class SerratedTussockDataset(object):
-    """ Serrated tussock dataset """
+class WeedDataset(object):
+    """ weed dataset object """
 
 
     def __init__(self, root_dir, json_file, transforms):
@@ -78,7 +82,6 @@ class SerratedTussockDataset(object):
         iscrowd = torch.zeros((nobj,), dtype=torch.int64)
 
         # image_id is the index of the image in the folder
-        # TODO should test this
         image_id = torch.tensor([idx], dtype=torch.int64)
 
         sample = {}
@@ -101,6 +104,9 @@ class SerratedTussockDataset(object):
         """
         return len(self.annotations)
 
+
+    def collate_fn(batch):
+        return tuple(zip(*batch))
 
     def set_transform(self, tforms):
         """
@@ -193,7 +199,6 @@ class RandomHorizontalFlip(object):
 
     def __init__(self, prob):
         """ probability of a horizontal image flip """
-
         self.prob = prob
 
 
@@ -222,6 +227,7 @@ class Blur(object):
 
     def __init__(self, kernel_size=3, sigma=(0.1, 2.0)):
         """ kernel size and standard deviation (sigma) of Gaussian blur """
+        # kernel must be an odd number
         self.kernel_size = kernel_size
         self.sigma = sigma
 
@@ -229,7 +235,6 @@ class Blur(object):
     def __call__(self, image, sample):
         """ apply blur to image """
         image = tvtransfunc.gaussian_blur(image, self.kernel_size, self.sigma)
-
         return image, sample
 
 
@@ -264,7 +269,7 @@ class RandomBrightness(object):
                  prob,
                  brightness=0):
         self.prob = prob
-        # TODO check brightness single non-negative 0 gives a black image, 1
+        # check brightness single non-negative 0 gives a black image, 1
         # gives the original image while 2 increases the brightness by a factor
         # of 2
         self.brightness = brightness
@@ -284,7 +289,7 @@ class RandomContrast(object):
                  prob,
                  contrast=0):
         self.prob = prob
-        # TODO Can be any non negative number. 0 gives a solid gray image, 1
+        # Can be any non negative number. 0 gives a solid gray image, 1
         # gives the original image while 2 increases the contrast by a factor of
         # 2.
         self.contrast=contrast
@@ -304,7 +309,8 @@ class RandomHue(object):
                  prob,
                  hue=0):
         self.prob = prob
-        # TODO Should be in [-0.5, 0.5]. 0.5 and -0.5 give complete reversal of
+        # hue is a single number ranging from
+        # Should be in [-0.5, 0.5]. 0.5 and -0.5 give complete reversal of
         # hue channel in HSV space in positive and negative direction
         # respectively. 0 means no shift. Therefore, both -0.5 and 0.5 will give
         # an image with complementary colors while 0 gives the original image.
@@ -323,7 +329,7 @@ class RandomSaturation(object):
 
     def __init__(self, prob, saturation=0):
         self.prob = prob
-        # TODO 0 will give a black and white image, 1 will give the original
+        # 0 will give a black and white image, 1 will give the original
         # image while 2 will enhance the saturation by a factor of 2.
         self.saturation = saturation
 
