@@ -27,7 +27,7 @@ class WeedDataset(object):
         """
         initialise the dataset
         annotations - json file of annotations of a prescribed format
-        root_dir - root directory of dataset, under which are Images and Annotations folder
+        root_dir - root directory of dataset, under which are Images/All/Test/Train folders
         transforms - list of transforms randomly applied to dataset for training
         """
 
@@ -47,7 +47,7 @@ class WeedDataset(object):
             idx = idx.tolist()
 
         # get image
-        img_name = os.path.join(self.root_dir, 'Images', self.annotations[idx]['filename'])
+        img_name = os.path.join(self.root_dir, self.annotations[idx]['filename'])
         image =  Image.open(img_name).convert("RGB")
 
         # number of bboxes
@@ -107,6 +107,7 @@ class WeedDataset(object):
 
     def collate_fn(batch):
         return tuple(zip(*batch))
+
 
     def set_transform(self, tforms):
         """
@@ -222,7 +223,7 @@ class RandomHorizontalFlip(object):
         return image, sample
 
 
-class Blur(object):
+class RandomBlur(object):
     """ Gaussian blur images """
 
     def __init__(self, kernel_size=3, sigma=(0.1, 2.0)):

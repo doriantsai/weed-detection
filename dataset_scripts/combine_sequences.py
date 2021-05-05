@@ -30,6 +30,18 @@ a3 = json.load(open(a3))
 # can do simple check - check length after-the-fact
 a_comb = {**a1, **a2, **a3}
 
+ann = []
+ann.append(a1)
+ann.append(a2)
+ann.append(a3)
+
+a_comb0 = {}
+for an in ann:
+    a_comb0 = {**a_comb0, **an}
+
+print('a_comb = ' + str(len(a_comb)))
+print('a_comb0 = ' + str(len(a_comb0)))
+
 la1 = len(a1)
 la2 = len(a2)
 la3 = len(a3)
@@ -46,5 +58,5 @@ print(len(a_comb))
 with open(os.path.join(annotations_dir, aout_name), 'w') as ann_file:
     json.dump(a_comb, ann_file, indent=4)
 
-# import code
-# code.interact(local=dict(globals(), **locals()))
+import code
+code.interact(local=dict(globals(), **locals()))
