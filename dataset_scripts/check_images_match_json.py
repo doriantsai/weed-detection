@@ -2,6 +2,7 @@
 
 """
 script to check image files match json file
+NOTE depracated - see PreProcessingToolbox.check_images_match_annotations
 """
 
 

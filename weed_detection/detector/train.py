@@ -7,25 +7,24 @@ Purpose: Train serrated tussock detector
 """
 
 import os
-import numpy as np
+# import numpy as np
 import torch
-import torch.utils.data
+# import torch.utils.data
 import torchvision
-import utils
+# import utils
 import json
 import pickle
 import datetime
 import time
 
-import cv2 as cv
-import matplotlib.pyplot as plt
-
-from PIL import Image
+# import cv2 as cv
+# import matplotlib.pyplot as plt
+# HACK make WeedDataset module visible to this place
+# TODO
+# from PIL import Image
 from torch.utils.tensorboard import SummaryWriter
 from engine_st import train_one_epoch, evaluate
-from SerratedTussockDataset import SerratedTussockDataset, RandomHorizontalFlip, Rescale, ToTensor, Blur, Compose
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
-from split_dataset import collate_fn
 
 torch.manual_seed(42)
 
@@ -55,12 +54,14 @@ if __name__ == "__main__":
     # ------------------------------ #
     LOAD_DATASET = True
     # dataset_name = 'Tussock_v0'
-    dataset_name = 'Horehound_v0'
+    # dataset_name = 'Horehound_v0'
+    dataset_name = 'Tussock_v1'
+
     if LOAD_DATASET:
         # dataset pickle file should be located in:
         # save_dataset_folder = os.path.join('output','dataset', dataset_name)
         # dataset_name + '.pkl'
-        save_dataset_path = os.path.join('.', 'output',
+        save_dataset_path = os.path.join('..', 'dataset_preparation',
                                          'dataset',
                                          dataset_name,
                                          dataset_name + '.pkl')
@@ -68,22 +69,21 @@ if __name__ == "__main__":
         if os.path.isfile(save_dataset_path):
             # load the data
             with open(save_dataset_path, 'rb') as f:
-                ds_tform_test = pickle.load(f)
-                ds_tform_train = pickle.load(f)
                 ds_train = pickle.load(f)
-                ds_val = pickle.load(f)
                 ds_test = pickle.load(f)
-                dl_test = pickle.load(f)
+                ds_val = pickle.load(f)
                 dl_train = pickle.load(f)
+                dl_test = pickle.load(f)
                 dl_val = pickle.load(f)
-                hp = pickle.load(f)
+                hp_train = pickle.load(f)
+                hp_test = pickle.load(f)
 
         else:
             print('File does not exist: {}'.format(save_dataset_path))
     else:
         # run split_dataset
         # TODO talk to Gavin about restructuring code
-        print('TODO: run split_dataset')
+        print('TODO: run create_datasets')
 
     print('Training model on dataset: {}'.format(dataset_name))
 
@@ -91,11 +91,15 @@ if __name__ == "__main__":
     # directories
     # TODO add date/time to filename
     # model_save_name = 'Tussock_v0_15'
-    model_save_name = 'Horehound_v0_1'
+    # model_save_name = 'Horehound_v0_1'
+
+    model_save_name = 'Tussock_v1_01'
+
     # save_name = 'fasterrcnn-serratedtussock-4'
     save_folder = os.path.join('output', model_save_name)
-    if not os.path.isdir(save_folder):
-        os.mkdir(save_folder)
+    # if not os.path.isdir(save_folder):
+    #     os.mkdir(save_folder)
+    os.makedirs(save_folder, exist_ok=True)
     save_path = os.path.join(save_folder, model_save_name + '.pth')
     print('Model save name: {}'.format(model_save_name))
 
@@ -110,14 +114,14 @@ if __name__ == "__main__":
     # optimizer
     params = [p for p in model.parameters() if p.requires_grad]
     optimizer = torch.optim.SGD(params,
-                                lr=hp['learning_rate'],
-                                momentum=hp['momentum'],
-                                weight_decay=hp['weight_decay'])
+                                lr=hp_train['learning_rate'],
+                                momentum=hp_train['momentum'],
+                                weight_decay=hp_train['weight_decay'])
 
     # learning rate scheduler decreases the learning rate by gamma every
     # step_size number of epochs
     lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer,
-                                                   step_size=hp['step_size'],
+                                                   step_size=hp_train['step_size'],
                                                    gamma=0.1)
 
     # record loss value in tensorboard

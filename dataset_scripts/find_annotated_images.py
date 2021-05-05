@@ -50,9 +50,10 @@ else:
 unsorted_image_dir = os.path.join(root_dir, 'positive-tags')
 annotations_dir = os.path.join(root_dir, 'Annotations')
 image_dir = os.path.join(root_dir, 'Images')
-if not os.path.isdir(image_dir):
-    print('image_dir does not yet exist. making image_dir')
-    os.mkdir(image_dir)
+negative_image_dir = os.path.join(root_dir, 'Negative_Images')
+
+os.makedirs(image_dir, exist_ok=True)
+os.makedirs(negative_image_dir, exist_ok=True)
 
 # read in json
 annotations_uns_dict = json.load(open(os.path.join(annotations_dir, annotations_file_in)))
@@ -91,6 +92,13 @@ for i, sample in enumerate(annotations_uns):
             'file_attributes': file_att,
             'regions': regions
         }
+    else:
+        # copy image to negative images folder for now, no need to make a
+        # negative image dictionary, as combine_all.json has all the images
+        # and we sync to the image folder anyways
+        shutil.copyfile(os.path.join(unsorted_image_dir, img_name),
+                        os.path.join(negative_image_dir, img_name))
+
 
 print('image copy to image_dir complete')
 
