@@ -131,3 +131,22 @@ class PreProcessingToolbox:
         return True
 
 
+    def find_positive_images(self, folder_in, root_dir, ann_in, ann_out):
+        """ find images with positive weed annotations in an image
+        folder/annotations_in file pair that have both negative and positive
+        images of weeds
+        also copies positive images to root_dir/Images
+        and negative images to root_dir/Negative_Images
+        and outputs a corresponding annotations file for all the positive Images
+        """
+
+        # setup directories
+        img_dir = os.path.join(root_dir, 'Images')
+        neg_img_dir = os.path.join(root_dir, 'Negative_Images')
+        ann_dir = os.path.join(root_dir, 'Annotations')
+
+        os.makedirs(img_dir, exist_ok=True)
+        os.makedirs(neg_img_dir, exist_ok=True)
+
+        # read in annotations
+        ann_uns = json.load(open(os.path.join(ann_dir, ann_in)))
