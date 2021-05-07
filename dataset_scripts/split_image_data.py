@@ -80,7 +80,7 @@ print('nval {}'.format(va))
 # do random split of image data
 ds_train, ds_val, ds_test = torch.utils.data.random_split(wd, [tr, va, te])
 # only apply tform_train to training dataset
-ds_train.dataset = wd_train
+# ds_train.dataset = wd_train
 
 # now, actually copy images from All folder to respective image folders
 # dataset = ds_train
