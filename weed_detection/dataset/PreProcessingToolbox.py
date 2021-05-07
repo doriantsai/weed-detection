@@ -11,8 +11,13 @@ a collection of functions for the above
 import os
 import json
 import pickle
+from posix import ST_SYNCHRONOUS
 import numpy as np
 from PIL import Image
+import shutil
+from subprocess import call
+from WeedDataset import WeedDataset
+import torch
 
 
 class PreProcessingToolbox:
@@ -105,10 +110,70 @@ class PreProcessingToolbox:
             json.dump(ann_all, ann_file, indent=4)
 
         n_all = len(ann_all)
-        if np_img_sum == n_all:
+        if n_img_sum == n_all:
             return True
         else:
             return False
+
+
+    def sync_annotations(self, image_dir, ann_master_file, ann_out_file):
+        """ synchronise annotations file (ann_out) based on what images are 
+        in image_dir and ann_master """
+
+        # read in annotations master
+        # create list out of dictionary values, so we have indexing
+        ann_master = json.load(open(ann_master_file))
+        ann_master = list(ann_master)
+
+        # find all files in img_dir
+        img_list = os.listdir(image_dir)
+
+        # find all dictionary entries that match img_dir
+        master_filename_list = [s['filename'] for s in ann_master]
+
+        # create dictionary with keys: list entries, values: indices
+        ind_dict = dict((k, i) for i, k in enumerate(master_filename_list))
+
+        # find intersection of master and local ann files:
+        inter = set(ind_dict).intersection(img_list)
+
+        # compile list of indices of the intersection
+        indices = [ind_dict[x] for x in inter]
+
+        # for each index, we take the sample from ann_master and make a new dict
+        ann_dict = {}
+        for i in indices:
+            sample = ann_master[i]
+
+            # save/create new annotations file
+            ann_dict = self.sample_dict(ann_dict, sample)
+
+        # create annotations_out_file:
+        with open(ann_out_file, 'w') as ann_file:
+            json.dump(ann_dict, ann_file, indent=4)
+
+        return True
+
+
+    def sample_dict(self, ann_dict, sample):
+        """ helper function to build annotation dictionary """
+        file_ref = sample['fileref']
+        file_size = sample['size']
+        file_name = sample['filename']
+        imgdata = sample['base64_img_data']
+        file_att = sample['file_attributes']
+        regions = sample['regions']
+
+        ann_dict[file_name + str(file_size)] = {
+            'fileref': file_ref,
+            'size': file_size,
+            'filename': file_name,
+            'base64_img_data': imgdata,
+            'file_attributes': file_att,
+            'regions': regions
+        }
+        # return ann_dict might not be necessary due to pointers
+        return ann_dict
 
 
     def convert_images(self, folder, file_pattern='.png'):
@@ -150,3 +215,172 @@ class PreProcessingToolbox:
 
         # read in annotations
         ann_uns = json.load(open(os.path.join(ann_dir, ann_in)))
+        ann_uns = list(ann_uns.values())
+
+        # sort through unsorted annotations and find all images with nonzero regions
+        pos_img_list = []
+        ann_dict = {}
+        for i, sample in enumerate(ann_uns):
+
+            img_name = ann_uns[i]['filename']
+            n_regions = len(ann_uns[i]['regions'])
+
+            if n_regions > 0:
+                # if we have any bounding boxes, we want to save this image name in a list
+                pos_img_list.append(img_name)
+
+                # copy over image to img_dir
+                shutil.copyfile(os.path.join(folder_in, img_name),
+                                os.path.join(img_dir, img_name))
+
+                # save annotations by remaking the dictionary
+                # file_ref = sample['fileref']
+                # file_size = sample['size']
+                # file_name = sample['filename']
+                # img_data = sample['base54_img_data']
+                # file_att = sample['file_attributes']
+                # regions = sample['regions']
+
+                # ann_dict[file_name + str(file_size)] = {
+                #     'fileref': file_ref,
+                #     'size': file_size,
+                #     'filename': file_name,
+                #     'base64_img_data': img_data,
+                #     'file_attributes': file_att,
+                #     'regions': regions
+                # }
+                ann_dict = self.sample_dict(ann_dict, sample)
+
+            else:
+                # copy negative images
+                shutil.copyfile(os.path.join(folder_in, img_name),
+                                os.path.join(neg_img_dir, img_name))
+
+        print('image copy to image_dir complete')
+        # save annotation file
+        with open(os.path.join(ann_dir, ann_out), 'w') as ann_file:
+            json.dump(ann_dict, ann_file, indent=4)
+
+        print('filtered annotation file saved')
+
+        # check:
+        n_in = len(ann_uns)
+        print('n img in original ann_file: {}'.format(n_in))
+        n_out = len(ann_dict)
+        print('n img positive in out ann_file: {}'.format(n_out))
+
+        return True
+
+
+    def rename_images(self, img_dir, str_pattern='.png'):
+        """ rename all files that match str_pattern in a given folder """
+
+        files = os.listdir(img_dir)
+        for i, f in enumerate(files):
+
+            # check file extension
+            if f.endswith(str_pattern):
+                # rename to st-###.png
+                img_name = 'st' + str(i).zfill(3) + str_pattern
+                print(f + ' --> ' + img_name)
+                os.rename(os.path.join(img_dir, f), 
+                          os.path.join(img_dir, img_name))
+
+        return True
+    
+
+    def copy_images(self, dataset, all_folder, save_folder):
+        """ copy images specified in dataset from all_folder to save_folder """
+        for image, sample in dataset:
+            image_id = sample['image_id'].item()
+            img_name = dataset.dataset.annotations[image_id]['filename']
+            new_img_path = os.path.join(save_folder, img_name)
+            old_img_path = os.path.join(all_folder, img_name)
+            # print('copy from: {}'.format(old_img_path))
+            # print('       to: {}'.format(new_img_path))
+            shutil.copyfile(old_img_path, new_img_path)
+
+
+    def split_image_data(self, 
+                         root_dir, 
+                         all_folder, 
+                         ann_master_file,
+                         ann_all_file,
+                         ann_train_file,
+                         ann_val_file,
+                         ann_test_file,
+                         ratio_train_test=None):
+        """ prepare dataset/dataloader objects by randomly taking images from all_folder,
+        and splitting them randomly into Train/Test/Val with respecctive annotation files
+        """
+
+        # setup folders
+        train_folder = os.path.join(root_dir, 'Images', 'Train')
+        test_folder = os.path.join(root_dir, 'Images','Test')
+        val_folder = os.path.join(root_dir, 'Images', 'Validation')
+
+        os.makedirs(train_folder, exist_ok=True)
+        os.makedirs(test_folder, exist_ok=True)
+        os.makedirs(val_folder, exist_ok=True)
+
+        ann_dir = os.path.join(root_dir, 'Annotations')
+        # NOTE I don't think I'm entirely consistent with use of annotation file names
+        # TODO check for consistency
+        ann_master = os.path.join(ann_dir, ann_master_file)
+        ann_all = os.path.join(ann_dir, ann_all_file)
+
+        # ensure annotations file matches all images in all_folder 
+        # a requirement for doing random_split
+        self.sync_annotations(all_folder, ann_master, ann_all)
+
+        # create dummy weed dataset object to do random split
+        wd = WeedDataset(all_folder, ann_all, transforms=None)
+
+        # dataset lengths
+        files = os.listdir(all_folder)
+        # img_files = [f for f in files if f.endswith('.png')]  # I think this works
+        # TODO check
+        img_files = []
+        for f in files:
+            if f.endswith('.png'):
+                img_files.append(f)
+        n_img = len(img_files)
+        print('number of images in all_folder: {}'.format(n_img))
+
+        # define ratio for training and testing data
+        if ratio_train_test is None:
+            ratio_train_test = [0.7, 0.2]
+        # compute validation ratio from remainder
+        ratio_train_test.append(1 - ratio_train_test[0] - ratio_train_test[1])
+
+        tr = int(round(n_img * ratio_train_test[0]))
+        te = int(round(n_img * ratio_train_test[1]))
+        va = int(round(n_img * ratio_train_test[2]))
+
+        print('n_train {}'.format(tr))
+        print('n_test {}'.format(te))
+        print('n_val {}'.format(va))
+
+        # do random split of image data
+        ds_train, ds_val, ds_test = torch.utils.data.random_split(wd, [tr, va, te])
+
+        # now, actually copy images from All folder to respective image folders
+        # dataset = ds_train
+        # save_folder = train_folder
+        self.copy_images(ds_train, all_folder, train_folder)
+        self.copy_images(ds_val, all_folder, val_folder)
+        self.copy_images(ds_test, all_folder, test_folder)
+        print('copy images from all_folder to train/test/val_folder complete')
+
+        # now, call sync_annotations_with_imagefolder for each:
+        annotations_train = os.path.join(ann_dir, ann_train_file)
+        annotations_val = os.path.join(ann_dir, ann_val_file)
+        annotations_test = os.path.join(ann_dir, ann_test_file)
+
+        # function calls for each folder
+        self.sync_annotations(train_folder, ann_all, annotations_train)
+        self.sync_annotations(val_folder, ann_all, annotations_val)
+        self.sync_annotations(test_folder, ann_all, annotations_test)
+        print('sync json with image folders complete')
+
+        return True
