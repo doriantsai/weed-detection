@@ -383,4 +383,7 @@ class PreProcessingToolbox:
         self.sync_annotations(test_folder, ann_all, annotations_test)
         print('sync json with image folders complete')
 
-        return True
+        # package output
+        img_folders = [train_folder, test_folder, val_folder]
+        ann_files = [annotations_train, annotations_test, annotations_val]
+        return img_folders, ann_files
