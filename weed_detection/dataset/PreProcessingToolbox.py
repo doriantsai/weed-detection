@@ -23,7 +23,7 @@ import torch
 class PreProcessingToolbox:
     """ collection of functions to preprocessing the dataset """
 
-    def __init__(self, image_dir, annotations_file):
+    def __init__(self, image_dir=None, annotations_file=None):
         self.image_dir = image_dir
         self.annotations_file = annotations_file
 
