@@ -16,7 +16,7 @@ import numpy as np
 from PIL import Image
 import shutil
 from subprocess import call
-from WeedDataset import WeedDataset
+from weed_detection.WeedDataset import WeedDataset
 import torch
 
 
@@ -117,7 +117,7 @@ class PreProcessingToolbox:
 
 
     def sync_annotations(self, image_dir, ann_master_file, ann_out_file):
-        """ synchronise annotations file (ann_out) based on what images are 
+        """ synchronise annotations file (ann_out) based on what images are
         in image_dir and ann_master """
 
         # read in annotations master
@@ -283,11 +283,11 @@ class PreProcessingToolbox:
                 # rename to st-###.png
                 img_name = 'st' + str(i).zfill(3) + str_pattern
                 print(f + ' --> ' + img_name)
-                os.rename(os.path.join(img_dir, f), 
+                os.rename(os.path.join(img_dir, f),
                           os.path.join(img_dir, img_name))
 
         return True
-    
+
 
     def copy_images(self, dataset, all_folder, save_folder):
         """ copy images specified in dataset from all_folder to save_folder """
@@ -301,9 +301,9 @@ class PreProcessingToolbox:
             shutil.copyfile(old_img_path, new_img_path)
 
 
-    def split_image_data(self, 
-                         root_dir, 
-                         all_folder, 
+    def split_image_data(self,
+                         root_dir,
+                         all_folder,
                          ann_master_file,
                          ann_all_file,
                          ann_train_file,
@@ -329,7 +329,7 @@ class PreProcessingToolbox:
         ann_master = os.path.join(ann_dir, ann_master_file)
         ann_all = os.path.join(ann_dir, ann_all_file)
 
-        # ensure annotations file matches all images in all_folder 
+        # ensure annotations file matches all images in all_folder
         # a requirement for doing random_split
         self.sync_annotations(all_folder, ann_master, ann_all)
 
