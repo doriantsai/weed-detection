@@ -1,2 +1,2 @@
-from dataset import PreProcessingToolbox
-from dataset import WeedDataset
+from weed_detection.PreProcessingToolbox import PreProcessingToolbox
+from weed_detection.WeedDataset import *
