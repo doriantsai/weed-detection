@@ -15,11 +15,13 @@ import datetime
 import pickle
 import numpy as np
 import cv2 as cv
+import matplotlib.pyplot as plt
 
 # TODO replace tensorboard with weightsandbiases
 from torch.utils.tensorboard import SummaryWriter
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 from torchvision.transforms import functional as tv_transform
+from scipy.interpolate import interp1d
 
 from engine_st import train_one_epoch, evaluate
 from weed_detection.WeedDataset import WeedDataset, Rescale
@@ -350,20 +352,19 @@ class WeedModel:
 
 
     def get_predictions_image(self, 
-                              model, 
                               image, 
                               conf_thresh, 
                               nms_iou_thresh):
         """ take in model, single image, thresholds, return bbox predictions for scores > threshold """
 
         # image incoming is a tensor, since it is from a dataloader object
-        model.eval()  # TODO could call self.model.eval(), but for now, just want to port the scripts/functions
+        self.model.eval()  # TODO could call self.model.eval(), but for now, just want to port the scripts/functions
         if torch.cuda.is_available():
             image.to(self.device)
-            model.to(self.device) # added, unsure if this will cause errors
+            self.model.to(self.device) # added, unsure if this will cause errors
         
         # do model inference on single image
-        pred = model([image])
+        pred = self.model([image])
 
         # apply non-maxima suppression
         keep = torchvision.ops.nms(pred[0]['boxes'], pred[0]['scores'], nms_iou_thresh)
@@ -419,7 +420,7 @@ class WeedModel:
 
     def cv_imshow(self, image, win_name, wait_time=2000, close_window=True):
         """ show image with win_name for wait_time """
-        img = cv.cvtColor(img, cv.COLOR_RGB2BGR)
+        img = cv.cvtColor(image, cv.COLOR_RGB2BGR)
         cv.namedWindow(win_name, cv.WINDOW_GUI_NORMAL)
         cv.imshow(win_name, img)
         cv.waitKey(wait_time)
@@ -436,8 +437,11 @@ class WeedModel:
              predictions_color=(255, 0, 0),
              iou_color=(255, 255, 255),
              transpose_image_channels=True,
-             transpose_color_channels=False):
+             transpose_color_channels=False,
+             resize_image=False,
+             resize_height=(1080)):
         """ show image, sample/groundtruth, model predictions, outcomes (TP/FP/etc) """
+        # TODO rename "show" to something like "create_plot" or "markup", as we don't actually show the image
         # assume image comes in as a tensor, as in the same format it was input 
         # into the model
 
@@ -455,14 +459,14 @@ class WeedModel:
 
         # move to cpu and convert from tensor to numpy array
         # since opencv requires numpy arrays
-        image_np = image.cpu().numpy()
+        image_out = image.cpu().numpy()
 
         if transpose_image_channels:
             # if we were working with BGR as opposed to RGB
-            image_np = np.transpose(image_np, (1, 2, 0))
+            image_out = np.transpose(image_out, (1, 2, 0))
         
         # normalize image from 0,1 to 0,255
-        image_np = cv.normalize(image_np, None, 0, 255, cv.NORM_MINMAX, cv.CV_8U)
+        image_out = cv.normalize(image_out, None, 0, 255, cv.NORM_MINMAX, cv.CV_8U)
 
         # ----------------------------------- #
         # first plot groundtruth boxes
@@ -474,7 +478,7 @@ class WeedModel:
                 for i in range(n_gt):
                     bb = np.array(boxes_gt[i, :].cpu(), dtype=np.float32) # TODO just specify int8 or imt16?
                     # overwrite the original image with groundtruth boxes
-                    image_np = cv.rectangle(image_np,
+                    image_out = cv.rectangle(image_out,
                                             (int(bb[0]), int(bb[1])),
                                             (int(bb[2]), int(bb[3])),
                                             color=sample_color,
@@ -489,7 +493,7 @@ class WeedModel:
             if len(boxes_pd) > 0:
                 for i in range(len(boxes_pd)):
                     bb = np.array(boxes_pd[i], dtype=np.float32) # TODO just specify int8 or imt16?
-                    image_np = cv.rectangle(image_np,
+                    image_out = cv.rectangle(image_out,
                                             (int(bb[0]), int(bb[1])),
                                             (int(bb[2]), int(bb[3])),
                                             color=predictions_color,
@@ -497,7 +501,7 @@ class WeedModel:
                     
                     # add text to top left corner of bbox
                     sc = format(scores[i] * 100.0, '.0f') # no decimals, just x100 for percent
-                    cv.putText(image_np,
+                    cv.putText(image_out,
                                '{}: {}'.format(i, sc),
                                (int(bb[0] + 10), int(bb[1] + 30)), # buffer numbers should be function of font scale
                                fontFace=cv.FONT_HERSHEY_COMPLEX,
@@ -516,7 +520,7 @@ class WeedModel:
                         bb = np.array(boxes_pd[i], dtype=np.float32)
                         # print in top/left corner of bbox underneath bbox # and score
                         iou_str = format(iou[i], '.2f') # max 2 decimal places
-                        cv.putText(image_np,
+                        cv.putText(image_out,
                                    'iou: {}'.format(iou_str),
                                    (int(bb[0] + 10), int(bb[1] + 60)),
                                    fontFace=cv.FONT_HERSHEY_COMPLEX,
@@ -555,7 +559,7 @@ class WeedModel:
                     for i in range(len(boxes_pd)):
                         # replot detection boxes based on outcome
                         bb = np.array(boxes_pd[i], dtype=np.float32)
-                        image_np = cv.rectangle(image_np,
+                        image_out = cv.rectangle(image_out,
                                                 (int(bb[0]), int(bb[1])),
                                                 (int(bb[2]), int(bb[3])),
                                                 color=outcome_color[dt_outcome[i]],
@@ -563,7 +567,7 @@ class WeedModel:
                         # add text top/left corner including outcome type
                         # prints over existing text, so needs to be the same starting string
                         sc = format(scores[i] * 100.0) # no decimals, just x100 for percent
-                        cv.putText(image_np,
+                        cv.putText(image_out,
                                    '{}: {}/{}'.format(i, sc, outcome_list[dt_outcome[i]]),
                                    fontFace=cv.FONT_HERSHEY_COMPLEX,
                                    fontScale=font_scale,
@@ -578,12 +582,12 @@ class WeedModel:
                         # gt boxes already plotted, so only replot them if false negatives
                         if fn_gt[j]: # if True
                             bb = np.array(boxes_gt[j,:].cpu(), dtype=np.float32)
-                            imgnp = cv.rectangle(imgnp,
+                            image_out = cv.rectangle(image_out,
                                                 (int(bb[0]), int(bb[1])),
                                                 (int(bb[2]), int(bb[3])),
                                                 color=outcome_color[2],
                                                 thickness=out_box_thick)
-                            cv.putText(imgnp,
+                            cv.putText(image_out,
                                 '{}: {}'.format(j, outcome_list[2]),
                                 (int(bb[0]+ 10), int(bb[1]) + 30),
                                 fontFace=cv.FONT_HERSHEY_COMPLEX,
@@ -591,11 +595,18 @@ class WeedModel:
                                 color=outcome_color[2], # index for FN
                                 thickness=font_thick)
 
-        return image_np
+        # resize image to save space
+        if resize_image:
+            aspect_ratio = self.image_width / self.image_height
+            resize_width = int(resize_height * aspect_ratio)
+            resize_height = int(resize_height)
+            image_out = cv.resize(image_out, 
+                                  (resize_width, resize_height),
+                                  interpolation=cv.INTER_CUBIC)
+        return image_out
 
 
     def infer_image(self, 
-                    model, 
                     image, 
                     sample=None, 
                     imshow=True, 
@@ -605,16 +616,16 @@ class WeedModel:
                     iou_thresh=0.5):
         """ do inference on a single image """
         # assume image comes in as a tensor for now (eg, from image, sample in dataset)
-        model.to(self.device)
+        self.model.to(self.device)
         image.to(self.device)
 
-        model.eval()
+        self.model.eval()
         
         # TODO accept different types of image input (tensor, numpy array, PIL, filename?)
 
         if image_name is None:
             image_name = self.model_name + '_image'
-        pred = self.get_predictions_image(model, image, conf_thresh, iou_thresh)
+        pred = self.get_predictions_image(self.model, image, conf_thresh, iou_thresh)
         
         if imsave or imshow:
             image_out = self.show(image,
@@ -634,24 +645,25 @@ class WeedModel:
 
     
     def infer_dataset(self,
-                      model,
                       dataset,
                       conf_thresh=0.5,
                       iou_thresh=0.5,
                       save_folder=None,
+                      save_subfolder='infer_dataset',
                       imshow=False,
                       imsave=False,
-                      wait_time=1000):
+                      wait_time=1000,
+                      image_name_suffix=None):
         """ do inference on entire dataset """
 
-        model.to(self.device)
-        model.eval()
+        self.model.to(self.device)
+        self.model.eval()
 
         # out = []
         predictions = []
 
         if save_folder is None:
-            save_folder = os.path.join('output', self.model_name, 'infer_dataset')
+            save_folder = os.path.join('output', self.model_name, save_subfolder)
 
         if imsave:
             os.makedirs(save_folder, exist_ok=True)
@@ -662,14 +674,19 @@ class WeedModel:
             image_id = sample['image_id'].item()
             image_name = dataset.dataset.annotations[image_id]['filename'][:-4]
 
-            pred = self.get_predictions_image(model,
-                                              image,
+            pred = self.get_predictions_image(image,
                                               conf_thresh,
                                               iou_thresh)
             image_out = self.show(image, sample=sample, predictions=pred)
 
             if imsave:
-                save_image_name = os.path.join(save_folder, image_name + '.png')
+                if image_name_suffix is None:
+                    save_image_name = os.path.join(save_folder, 
+                                                   image_name + '.png')
+                else:
+                    save_image_name = os.path.join(save_folder, 
+                                                   image_name + image_name_suffix + '.png')
+
                 image_out_bgr = cv.cvtColor(image_out, cv.COLOR_RGB2BGR)
                 cv.imwrite(save_image_name, image_out_bgr)
 
@@ -684,7 +701,6 @@ class WeedModel:
 
     
     def infer_video(self,
-                    model,
                     capture=None,
                     fps=10,
                     video_out_name=None,
@@ -729,7 +745,8 @@ class WeedModel:
 
         # read in video
         i = 0
-        model.to(self.device)
+        self.model.to(self.device)
+        self.model.eval()
 
         while (capture.isOpened() and i < MAX_FRAMES):
             
@@ -749,9 +766,7 @@ class WeedModel:
                 frame.to(self.device)
 
                 # model inference
-                model.eval()
-
-                pred = self.get_predictions_image(model, frame, conf_thresh, iou_thresh)
+                pred = self.get_predictions_image(frame, conf_thresh, iou_thresh)
                 frame_out = self.show(frame, predictions=pred)
 
                 # write image to video
@@ -786,11 +801,553 @@ class WeedModel:
         cv.destroyAllWindows()
 
 
+    def compute_iou_bbox(self, boxA, boxB):
+        """
+        compute intersection over union for bounding boxes
+        box = [xmin, ymin, xmax, ymax], tensors
+        """
+        # determine the coordinates of the intersection rectangle
+        xA = max(boxA[0], boxB[0])
+        yA = max(boxA[1], boxB[1])
+        xB = min(boxA[2], boxB[2])
+        yB = min(boxA[3], boxB[3])
+
+        # compute area of intersection rectangle
+        interArea = max(0, xB - xA + 1) * max(0, yB - yA + 1)
+
+        # compute area of boxA and boxB
+        boxAArea = (boxA[2] - boxA[0] + 1) * (boxA[3] - boxA[1] + 1)
+        boxBArea = (boxB[2] - boxB[0] + 1) * (boxB[3] - boxB[1] + 1)
+
+        # compute iou
+        iou = interArea / (float(boxAArea + boxBArea - interArea))
+
+        return iou
+
+    
+    def compute_match_cost(self, score, iou, weights=None):
+        """ compute match cost metric """
+        # compute match cost based on score and iou
+        # this is the arithmetic mean, consider the geometric mean
+        # https://en.wikipedia.org/wiki/Geometric_mean
+        # which automatically punishes the 0 IOU case because of the multiplication
+        # small numbers penalized harder
+        if weights is None:
+            weights = np.array([0.5, 0.5])
+        # cost = weights[0] * score + weights[1] * iou # classic weighting
+        cost = np.sqrt(score * iou)
+        return cost
+   
+
+    def compute_outcome_image(self,
+                              pred,
+                              sample,
+                              DECISION_IOU_THRESH,
+                              DECISION_CONF_THRESH):
+        """ compute outcome (tn/fp/fn/tp) for single image """
+        # output: outcome, tn, fp, fn, tp for the image
+        dt_bbox = pred['boxes']
+        dt_scores = pred['scores']
+        gt_bbox = sample['boxes']
+
+        ndt = len(dt_bbox)
+        ngt = len(gt_bbox)
+
+        # compute ious
+        # for each dt_bbox, compute iou and record confidence score
+        gt_iou_all = np.zeros((ndt, ngt))
+
+        # for each detection bounding box, find the best-matching groundtruth bounding box
+        # gt/dt_match is False - not matched, True - matched
+        dt_match = np.zeros((ndt,), dtype=bool)
+        gt_match = np.zeros((ngt,), dtype=bool)
+
+        # gt/dt_match_id is the index of the match vector
+        # eg. gt = [1 0 2 -1] specifies that
+        # gt_bbox[0] is matched to dt_bbox[1],
+        # gt_bbox[1] is matched to dt_bbox[0],
+        # gt_bbox[2] is matched to dt_bbox[2],
+        # gt_bbox[3] is not matched to any dt_bbox
+        dt_match_id = -np.ones((ndt,), dtype=int)
+        gt_match_id = -np.ones((ngt,), dtype=int)
+
+        # dt_assignment_idx = -np.ones((len(dt_bbox),), dtype=int)
+        dt_iou = -np.ones((ndt,))
+
+        for i in range(ndt):
+            gt_iou = []
+            for j in range(ngt):
+                iou = self.compute_iou_bbox(dt_bbox[i], gt_bbox[j])
+                gt_iou.append(iou)
+            gt_iou_all[i, :] = np.array(gt_iou)
+
+            # NOTE finding the max may be insufficient
+            # dt_score also important consideration
+            # find max iou from gt_iou list
+            idx_max = gt_iou.index(max(gt_iou))
+            iou_max = gt_iou[idx_max]
+            dt_iou[i] = iou_max
+
+        # calculate cost of each match/assignment
+        cost = np.zeros((ndt, ngt))
+        for i in range(ndt):
+            for j in range(ngt):
+                cost[i,j] = self.compute_match_cost(dt_scores[i], gt_iou_all[i, j])
+
+        # choose assignment based on max of matrix. If equal cost, we choose the first match
+        # higher cost is good - more confidence, more overlap
+
+        for j in range(ngt):
+            dt_cost = cost[:, j]
+            i_dt_cost_srt = np.argsort(dt_cost)[::-1]
+
+            for i in i_dt_cost_srt:
+                if (not dt_match[i]) and \
+                    (dt_scores[i] >= DECISION_CONF_THRESH) and \
+                        (gt_iou_all[i,j] >= DECISION_IOU_THRESH):
+                    # if the detection box in question is not already matched
+                    dt_match[i] = True
+                    gt_match[j] = True
+                    dt_match_id[i] = j
+                    gt_match_id[j] = i
+                    dt_iou[i] = gt_iou_all[i, j]
+                    break
+                    # stop iterating once the highest-scoring detection satisfies the criteria\
+
+
+        tp = np.zeros((ndt,), dtype=bool)
+        fp = np.zeros((ndt,), dtype=bool)
+        # fn = np.zeros((ngt,), dtype=bool)
+        # now determine if TP, FP, FN
+        # TP: if our dt_bbox is sufficiently within a gt_bbox with a high-enough confidence score
+        #   we found the right thing
+        # FP: if our dt_bbox is a high confidence score, but is not sufficiently within a gt_bbox (iou is low)
+        #   we found the wrong thing
+        # FN: if our dd_bbox is within a gt_bbox, but has low confidence score
+        #   we didn't find the right thing
+        # TN: basically everything else in the scene, not wholely relevant for PR-curves
+
+        # From the slides:
+        # TP: we correctly found the weed
+        # FP: we think we found the weed, but we did not
+        # FN: we missed a weed
+        # TN: we correctly ignored everything else we were not interested in (doesn't really show up for binary detectors)
+        dt_iou = np.array(dt_iou)
+        dt_scores = np.array(dt_scores)
+
+        # TP: if dt_match True, also, scores above certain threshold
+        tp = np.logical_and(dt_match, dt_scores >= DECISION_CONF_THRESH)
+        fp = np.logical_or(np.logical_not(dt_match) , \
+            np.logical_and(dt_match, dt_scores < DECISION_CONF_THRESH))
+        fn_gt = np.logical_not(gt_match)
+        fn_dt = np.logical_and(dt_match, dt_scores < DECISION_CONF_THRESH)
+
+        # define outcome as an array, each element corresponding to
+        # tp/fp/fn for 0/1/2, respectively
+        dt_outcome = -np.ones((ndt,), dtype=np.int16)
+        for i in range(ndt):
+            if tp[i]:
+                dt_outcome[i] = 0
+            elif fp[i]:
+                dt_outcome[i] = 1
+            elif fn_dt[i]:
+                dt_outcome[i] = 2
+
+        gt_outcome = -np.ones((ngt,), dtype=np.int16)
+        for j in range(ngt):
+            if fn_gt[j]:
+                gt_outcome = 1
+
+        # package outcomes
+        outcomes = {'dt_outcome': dt_outcome, # detections, integer index for tp/fp/fn
+                    'gt_outcome': gt_outcome, # groundtruths, integer index for fn
+                    'dt_match': dt_match, # detections, boolean matched or not
+                    'gt_match': gt_match, # gt, boolean matched or not
+                    'fn_gt': fn_gt, # boolean for gt false negatives
+                    'fn_dt': fn_dt, # boolean for dt false negatives
+                    'tp': tp, # true positives for detections
+                    'fp': fp, # false positives for detections
+                    'dt_iou': dt_iou, # intesection over union scores for detections
+                    'dt_scores': dt_scores,
+                    'gt_iou_all': gt_iou_all,
+                    'cost': cost}
+        return outcomes
+
+    
+    def compute_pr_dataset(self,
+                            dataset,
+                            predictions,
+                            DECISION_IOU_THRESH,
+                            DECISION_CONF_THRESH,
+                            imsave=False,
+                            save_folder=None):
+        """ compute single pr pair for entire dataset, given the predictions """
+        # note for pr_curve, see get_prcurve
+
+        self.model.eval()
+        self.model.to(self.device)
+
+        # annotations from the original dataset object
+        dataset_annotations = dataset.dataset.annotations
+
+        tp_sum = 0
+        fp_sum = 0
+        # tn_sum = 0
+        fn_sum = 0
+        gt_sum = 0
+        dt_sum = 0
+        idx = 0
+        dataset_outcomes = []
+        for image, sample in dataset:
+
+            image_id = sample['image_id'].item()
+            
+            img_name = dataset_annotations[image_id]['filename'][:-4]
+            # else:
+            #     img_name = 'st' + str(image_id).zfill(3)
+
+            # get predictions
+            pred = predictions[idx]
+            pred = self.threshold_predictions(pred, DECISION_CONF_THRESH)
+
+            outcomes = self.compute_outcome_image(pred,
+                                                  sample,
+                                                  DECISION_IOU_THRESH,
+                                                  DECISION_CONF_THRESH)
+
+            # save for given image:
+            if imsave:
+                # resize image for space-savings!
+                image_out = self.show(image,
+                                      sample=sample,
+                                      predictions=pred,
+                                      outcomes=outcomes,
+                                      resize_image=True,
+                                      resize_height=720)
+                imgw = cv.cvtColor(image_out, cv.COLOR_RGB2BGR)
+
+                if save_folder is None:
+                    save_folder = os.path.join('output',
+                                                self.model_name,
+                                                'outcomes')
+                save_subfolder = 'conf_thresh_' + str(DECISION_CONF_THRESH)
+                save_path = os.path.join(save_folder, save_subfolder)
+                os.makedirs(save_path, exist_ok=True)
+                
+                save_img_name = os.path.join(save_path, img_name + '_outcome.png')
+                cv.imwrite(save_img_name, imgw)
+                
+            tp = outcomes['tp']
+            fp = outcomes['fp']
+            fn_gt = outcomes['fn_gt']
+            fn_dt = outcomes['fn_dt']
+            fn = np.concatenate((fn_gt, fn_dt), axis=0)
+            gt = len(outcomes['gt_match'])
+            dt = len(outcomes['dt_match'])
+
+            tp_sum += np.sum(tp)
+            fp_sum += np.sum(fp)
+            fn_sum += np.sum(fn)
+            gt_sum += np.sum(gt)
+            dt_sum += np.sum(dt)
+            # end per image outcome calculations
+
+            dataset_outcomes.append(outcomes)
+            idx += 1
+
+        print('tp sum: ', tp_sum)
+        print('fp sum: ', fp_sum)
+        print('fn sum: ', fn_sum)
+        print('dt sum: ', dt_sum)
+        print('tp + fp = ', tp_sum + fp_sum)
+        print('gt sum: ', gt_sum)
+        print('tp + fn = ', tp_sum + fn_sum)
+
+        prec = tp_sum / (tp_sum + fp_sum)
+        rec = tp_sum / (tp_sum + fn_sum)
+
+        print('precision = {}'.format(prec))
+        print('recall = {}'.format(rec))
+
+        f1score = self.compute_f1score(prec, rec)
+
+        print('f1 score = {}'.format(f1score))
+        # 1 is good, 0 is bad
+
+        return dataset_outcomes, prec, rec, f1score
+
+
+    def compute_f1score(self, p, r):
+        """ compute f1 score """
+        return 2 * (p * r) / (p + r)
+
+
+    def extend_pr(self,
+                  prec, 
+                  rec, 
+                  conf, 
+                  n_points=101, 
+                  PLOT=False, 
+                  save_name='outcomes'):
+        """ extend precision and recall vectors from 0-1 """
+        # typically, pr curve will only span a relatively small range, eg from 0.5 to 0.9
+        # for most pr curves, we want to span the range of recall from 0 to 1
+        # therefore, we 
+        # "smooth" out precision-recall curve by taking max of precision points
+        # for when r is very small (takes the top of the stairs )
+        # take max:
+        diff_thresh = 0.001
+        dif = np.diff(rec)
+        prec_new = [prec[0]]
+        for i, d in enumerate(dif):
+            if d < diff_thresh:
+                prec_new.append(prec_new[-1])
+            else:
+                prec_new.append(prec[i+1])
+        prec_new = np.array(prec_new)
+        # print(prec_new)
+
+        if PLOT:
+            fig, ax = plt.subplots()
+            ax.plot(rec, prec, marker='o', linestyle='dashed', label='original')
+            ax.plot(rec, prec_new, marker='x', color='red', linestyle='solid', label='max-binned')
+            plt.xlabel('recall')
+            plt.ylabel('precision')
+            plt.title('prec-rec, max-binned')
+            ax.legend()
+
+            os.makedirs(os.path.join('output', save_name), exist_ok=True)
+            save_plot_name = os.path.join('output', save_name, save_name + '_test_pr_smooth.png')
+            plt.savefig(save_plot_name)
+
+        # now, expand prec/rec values to extent of the whole precision/recall space:
+        rec_x = np.linspace(0, 1, num=n_points, endpoint=True)
+
+        # create prec_x by concatenating vectors first
+        prec_temp = []
+        rec_temp = []
+        conf_temp = []
+        for r in rec_x:
+            if r < rec[0]:
+                prec_temp.append(prec_new[0])
+                rec_temp.append(r)
+                conf_temp.append(conf[0])
+
+        for i, r in enumerate(rec):
+            prec_temp.append(prec_new[i])
+            rec_temp.append(r)
+            conf_temp.append(conf[i])
+
+        for r in rec_x:
+            if r >= rec[-1]:
+                prec_temp.append(0)
+                rec_temp.append(r)
+                conf_temp.append(conf[-1])
+
+        prec_temp = np.array(prec_temp)
+        rec_temp = np.array(rec_temp)
+        conf_temp = np.array(conf_temp)
+
+        # now interpolate:
+        # prec_x = np.interp(rec_x, rec_temp, prec_temp)
+        prec_interpolator = interp1d(rec_temp, prec_temp, kind='linear')
+        prec_x = prec_interpolator(rec_x)
+
+        conf_interpolator = interp1d(rec_temp, conf_temp, kind='linear')
+        conf_x = conf_interpolator(rec_x)
+
+        if PLOT:
+            fig, ax = plt.subplots()
+            ax.plot(rec_temp, prec_temp, color='blue', linestyle='dashed', label='combined')
+            ax.plot(rec, prec_new, marker='x', color='red', linestyle='solid', label='max-binned')
+            ax.plot(rec_x, prec_x, color='green', linestyle='dotted', label='interp')
+            plt.xlabel('recall')
+            plt.ylabel('precision')
+            plt.title('prec-rec, interpolated')
+            ax.legend()
+
+            os.makedirs(os.path.join('output', save_name), exist_ok=True)
+            save_plot_name = os.path.join('output', save_name, save_name + '_test_pr_interp.png')
+            plt.savefig(save_plot_name)
+            # plt.show()
+
+        # make the "official" plot:
+        p_out = prec_x
+        r_out = rec_x
+        c_out = conf_x
+        return p_out, r_out, c_out
+
+
+    def compute_ap(self, p, r):
+        """ compute ap score """
+        n = len(r) - 1
+        ap = np.sum( (r[1:n] - r[0:n-1]) * p[1:n] )
+        return ap
+
+    
+    def get_confidence_from_pr(self, p, r, c, f1, pg=None, rg=None):
+        """ interpolate confidence threshold from p, r and goal values. If no goal
+        values, then provide the "best" conf, corresponding to the pr-pair closest
+        to the ideal (1,1)
+        """
+        # TODO check p, r are valid
+        # if Pg is not none,
+        #   check Pg is valid, if not, set it at appropriate value
+        # if Rg is not none, then
+        #   check if Rg is valid, if not, set appropriate value
+        if pg is not None and rg is not None:
+            # print('TODO: check if pg, rg are valid')
+            # find the nearest pg-pair, find the nearest index to said pair
+            prg = np.array([pg, rg])
+            pr = np.array([p, r])
+            dist = np.sqrt(np.sum((pr - prg)**2, axis=1))
+            # take min dist
+            idistmin = np.argmin(dist, axis=1)
+            pact = p[idistmin]
+            ract = r[idistmin]
+
+            # now interpolate for cg
+            f = interp1d(r, c)
+            cg = f(ract)
+
+        elif pg is None and rg is not None:
+            # TODO search for best pg given rg
+            # pg = 1
+            # we use rg to interpolate for cg:
+            f = interp1d(r, c, bounds_error=False, fill_value=(c[0], c[-1]))
+            cg = f(rg)
+
+        elif rg is None and pg is not None:
+            # we use pg to interpolate for cg
+            # print('using p to interp c')
+            f = interp1d(p, c, bounds_error=False, fill_value=(c[-1], c[0]))
+            cg = f(pg)
+
+        else:
+            # find p,r closest to (1,1) being max of f1 score
+            if1max = np.argmax(f1)
+            rmax = r[if1max]
+            f = interp1d(r, c)
+            cg = f(rmax)
+
+        # we use r to interpolate with c
+        return cg
+
+
+    def get_prcurve(self,
+                    dataset,
+                    confidence_thresh,
+                    nms_iou_thresh,
+                    decision_iou_thresh,
+                    save_folder,
+                    imshow=False,
+                    imsave=False,
+                    PLOT=False):
+        """ get complete/smoothed pr curve for entire dataset """
+        # infer on 0-decision threshold
+        # iterate over diff thresholds
+        # extend_pr
+        # compute_ap
+        # save output
+
+        # infer on dataset with 0-decision threshold
+        predictions = self.infer_dataset(dataset,
+                                        conf_thresh=0,
+                                        iou_thresh=nms_iou_thresh,
+                                        save_folder=save_folder,
+                                        save_subfolder='prcurve',
+                                        imshow=imshow,
+                                        imsave=imsave,
+                                        image_name_suffix='_prcurve_0')
+
+        # iterate over different decision thresholds
+        prec = []
+        rec = []
+        f1score = []
+        start_time = time.time()
+        for c, conf in enumerate(confidence_thresh):
+            print('{}: outcome confidence threshold: {}'.format(c, conf))
+
+            _, p, r, f1 = self.compute_pr_dataset(dataset,
+                                                  predictions,
+                                                  nms_iou_thresh,
+                                                  conf,
+                                                  imsave=imsave,
+                                                  save_folder=save_folder)
+            prec.append(p)
+            rec.append(r)
+            f1score.append(f1)
+
+        end_time = time.time()
+
+        sec = end_time - start_time
+        print('training time: {} sec'.format(sec))
+        print('training time: {} min'.format(sec / 60.0))
+        print('training time: {} hrs'.format(sec / 3600.0))
+
+        rec = np.array(rec)
+        prec = np.array(prec)
+
+        
+        # plot raw PR curve
+        fig, ax = plt.subplots()
+        ax.plot(rec, prec, marker='o', linestyle='dashed')
+        plt.xlabel('recall')
+        plt.ylabel('precision')
+        plt.title('precision-recall for varying confidence')
+        save_plot_name = os.path.join(save_folder, self.model_name + '_pr_raw.png')
+        plt.savefig(save_plot_name)
+        if PLOT:
+            plt.show()
+
+        # plot F1score
+        f1score = np.array(f1score)
+        # fig, ax = plt.subplots()
+        # ax.plot(rec, f1score, marker='o', linestyle='dashed')
+        # plt.xlabel('recall')
+        # plt.ylabel('f1 score')
+        # plt.title('f1 score vs recall for varying confidence')
+        # save_plot_name = os.path.join('output', save_name, save_name + '_test_f1r.png')
+        # plt.savefig(save_plot_name)
+        # plt.show()
+
+        # smooth the PR curve: take the max precision values along the recall curve
+        # we do this by binning the recall values, and taking the max precision from
+        # each bin
+
+        p_final, r_final, c_final, = self.extend_pr(prec, rec, confidence_thresh)
+        ap = self.compute_ap(p_final, r_final)
+
+        # plot final pr curve
+        fig, ax = plt.subplots()
+        ax.plot(r_final, p_final)
+        plt.xlabel('recall')
+        plt.ylabel('precision')
+        plt.title('prec-rec curve, iou={}, ap = {:.2f}'.format(decision_iou_thresh, ap))
+        # ax.legend()
+        save_plot_name = os.path.join(save_folder, self.model_name + '_pr.png')
+        plt.savefig(save_plot_name)
+        if PLOT:
+            plt.show()
+
+        print('ap score: {:.5f}'.format(ap))
+        print('max f1 score: {:.5f}'.format(max(f1score)))
+
+        # save ap, f1score, precision, recall, etc
+        res = {'precision': p_final,
+            'recall': r_final,
+            'ap': ap,
+            'f1score': f1score,
+            'confidence': c_final}
+        save_file = os.path.join(save_folder, self.model_name + '_prcurve.pkl')
+        with open(save_file, 'wb') as f:
+            pickle.dump(res, f)
+
+        return res
 
 # =========================================================================== #
 
 if __name__ == "__main__":
 
-    # TODO prcurve
     # TODO model_compare
     
