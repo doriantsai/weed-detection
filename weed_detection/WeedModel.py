@@ -23,6 +23,7 @@ from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 
 from weed_detection.WeedDataset import WeedDataset
 from weed_detection.PreProcessingToolbox import PreProcessingToolbox
+from webcam import grab_webcam_image
 
 
 class WeedModel:
@@ -33,7 +34,8 @@ class WeedModel:
                  model=None, 
                  model_name=None,
                  model_path=None,
-                 device=None):
+                 device=None,
+                 hyper_parameters=None):
 
         self.weed_name = weed_name
         # TODO maybe save model type/architecture
@@ -45,6 +47,13 @@ class WeedModel:
         if device is None:
             device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
         self.device = device
+
+        self.hp = hyper_parameters
+        # TODO consider expanding hp from dictionary into actual properties/attributes
+        # for more readability
+        self.image_width = 2464
+        self.image_height = 2056
+
 
 
     # getters and setters
@@ -78,6 +87,14 @@ class WeedModel:
 
     def get_model_path(self):
         return self.model_path
+
+    
+    def set_hyper_parameters(self, hp):
+        self.hp = hp
+    
+
+    def get_hyper_parameters(self):
+        return self.hp
 
 
     def build_model(self, num_classes):
@@ -178,6 +195,13 @@ class WeedModel:
         return save_dataset_path
 
 
+    def get_now_str(self):
+        """ get a string of yyyymmdd_hh_mm or something similar """
+        # useful for creating unique folder/variable names
+        now = str(datetime.datetime.now())
+        now_str = now[0:10] + '_' + now[11:13] + '_' + now[14:16]
+        return now_str
+
     def train(self, 
               model_name, 
               dataset_path=None, 
@@ -207,10 +231,8 @@ class WeedModel:
 
         print('Loaded dataset name: {}'.format(dataset_name))
 
-        # get time/date and convert to string, useful for creating unique
-        # folder/variable names
-        now = str(datetime.datetime.now())
-        now_str = now[0:10] + '_' + now[11:13] + '-' + now[14:16]
+        # get time/date and convert to string, 
+        now_str = self.get_now_str()
         
         # eg, we append now_str to the end of model_name
         if model_name_suffix:
@@ -656,6 +678,48 @@ class WeedModel:
             predictions.append(pred)
 
         return predictions
+
+    
+    def infer_video(self,
+                    model,
+                    capture=None,
+                    fps=10,
+                    video_out_name=None,
+                    save_folder=None,
+                    max_frames=1000,
+                    vidshow=True):
+        """ video inference from a webcam defined by capture (see opencv video capture object) """
+
+        if capture is None:
+            capture = cv.VideoCapture(0)
+        
+        # get width/height of orininal image
+        w = capture.get(cv.CAP_PROP_FRAME_WIDTH)
+        h = capture.get(cv.CAP_PROP_FRAME_HEIGHT)
+        print('original video capture resolution: width={}, height={}'.format(w, h))
+
+        # images will get resized to what the model was trained for, so get the output video size
+        hp = self.hp
+        
+        # TODO set webcam exposure settings
+        if save_folder is None:
+            save_folder = os.path.join('output', self.model_name, 'video')
+            os.makedirs(save_folder, exist_ok=True)
+
+        if video_out_name is None:
+            now_str = self.get_now_str()
+            video_out_name = self.model_name + now_str + '_video.avi'
+        
+        video_out_path = os.path.join(save_folder, video_out_name)
+
+        # set video writer and encoder
+        video_write = cv.VideoWriter_fourcc(*'XVID')
+        video_out = cv.VideoWriter(video_out_path,
+                                   fourcc=video_write,
+                                   fps=fps,
+                                   frameSize=(int(self.image_width), int(self.image_height)))
+
+        # TODO continue infer_video - rescale  + while loop
 
     # TODO inference_video
     # TODO prcurve
