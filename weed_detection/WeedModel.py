@@ -18,12 +18,14 @@ import cv2 as cv
 
 # TODO replace tensorboard with weightsandbiases
 from torch.utils.tensorboard import SummaryWriter
-from engine_st import train_one_epoch, evaluate
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
+from torchvision.transforms import functional as tv_transform
 
-from weed_detection.WeedDataset import WeedDataset
+from engine_st import train_one_epoch, evaluate
+from weed_detection.WeedDataset import WeedDataset, Rescale
 from weed_detection.PreProcessingToolbox import PreProcessingToolbox
-from webcam import grab_webcam_image
+
+# from webcam import grab_webcam_image
 
 
 class WeedModel:
@@ -415,13 +417,14 @@ class WeedModel:
         return predictions
 
 
-    def cv_imshow(self, image, win_name, wait_time=2000):
+    def cv_imshow(self, image, win_name, wait_time=2000, close_window=True):
         """ show image with win_name for wait_time """
         img = cv.cvtColor(img, cv.COLOR_RGB2BGR)
         cv.namedWindow(win_name, cv.WINDOW_GUI_NORMAL)
         cv.imshow(win_name, img)
         cv.waitKey(wait_time)
-        cv.destroyWindow(win_name)
+        if close_window:
+            cv.destroyWindow(win_name)
     
 
     def show(self,
@@ -686,8 +689,10 @@ class WeedModel:
                     fps=10,
                     video_out_name=None,
                     save_folder=None,
-                    max_frames=1000,
-                    vidshow=True):
+                    MAX_FRAMES=1000,
+                    vidshow=True,
+                    conf_thresh=0.5,
+                    iou_thresh=0.5):
         """ video inference from a webcam defined by capture (see opencv video capture object) """
 
         if capture is None:
@@ -697,11 +702,12 @@ class WeedModel:
         w = capture.get(cv.CAP_PROP_FRAME_WIDTH)
         h = capture.get(cv.CAP_PROP_FRAME_HEIGHT)
         print('original video capture resolution: width={}, height={}'.format(w, h))
-
         # images will get resized to what the model was trained for, so get the output video size
-        hp = self.hp
-        
+        print('resized video resolution: width={}, height={}'.format(self.image_width, self.image_height))
+
         # TODO set webcam exposure settings
+        
+        # save video settings/location
         if save_folder is None:
             save_folder = os.path.join('output', self.model_name, 'video')
             os.makedirs(save_folder, exist_ok=True)
@@ -719,9 +725,72 @@ class WeedModel:
                                    fps=fps,
                                    frameSize=(int(self.image_width), int(self.image_height)))
 
-        # TODO continue infer_video - rescale  + while loop
+        tform_rsc = Rescale(self.hp['rescale_size'])
 
-    # TODO inference_video
+        # read in video
+        i = 0
+        model.to(self.device)
+
+        while (capture.isOpened() and i < MAX_FRAMES):
+            
+            # calculate how long it takes to compute with each frame
+            start_time = time.time()
+            
+            # capture frame (image) from video device
+            ret, frame = capture.read()
+
+            if ret:
+
+                # resize to size expected by model
+                frame = tform_rsc(frame)
+
+                # convert frame to tensor and send to device
+                frame = tv_transform.To_Tensor(frame)
+                frame.to(self.device)
+
+                # model inference
+                model.eval()
+
+                pred = self.get_predictions_image(model, frame, conf_thresh, iou_thresh)
+                frame_out = self.show(frame, predictions=pred)
+
+                # write image to video
+                frame_out = cv.cvtColor(frame_out, cv.COLOR_RGB2BGR)
+                video_out.write(frame_out)
+
+                if vidshow:
+                    self.cv_imshow(frame_out, 'video', wait_key=0, close_window=False)
+                    # NOTE not sure what wait time (ms) should be for video
+                    # TODO check default, 0?
+
+                # compute cycle time
+                end_time = time.time()
+                sec = end_time - start_time
+                print('cycle time: {} sec'.format(sec))
+
+                # wait for 1 ms, or if q is pressed, stop video capture cycle
+                if cv.waitKey(1) & 0xFF == ord('q'):
+                    break
+                
+                # increment video/frame counter
+                i += 1
+            
+            else:
+                print('Error: ret is not True')
+                # TODO should be Raise statement
+                break
+
+        # close video object
+        capture.release()
+        video_out.release()
+        cv.destroyAllWindows()
+
+
+
+# =========================================================================== #
+
+if __name__ == "__main__":
+
     # TODO prcurve
     # TODO model_compare
     
