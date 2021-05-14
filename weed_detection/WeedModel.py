@@ -28,14 +28,58 @@ from weed_detection.PreProcessingToolbox import PreProcessingToolbox
 class WeedModel:
     """ collection of functions for model's weed detection """
 
-    def __init__(self, weed_name='serrated tussock', model=None):
+    def __init__(self, 
+                 weed_name='serrated tussock', 
+                 model=None, 
+                 model_name=None,
+                 model_path=None,
+                 device=None):
 
         self.weed_name = weed_name
         # TODO maybe save model type/architecture
         # also, hyper parameters?
         self.model = model
+        self.model_name = model_name
+        self.model_path = model_path
+
+        if device is None:
+            device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+        self.device = device
+
+
+    # getters and setters
+    def set_model(self, model):
+        self.model = model
+
+
+    def get_model(self):
+         return self.model
+
+
+    def set_model_name(self, name):
+        self.model_name = name
 
     
+    def get_model_name(self):
+        return self.model_name
+
+    
+    def set_weed_name(self, name):
+        self.weed_name = name
+
+    
+    def get_weed_name(self):
+        return self.weed_name
+
+
+    def set_model_path(self, path):
+        self.model_path = path
+
+
+    def get_model_path(self):
+        return self.model_path
+
+
     def build_model(self, num_classes):
         """ build fasterrcnn model for set number of classes """
 
@@ -180,12 +224,13 @@ class WeedModel:
         print('Model saved in folder: {}'.format(save_folder))
 
         # setup device, send to gpu if possible, otherwise cpu
-        device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+        # device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+        # shifted into object properties and init
 
         # build model
         # setup number of classes (1 background, 1 class - weed species)
         model = self.build_model(num_classes=2)
-        model.to(device)
+        model.to(self.device)
 
         # set optimizer
         params = [p for p in model.parameters() if p.requires_grad]
@@ -225,7 +270,7 @@ class WeedModel:
                                      optimizer,
                                      dl_train,
                                      dl_val,
-                                     device,
+                                     self.device,
                                      epoch,
                                      val_epoch,
                                      print_freq=10)
@@ -272,6 +317,11 @@ class WeedModel:
         torch.save(model.state_dict(), model_save_path)
         print('model saved: {}'.format(model_save_path))
     
+        # set model
+        self.model = model
+        self.model_name = model_name
+        self.model_path = model_save_path
+
         return model, model_save_path
 
 
@@ -279,15 +329,14 @@ class WeedModel:
                               model, 
                               image, 
                               conf_thresh, 
-                              nms_iou_thresh, 
-                              device):
+                              nms_iou_thresh):
         """ take in model, single image, thresholds, return bbox predictions for scores > threshold """
 
         # image incoming is a tensor, since it is from a dataloader object
-        model.eval()
+        model.eval()  # TODO could call self.model.eval(), but for now, just want to port the scripts/functions
         if torch.cuda.is_available():
-            image.to(device)
-            model.to(device) # added, unsure if this will cause errors
+            image.to(self.device)
+            model.to(self.device) # added, unsure if this will cause errors
         
         # do model inference on single image
         pred = model([image])
@@ -519,10 +568,95 @@ class WeedModel:
 
         return image_np
 
+
+    def infer_image(self, 
+                    model, 
+                    image, 
+                    sample=None, 
+                    imshow=True, 
+                    imsave=False, 
+                    image_name=None,
+                    conf_thresh=0.5,
+                    iou_thresh=0.5):
+        """ do inference on a single image """
+        # assume image comes in as a tensor for now (eg, from image, sample in dataset)
+        model.to(self.device)
+        image.to(self.device)
+
+        model.eval()
+        
+        # TODO accept different types of image input (tensor, numpy array, PIL, filename?)
+
+        if image_name is None:
+            image_name = self.model_name + '_image'
+        pred = self.get_predictions_image(model, image, conf_thresh, iou_thresh)
+        
+        if imsave or imshow:
+            image_out = self.show(image,
+                                sample=sample,
+                                predictions=pred)
+        if imsave:
+            save_folder = os.path.join('output', self.model_name)
+            os.makedirs(save_folder, exist_ok=True)
+            save_image_name = os.path.join(save_folder, image_name + '.png')
+            image_out_bgr = cv.cvtColor(image_out, cv.COLOR_RGB2BGR)
+            cv.imwrite(save_image_name, image_out_bgr)
+
+        if imshow:
+            self.cv_imshow(image_out, win_name=image_name)
+        
+        return image_out, pred
+
     
-    
-    # TODO inference_single
-    # TODO inference_dataset
+    def infer_dataset(self,
+                      model,
+                      dataset,
+                      conf_thresh=0.5,
+                      iou_thresh=0.5,
+                      save_folder=None,
+                      imshow=False,
+                      imsave=False,
+                      wait_time=1000):
+        """ do inference on entire dataset """
+
+        model.to(self.device)
+        model.eval()
+
+        # out = []
+        predictions = []
+
+        if save_folder is None:
+            save_folder = os.path.join('output', self.model_name, 'infer_dataset')
+
+        if imsave:
+            os.makedirs(save_folder, exist_ok=True)
+
+        print('number of images to infer: {}'.format(len(dataset)))
+
+        for image, sample in dataset:
+            image_id = sample['image_id'].item()
+            image_name = dataset.dataset.annotations[image_id]['filename'][:-4]
+
+            pred = self.get_predictions_image(model,
+                                              image,
+                                              conf_thresh,
+                                              iou_thresh)
+            image_out = self.show(image, sample=sample, predictions=pred)
+
+            if imsave:
+                save_image_name = os.path.join(save_folder, image_name + '.png')
+                image_out_bgr = cv.cvtColor(image_out, cv.COLOR_RGB2BGR)
+                cv.imwrite(save_image_name, image_out_bgr)
+
+            if imshow:
+                self.cv_imshow(image_out,image_name, wait_time=wait_time)
+
+            # saving output
+            # out_tensor = model()
+            predictions.append(pred)
+
+        return predictions
+
     # TODO inference_video
     # TODO prcurve
     # TODO model_compare
