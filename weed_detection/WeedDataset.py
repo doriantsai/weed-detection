@@ -23,6 +23,7 @@ class WeedDataset(object):
     """ weed dataset object """
 
 
+    # TODO maybe should actually hold the datasets/dataloader objects?
     def __init__(self, root_dir, json_file, transforms):
         """
         initialise the dataset
