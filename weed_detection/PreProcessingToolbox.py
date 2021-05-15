@@ -123,7 +123,7 @@ class PreProcessingToolbox:
         # read in annotations master
         # create list out of dictionary values, so we have indexing
         ann_master = json.load(open(ann_master_file))
-        ann_master = list(ann_master)
+        ann_master = list(ann_master.values())
 
         # find all files in img_dir
         img_list = os.listdir(image_dir)
@@ -309,7 +309,8 @@ class PreProcessingToolbox:
                          ann_train_file,
                          ann_val_file,
                          ann_test_file,
-                         ratio_train_test=None):
+                         ratio_train_test=[0.7, 0.2],
+                         clear_image_folders=True):
         """ prepare dataset/dataloader objects by randomly taking images from all_folder,
         and splitting them randomly into Train/Test/Val with respecctive annotation files
         """
@@ -322,6 +323,9 @@ class PreProcessingToolbox:
         os.makedirs(train_folder, exist_ok=True)
         os.makedirs(test_folder, exist_ok=True)
         os.makedirs(val_folder, exist_ok=True)
+
+        # TODO if clear_image_folders is True, then delete/clear all image files
+        # already in train/test/val folders
 
         ann_dir = os.path.join(root_dir, 'Annotations')
         # NOTE I don't think I'm entirely consistent with use of annotation file names
@@ -348,8 +352,8 @@ class PreProcessingToolbox:
         print('number of images in all_folder: {}'.format(n_img))
 
         # define ratio for training and testing data
-        if ratio_train_test is None:
-            ratio_train_test = [0.7, 0.2]
+        # if ratio_train_test is None:
+        #     ratio_train_test = [0.7, 0.2]
         # compute validation ratio from remainder
         ratio_train_test.append(1 - ratio_train_test[0] - ratio_train_test[1])
 
@@ -363,6 +367,10 @@ class PreProcessingToolbox:
 
         # do random split of image data
         ds_train, ds_val, ds_test = torch.utils.data.random_split(wd, [tr, va, te])
+
+        # print('ds_train {}'.format(len(ds_train)))
+        # print('ds_test {}'.format(len(ds_test)))
+        # print('ds_val {}'.format(len(ds_val)))
 
         # now, actually copy images from All folder to respective image folders
         # dataset = ds_train

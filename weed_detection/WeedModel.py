@@ -24,8 +24,8 @@ from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 from torchvision.transforms import functional as tv_transform
 from scipy.interpolate import interp1d
 
-from engine_st import train_one_epoch, evaluate
-from weed_detection.WeedDataset import WeedDataset, Rescale
+from weed_detection.engine_st import train_one_epoch
+from weed_detection.WeedDataset import *
 from weed_detection.PreProcessingToolbox import PreProcessingToolbox
 
 # from webcam import grab_webcam_image
@@ -34,9 +34,9 @@ from weed_detection.PreProcessingToolbox import PreProcessingToolbox
 class WeedModel:
     """ collection of functions for model's weed detection """
 
-    def __init__(self, 
-                 weed_name='serrated tussock', 
-                 model=None, 
+    def __init__(self,
+                 weed_name='serrated tussock',
+                 model=None,
                  model_name=None,
                  model_path=None,
                  device=None,
@@ -75,15 +75,15 @@ class WeedModel:
     def set_model_name(self, name):
         self.model_name = name
 
-    
+
     def get_model_name(self):
         return self.model_name
 
-    
+
     def set_weed_name(self, name):
         self.weed_name = name
 
-    
+
     def get_weed_name(self):
         return self.weed_name
 
@@ -95,10 +95,10 @@ class WeedModel:
     def get_model_path(self):
         return self.model_path
 
-    
+
     def set_hyper_parameters(self, hp):
         self.hp = hp
-    
+
 
     def get_hyper_parameters(self):
         return self.hp
@@ -116,7 +116,8 @@ class WeedModel:
         return model
 
 
-    def create_dataset_dataloader(root_dir,
+    def create_dataset_dataloader(self,
+                                root_dir,
                                 json_file,
                                 transforms,
                                 hp):
@@ -125,7 +126,7 @@ class WeedModel:
         num_workers = hp['num_workers']
         shuffle= hp['shuffle']
 
-        dataset = WeedDataset.WeedDataset(root_dir, json_file, transforms)
+        dataset = WeedDataset(root_dir, json_file, transforms)
         # setup dataloaders for efficient access to datasets
         dataloader = torch.utils.data.DataLoader(dataset,
                                                 batch_size=batch_size,
@@ -156,13 +157,13 @@ class WeedModel:
         hp_test = hp
         hp_test['shuffle'] = False
 
-        tform_train = WeedDataset.Compose([WeedDataset.Rescale(rescale_size),
-                          WeedDataset.RandomBlur(5, (0.5, 2.0)),
-                          WeedDataset.RandomHorizontalFlip(0.5),
-                          WeedDataset.RandomVerticalFlip(0.5),
-                          WeedDataset.ToTensor()])
-        tform_test = WeedDataset.Compose([WeedDataset.Rescale(rescale_size),
-                         WeedDataset.ToTensor()])
+        tform_train = Compose([Rescale(rescale_size),
+                          RandomBlur(5, (0.5, 2.0)),
+                          RandomHorizontalFlip(0.5),
+                          RandomVerticalFlip(0.5),
+                          ToTensor()])
+        tform_test = Compose([Rescale(rescale_size),
+                         ToTensor()])
 
         # create dataset and dataloader objects for each set of images
         ds_train, dl_train = self.create_dataset_dataloader(train_folder,
@@ -174,7 +175,7 @@ class WeedModel:
                                                           ann_test,
                                                           tform_test,
                                                           hp_test)
-        
+
         ds_val, dl_val = self.create_dataset_dataloader(val_folder,
                                                         ann_val,
                                                         tform_test,
@@ -209,9 +210,9 @@ class WeedModel:
         now_str = now[0:10] + '_' + now[11:13] + '_' + now[14:16]
         return now_str
 
-    def train(self, 
-              model_name, 
-              dataset_path=None, 
+    def train(self,
+              model_name,
+              dataset_path=None,
               model_name_suffix=True):
 
         # TODO if dataset_path is None, call create_train_test_val_datasets
@@ -219,7 +220,7 @@ class WeedModel:
         if dataset_path is None:
             print('TODO: call function to build dataset objects and return them')
         # else:
-        
+
         # loading dataset, full path
         print('loading dataset:' + dataset_path)
         if os.path.isfile(dataset_path):
@@ -238,9 +239,9 @@ class WeedModel:
 
         print('Loaded dataset name: {}'.format(dataset_name))
 
-        # get time/date and convert to string, 
+        # get time/date and convert to string,
         now_str = self.get_now_str()
-        
+
         # eg, we append now_str to the end of model_name
         if model_name_suffix:
             model_name = model_name + '_' + now_str
@@ -269,7 +270,7 @@ class WeedModel:
                                     weight_decay=hp_train['weight_decay'])
 
         # learning rate scheduler decreases the learning rate by gamma every
-        # step_size number of epochs   
+        # step_size number of epochs
         lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer,
                                                        step_size=hp_train['step_size'],
                                                        gamma=0.1)
@@ -287,8 +288,8 @@ class WeedModel:
         # ---------------------------------------------- #
         # train for-loop for epochs
         # NOTE we do not do explicit early stopping. We run for a set number of
-        # epochs and then choose the appropriate "stopping" point later from 
-        # the snapshots. This is to clearly identify that in fact, we have 
+        # epochs and then choose the appropriate "stopping" point later from
+        # the snapshots. This is to clearly identify that in fact, we have
         # reached a low-point in the validation loss.
         start_time = time.time()
         print('start training')
@@ -345,7 +346,7 @@ class WeedModel:
         model_save_path = os.path.join(save_folder, model_name + '.pth')
         torch.save(model.state_dict(), model_save_path)
         print('model saved: {}'.format(model_save_path))
-    
+
         # set model
         self.model = model
         self.model_name = model_name
@@ -359,7 +360,7 @@ class WeedModel:
 
         if model_path is None:
             model_path = self.model_path
-        
+
         model = self.build_model(num_classes)
         model.load_state_dict(torch.load(model_path))
         print('loaded model: {}'.format(model_path))
@@ -372,7 +373,7 @@ class WeedModel:
                      epoch,
                      snapshot_folder=None):
         """ set snapshot for epoch, deals with early stopping """
-        # change the model_path and model of self to epoch 
+        # change the model_path and model of self to epoch
         # given a model name (.pth) and an epoch number
         # find the .pth file of the model name
         # find all the snapshots in the snapshots folder from training
@@ -440,9 +441,9 @@ class WeedModel:
         return file_find
 
 
-    def get_predictions_image(self, 
-                              image, 
-                              conf_thresh, 
+    def get_predictions_image(self,
+                              image,
+                              conf_thresh,
                               nms_iou_thresh):
         """ take in model, single image, thresholds, return bbox predictions for scores > threshold """
 
@@ -451,13 +452,13 @@ class WeedModel:
         if torch.cuda.is_available():
             image.to(self.device)
             self.model.to(self.device) # added, unsure if this will cause errors
-        
+
         # do model inference on single image
         pred = self.model([image])
 
         # apply non-maxima suppression
         keep = torchvision.ops.nms(pred[0]['boxes'], pred[0]['scores'], nms_iou_thresh)
-        
+
         pred_class = [i for i in list(pred[0]['labels'][keep].cpu().numpy())]
         pred_boxes = [[bb[0], bb[1], bb[2], bb[3]] for bb in list(pred[0]['boxes'][keep].detach().cpu().numpy())]
         # scores are ordered from highest to lowest
@@ -474,7 +475,7 @@ class WeedModel:
 
         return pred_final
 
-    
+
     def threshold_predictions(self, pred, thresh):
         """ apply confidence threshold to predictions """
 
@@ -515,7 +516,7 @@ class WeedModel:
         cv.waitKey(wait_time)
         if close_window:
             cv.destroyWindow(win_name)
-    
+
 
     def show(self,
              image,
@@ -531,7 +532,7 @@ class WeedModel:
              resize_height=(1080)):
         """ show image, sample/groundtruth, model predictions, outcomes (TP/FP/etc) """
         # TODO rename "show" to something like "create_plot" or "markup", as we don't actually show the image
-        # assume image comes in as a tensor, as in the same format it was input 
+        # assume image comes in as a tensor, as in the same format it was input
         # into the model
 
         # set plotting parameters
@@ -553,7 +554,7 @@ class WeedModel:
         if transpose_image_channels:
             # if we were working with BGR as opposed to RGB
             image_out = np.transpose(image_out, (1, 2, 0))
-        
+
         # normalize image from 0,1 to 0,255
         image_out = cv.normalize(image_out, None, 0, 255, cv.NORM_MINMAX, cv.CV_8U)
 
@@ -587,7 +588,7 @@ class WeedModel:
                                             (int(bb[2]), int(bb[3])),
                                             color=predictions_color,
                                             thickness=dt_box_thick)
-                    
+
                     # add text to top left corner of bbox
                     sc = format(scores[i] * 100.0, '.0f') # no decimals, just x100 for percent
                     cv.putText(image_out,
@@ -596,11 +597,11 @@ class WeedModel:
                                fontFace=cv.FONT_HERSHEY_COMPLEX,
                                fontScale=font_scale,
                                color=predictions_color,
-                               thickness=font_thick)                    
+                               thickness=font_thick)
 
         # ----------------------------------- #
         # third, add iou info (within the predicitons if statement)
-            if outcomes is not None:    
+            if outcomes is not None:
                 iou = outcomes['dt_iou']
 
                 # iou is a list or array with iou values for each boxes_pd
@@ -662,7 +663,7 @@ class WeedModel:
                                    fontScale=font_scale,
                                    color=outcome_color[dt_outcome[i]],
                                    thickness=font_thick)
-                
+
                 # handle false negative cases (ie, groundtruth bboxes)
                 boxes_gt = sample['boxes']
                 fn_gt = outcomes['fn_gt']
@@ -689,17 +690,17 @@ class WeedModel:
             aspect_ratio = self.image_width / self.image_height
             resize_width = int(resize_height * aspect_ratio)
             resize_height = int(resize_height)
-            image_out = cv.resize(image_out, 
+            image_out = cv.resize(image_out,
                                   (resize_width, resize_height),
                                   interpolation=cv.INTER_CUBIC)
         return image_out
 
 
-    def infer_image(self, 
-                    image, 
-                    sample=None, 
-                    imshow=True, 
-                    imsave=False, 
+    def infer_image(self,
+                    image,
+                    sample=None,
+                    imshow=True,
+                    imsave=False,
                     image_name=None,
                     conf_thresh=0.5,
                     iou_thresh=0.5):
@@ -709,13 +710,13 @@ class WeedModel:
         image.to(self.device)
 
         self.model.eval()
-        
+
         # TODO accept different types of image input (tensor, numpy array, PIL, filename?)
 
         if image_name is None:
             image_name = self.model_name + '_image'
         pred = self.get_predictions_image(self.model, image, conf_thresh, iou_thresh)
-        
+
         if imsave or imshow:
             image_out = self.show(image,
                                 sample=sample,
@@ -729,10 +730,10 @@ class WeedModel:
 
         if imshow:
             self.cv_imshow(image_out, win_name=image_name)
-        
+
         return image_out, pred
 
-    
+
     def infer_dataset(self,
                       dataset,
                       conf_thresh=0.5,
@@ -770,10 +771,10 @@ class WeedModel:
 
             if imsave:
                 if image_name_suffix is None:
-                    save_image_name = os.path.join(save_folder, 
+                    save_image_name = os.path.join(save_folder,
                                                    image_name + '.png')
                 else:
-                    save_image_name = os.path.join(save_folder, 
+                    save_image_name = os.path.join(save_folder,
                                                    image_name + image_name_suffix + '.png')
 
                 image_out_bgr = cv.cvtColor(image_out, cv.COLOR_RGB2BGR)
@@ -788,7 +789,7 @@ class WeedModel:
 
         return predictions
 
-    
+
     def infer_video(self,
                     capture=None,
                     fps=10,
@@ -802,7 +803,7 @@ class WeedModel:
 
         if capture is None:
             capture = cv.VideoCapture(0)
-        
+
         # get width/height of orininal image
         w = capture.get(cv.CAP_PROP_FRAME_WIDTH)
         h = capture.get(cv.CAP_PROP_FRAME_HEIGHT)
@@ -811,7 +812,7 @@ class WeedModel:
         print('resized video resolution: width={}, height={}'.format(self.image_width, self.image_height))
 
         # TODO set webcam exposure settings
-        
+
         # save video settings/location
         if save_folder is None:
             save_folder = os.path.join('output', self.model_name, 'video')
@@ -820,7 +821,7 @@ class WeedModel:
         if video_out_name is None:
             now_str = self.get_now_str()
             video_out_name = self.model_name + now_str + '_video.avi'
-        
+
         video_out_path = os.path.join(save_folder, video_out_name)
 
         # set video writer and encoder
@@ -838,10 +839,10 @@ class WeedModel:
         self.model.eval()
 
         while (capture.isOpened() and i < MAX_FRAMES):
-            
+
             # calculate how long it takes to compute with each frame
             start_time = time.time()
-            
+
             # capture frame (image) from video device
             ret, frame = capture.read()
 
@@ -875,10 +876,10 @@ class WeedModel:
                 # wait for 1 ms, or if q is pressed, stop video capture cycle
                 if cv.waitKey(1) & 0xFF == ord('q'):
                     break
-                
+
                 # increment video/frame counter
                 i += 1
-            
+
             else:
                 print('Error: ret is not True')
                 # TODO should be Raise statement
@@ -913,7 +914,7 @@ class WeedModel:
 
         return iou
 
-    
+
     def compute_match_cost(self, score, iou, weights=None):
         """ compute match cost metric """
         # compute match cost based on score and iou
@@ -926,7 +927,7 @@ class WeedModel:
         # cost = weights[0] * score + weights[1] * iou # classic weighting
         cost = np.sqrt(score * iou)
         return cost
-   
+
 
     def compute_outcome_image(self,
                               pred,
@@ -1062,7 +1063,7 @@ class WeedModel:
                     'cost': cost}
         return outcomes
 
-    
+
     def compute_pr_dataset(self,
                             dataset,
                             predictions,
@@ -1090,7 +1091,7 @@ class WeedModel:
         for image, sample in dataset:
 
             image_id = sample['image_id'].item()
-            
+
             img_name = dataset_annotations[image_id]['filename'][:-4]
             # else:
             #     img_name = 'st' + str(image_id).zfill(3)
@@ -1122,10 +1123,10 @@ class WeedModel:
                 save_subfolder = 'conf_thresh_' + str(DECISION_CONF_THRESH)
                 save_path = os.path.join(save_folder, save_subfolder)
                 os.makedirs(save_path, exist_ok=True)
-                
+
                 save_img_name = os.path.join(save_path, img_name + '_outcome.png')
                 cv.imwrite(save_img_name, imgw)
-                
+
             tp = outcomes['tp']
             fp = outcomes['fp']
             fn_gt = outcomes['fn_gt']
@@ -1172,16 +1173,16 @@ class WeedModel:
 
 
     def extend_pr(self,
-                  prec, 
-                  rec, 
-                  conf, 
-                  n_points=101, 
-                  PLOT=False, 
+                  prec,
+                  rec,
+                  conf,
+                  n_points=101,
+                  PLOT=False,
                   save_name='outcomes'):
         """ extend precision and recall vectors from 0-1 """
         # typically, pr curve will only span a relatively small range, eg from 0.5 to 0.9
         # for most pr curves, we want to span the range of recall from 0 to 1
-        # therefore, we 
+        # therefore, we
         # "smooth" out precision-recall curve by taking max of precision points
         # for when r is very small (takes the top of the stairs )
         # take max:
@@ -1273,7 +1274,7 @@ class WeedModel:
         ap = np.sum( (r[1:n] - r[0:n-1]) * p[1:n] )
         return ap
 
-    
+
     def get_confidence_from_pr(self, p, r, c, f1, pg=None, rg=None):
         """ interpolate confidence threshold from p, r and goal values. If no goal
         values, then provide the "best" conf, corresponding to the pr-pair closest
@@ -1377,7 +1378,7 @@ class WeedModel:
         rec = np.array(rec)
         prec = np.array(prec)
 
-        
+
         # plot raw PR curve
         fig, ax = plt.subplots()
         ax.plot(rec, prec, marker='o', linestyle='dashed')
