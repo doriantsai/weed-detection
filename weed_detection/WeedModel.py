@@ -9,6 +9,7 @@ training, inference, evaluation
 import os
 import torch
 import torchvision
+import re
 
 import time
 import datetime
@@ -39,7 +40,8 @@ class WeedModel:
                  model_name=None,
                  model_path=None,
                  device=None,
-                 hyper_parameters=None):
+                 hyper_parameters=None,
+                 note=None):
 
         self.weed_name = weed_name
         # TODO maybe save model type/architecture
@@ -55,9 +57,10 @@ class WeedModel:
         self.hp = hyper_parameters
         # TODO consider expanding hp from dictionary into actual properties/attributes
         # for more readability
-        self.image_width = 2464
-        self.image_height = 2056
+        self.image_width = 2464 # should be computed based on aspect ratio
+        self.image_height = 2056 # rescale_size
 
+        self.note = note # just a capture-all string TEMP
 
 
     # getters and setters
@@ -349,6 +352,92 @@ class WeedModel:
         self.model_path = model_save_path
 
         return model, model_save_path
+
+
+    def load_model(self, model_path=None, num_classes=2):
+        """ load model to self based on model_path """
+
+        if model_path is None:
+            model_path = self.model_path
+        
+        model = self.build_model(num_classes)
+        model.load_state_dict(torch.load(model_path))
+        print('loaded model: {}'.format(model_path))
+        self.model = model
+
+        return model
+
+
+    def set_snapshot(self,
+                     epoch,
+                     snapshot_folder=None):
+        """ set snapshot for epoch, deals with early stopping """
+        # change the model_path and model of self to epoch 
+        # given a model name (.pth) and an epoch number
+        # find the .pth file of the model name
+        # find all the snapshots in the snapshots folder from training
+        # replace said .pth file with the nearest epoch
+        # notw, instead just set model_path and model to retain traceability
+
+        # this function finds closest epoch in snapshots folder and sets model_path, model
+        # to relevant .pth file
+
+        print('old model path: {}'.format(self.model_path))
+
+        if snapshot_folder is None:
+            snapshot_folder = os.path.join('output', self.model_name, 'snapshots')
+
+        # find all filenames in snapshot folder
+        snapshot_files = os.listdir(snapshot_folder)
+        pattern = 'epoch'
+        e = []
+        for f in snapshot_files:
+            if f.endswith('.pth'):
+                # find the string that matches the pattern and split it
+                n = re.split(pattern, f, maxsplit=0, flags=0)
+                # take the second portion of the string (after epoch)
+                # to reclaim the epoch number from the snapshot file name
+                e.append(int(n[1][:-4]))
+        e = np.array(e)
+
+        # find closest e[i] to epoch
+        diff_e = np.sqrt((e - epoch)**2)
+        i_emin = np.argmin(diff_e)
+
+        # closest snapshot index is indexed by i_emin
+        print('closest snapshot epoch: {}'.format(snapshot_files[i_emin]))
+        print('corresponding epoch number: {}'.format(e[i_emin]))
+
+        # set object model and model path and epoch number
+        self.model_path = os.path.join(snapshot_folder, snapshot_files[i_emin])
+        self.epoch = e[i_emin]
+        self.load_model()
+
+        return True
+
+
+    def find_file(self, file_pattern, folder):
+        """
+        find filename given file pattern in a folder
+        """
+        # TODO check valid inputs
+
+        files = os.listdir(folder)
+        file_find = []
+        for f in files:
+            if f.endswith(file_pattern):
+                file_find.append(f)
+
+        if len(file_find) <= 0:
+            print('Warning: no files found matching pattern {}'.format(file_pattern))
+        elif len(file_find) == 1:
+            print('Found file: {}'.format(file_find[0]))
+        elif len(file_find) > 1:
+            print('Warning: found multiple files matching string pattern')
+            for i, ff in enumerate(file_find):
+                print('{}: {}'.format(i, ff))
+
+        return file_find
 
 
     def get_predictions_image(self, 
@@ -1349,5 +1438,5 @@ class WeedModel:
 
 if __name__ == "__main__":
 
-    # TODO model_compare
-    
+    # TODO model_compare - needs to be in a separate class/function, as we have two models
+    print('WeedModel.py')
