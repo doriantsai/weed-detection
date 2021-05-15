@@ -9,7 +9,6 @@ import re
 import numpy as np
 import shutil
 
-# TODO
 # given a model name (.pth) and an epoch number
 # find the .pth file of the model name
 # find all the snapshots in the snapshots folder from training
