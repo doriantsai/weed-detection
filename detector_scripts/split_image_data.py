@@ -1,11 +1,13 @@
 #! /usr/bin/env python
 
+""" script to split iamge data by calling PreProcessingToolbox.split_image_data
+"""
+
 import os
 from weed_detection.PreProcessingToolbox import PreProcessingToolbox
 
-# set folder locations
-# init PT object
-# PT.split_image_data
+
+# set folder locations init PT object PT.split_image_data
 
 # folder locations and file names
 root_dir = os.path.join('/home', 'dorian', 'Data', 'AOS_TussockDataset','Tussock_v1')
@@ -15,7 +17,8 @@ all_folder = os.path.join(root_dir, 'Images', 'All')
 # corresponding annotations file to Images/All
 ann_all_file = 'annotations_tussock_21032526_G507_all.json'
 
-# annotation files Master (contains all images - we don't touch this file, just use it as a reference/check)
+# annotation files Master (contains all images - we don't touch this file, just
+# use it as a reference/check)
 ann_master_file = 'annotations_tussock_21032526_G507_master.json'
 
 # annotation files out
@@ -26,7 +29,7 @@ ann_val_file = 'annotations_tussock_21032526_G507_val.json'
 
 # create PT object
 ProTool = PreProcessingToolbox()
-img_folders, ann_files = ProTool.split_image_data(root_dir, 
+img_folders, ann_files = ProTool.split_image_data(root_dir,
                                                     all_folder,
                                                     ann_master_file,
                                                     ann_all_file,
@@ -34,9 +37,10 @@ img_folders, ann_files = ProTool.split_image_data(root_dir,
                                                     ann_val_file,
                                                     ann_test_file)
 
-# NOTE split_image_data calls sync_annotations ensure that image folders and annotation files are in sync
-# here, we will just check by counting the number of images in all_folder
-# and comparing them to the sum of the number of images in img_folders, which should be equal
+# NOTE split_image_data calls sync_annotations ensure that image folders and
+# annotation files are in sync here, we will just check by counting the number
+# of images in all_folder and comparing them to the sum of the number of images
+# in img_folders, which should be equal
 
 # we will also check/compare the length of the annotation files
 
