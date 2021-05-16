@@ -13,7 +13,7 @@ from weed_detection.WeedModel import WeedModel as WM
 
 # create datasets
 # folder locations of dataset files
-dataset_file = os.path.join('dataset', 'Tussock_v1.pkl')
+dataset_file = os.path.join('dataset', 'Tussock_v1', 'Tussock_v1.pkl')
 
 # load dataset files via unpacking the pkl file
 if os.path.isfile(dataset_file):
