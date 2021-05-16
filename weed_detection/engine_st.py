@@ -4,7 +4,7 @@ import time
 import torch
 import torchvision.models.detection.mask_rcnn
 
-from weed_detection.utils import *
+import weed_detection.utils as utils
 
 # from weed_detection.coco_utils import get_coco_api_from_dataset
 # from weed_detection.coco_eval import CocoEvaluator
@@ -27,12 +27,12 @@ def train_one_epoch(model,
     """
 
     model.train()
-    metric_logger = MetricLogger(delimiter="  ")
-    metric_logger.add_meter('lr', SmoothedValue(window_size=1, fmt='{value:.6f}'))
+    metric_logger = utils.MetricLogger(delimiter="  ")
+    metric_logger.add_meter('lr', utils.SmoothedValue(window_size=1, fmt='{value:.6f}'))
 
     # added for validation
-    metric_logger_val = MetricLogger(delimiter="  ")
-    metric_logger_val.add_meter('lr', SmoothedValue(window_size=1, fmt='{value:.6f}'))
+    metric_logger_val = utils.MetricLogger(delimiter="  ")
+    metric_logger_val.add_meter('lr', utils.SmoothedValue(window_size=1, fmt='{value:.6f}'))
 
     header = 'Epoch: [{}]'.format(epoch)
 
@@ -41,7 +41,7 @@ def train_one_epoch(model,
         warmup_factor = 1. / 1000
         warmup_iters = min(1000, len(data_loader_train) - 1)
 
-        lr_scheduler = warmup_lr_scheduler(optimizer, warmup_iters, warmup_factor)
+        lr_scheduler = utils.warmup_lr_scheduler(optimizer, warmup_iters, warmup_factor)
 
     for images, targets in metric_logger.log_every(data_loader_train, print_freq, header):
         images = list(image.to(device) for image in images)
@@ -56,7 +56,7 @@ def train_one_epoch(model,
         losses = sum(loss for loss in loss_dict.values())
 
         # reduce losses over all GPUs for logging purposes
-        loss_dict_reduced = reduce_dict(loss_dict)
+        loss_dict_reduced = utils.reduce_dict(loss_dict)
         losses_reduced = sum(loss for loss in loss_dict_reduced.values())
 
         loss_value = losses_reduced.item()
@@ -83,7 +83,7 @@ def train_one_epoch(model,
             images = list(image.to(device) for image in images)
             targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
             loss_outputs = model(images, targets)
-            loss_output_reduced = reduce_dict(loss_outputs)
+            loss_output_reduced = utils.reduce_dict(loss_outputs)
             losses_reduced = sum(loss for loss in loss_output_reduced.values())
             metric_logger_val.update(loss=losses_reduced, **loss_output_reduced)
 

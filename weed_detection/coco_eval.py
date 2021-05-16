@@ -13,8 +13,7 @@ import pycocotools.mask as mask_util
 
 from collections import defaultdict
 
-from weed_detection.utils import *
-
+import weed_detection.utils as utils
 
 class CocoEvaluator(object):
     def __init__(self, coco_gt, iou_types):
@@ -178,8 +177,8 @@ def convert_to_xywh(boxes):
 
 
 def merge(img_ids, eval_imgs):
-    all_img_ids = all_gather(img_ids)
-    all_eval_imgs = all_gather(eval_imgs)
+    all_img_ids = utils.all_gather(img_ids)
+    all_eval_imgs = utils.all_gather(eval_imgs)
 
     merged_img_ids = []
     for p in all_img_ids:
