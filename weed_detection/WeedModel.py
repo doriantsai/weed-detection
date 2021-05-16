@@ -26,7 +26,7 @@ from scipy.interpolate import interp1d
 
 from weed_detection.engine_st import train_one_epoch
 from weed_detection.WeedDataset import *
-from weed_detection.PreProcessingToolbox import PreProcessingToolbox
+# from weed_detection.PreProcessingToolbox import PreProcessingToolbox
 
 # from webcam import grab_webcam_image
 
@@ -222,7 +222,7 @@ class WeedModel:
         # else:
 
         # loading dataset, full path
-        print('loading dataset:' + dataset_path)
+        print('Loading dataset:' + dataset_path)
         if os.path.isfile(dataset_path):
             with open(dataset_path, 'rb') as f:
                 ds_train = pickle.load(f)
