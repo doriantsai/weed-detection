@@ -129,11 +129,15 @@ class WeedModel:
         dataset = WeedDataset(root_dir, json_file, transforms)
         # setup dataloaders for efficient access to datasets
         dataloader = torch.utils.data.DataLoader(dataset,
-                                                batch_size=batch_size,
-                                                shuffle=shuffle,
-                                                num_workers=num_workers,
-                                                collate_fn=dataset.collate_fn)
+                                                 batch_size=batch_size,
+                                                 shuffle=shuffle,
+                                                 num_workers=num_workers,
+                                                 collate_fn=self.collate_fn)
         return dataset, dataloader
+
+
+    def collate_fn(self, batch):
+        return tuple(zip(*batch))
 
 
     def create_train_test_val_datasets(self, img_folders, ann_files, hp, dataset_name):
@@ -183,7 +187,7 @@ class WeedModel:
 
         # save datasets/dataloaders for later use
         # TODO dataset_name default?
-        save_dataset_folder = os.path.join('dataset', dataset_name)
+        save_dataset_folder = os.path.join('dataset_objects', dataset_name)
         os.makedirs(save_dataset_folder, exist_ok=True)
         save_dataset_path = os.path.join(save_dataset_folder, dataset_name + '.pkl')
         with open(save_dataset_path, 'wb') as f:

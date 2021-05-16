@@ -106,10 +106,6 @@ class WeedDataset(object):
         return len(self.annotations)
 
 
-    def collate_fn(batch):
-        return tuple(zip(*batch))
-
-
     def set_transform(self, tforms):
         """
         set the transforms
