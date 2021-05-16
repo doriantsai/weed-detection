@@ -710,30 +710,32 @@ class WeedModel:
                     iou_thresh=0.5):
         """ do inference on a single image """
         # assume image comes in as a tensor for now (eg, from image, sample in dataset)
-        self.model.to(self.device)
-        image.to(self.device)
 
-        self.model.eval()
+        with torch.no_grad():
+            self.model.to(self.device)
+            image.to(self.device)
 
-        # TODO accept different types of image input (tensor, numpy array, PIL, filename?)
+            self.model.eval()
 
-        if image_name is None:
-            image_name = self.model_name + '_image'
-        pred = self.get_predictions_image(self.model, image, conf_thresh, iou_thresh)
+            # TODO accept different types of image input (tensor, numpy array, PIL, filename?)
 
-        if imsave or imshow:
-            image_out = self.show(image,
-                                sample=sample,
-                                predictions=pred)
-        if imsave:
-            save_folder = os.path.join('output', self.model_name)
-            os.makedirs(save_folder, exist_ok=True)
-            save_image_name = os.path.join(save_folder, image_name + '.png')
-            image_out_bgr = cv.cvtColor(image_out, cv.COLOR_RGB2BGR)
-            cv.imwrite(save_image_name, image_out_bgr)
+            if image_name is None:
+                image_name = self.model_name + '_image'
+            pred = self.get_predictions_image(self.model, image, conf_thresh, iou_thresh)
 
-        if imshow:
-            self.cv_imshow(image_out, win_name=image_name)
+            if imsave or imshow:
+                image_out = self.show(image,
+                                    sample=sample,
+                                    predictions=pred)
+            if imsave:
+                save_folder = os.path.join('output', self.model_name)
+                os.makedirs(save_folder, exist_ok=True)
+                save_image_name = os.path.join(save_folder, image_name + '.png')
+                image_out_bgr = cv.cvtColor(image_out, cv.COLOR_RGB2BGR)
+                cv.imwrite(save_image_name, image_out_bgr)
+
+            if imshow:
+                self.cv_imshow(image_out, win_name=image_name)
 
         return image_out, pred
 
@@ -749,47 +751,47 @@ class WeedModel:
                       wait_time=1000,
                       image_name_suffix=None):
         """ do inference on entire dataset """
+        with torch.no_grad():
+            self.model.to(self.device)
+            self.model.eval()
 
-        self.model.to(self.device)
-        self.model.eval()
+            # out = []
+            predictions = []
 
-        # out = []
-        predictions = []
-
-        if save_folder is None:
-            save_folder = os.path.join('output', self.model_name, save_subfolder)
-
-        if imsave:
-            os.makedirs(save_folder, exist_ok=True)
-
-        print('number of images to infer: {}'.format(len(dataset)))
-
-        for image, sample in dataset:
-            image_id = sample['image_id'].item()
-            image_name = dataset.dataset.annotations[image_id]['filename'][:-4]
-
-            pred = self.get_predictions_image(image,
-                                              conf_thresh,
-                                              iou_thresh)
-            image_out = self.show(image, sample=sample, predictions=pred)
+            if save_folder is None:
+                save_folder = os.path.join('output', self.model_name, save_subfolder)
 
             if imsave:
-                if image_name_suffix is None:
-                    save_image_name = os.path.join(save_folder,
-                                                   image_name + '.png')
-                else:
-                    save_image_name = os.path.join(save_folder,
-                                                   image_name + image_name_suffix + '.png')
+                os.makedirs(save_folder, exist_ok=True)
 
-                image_out_bgr = cv.cvtColor(image_out, cv.COLOR_RGB2BGR)
-                cv.imwrite(save_image_name, image_out_bgr)
+            print('number of images to infer: {}'.format(len(dataset)))
 
-            if imshow:
-                self.cv_imshow(image_out,image_name, wait_time=wait_time)
+            for image, sample in dataset:
+                image_id = sample['image_id'].item()
+                image_name = dataset.dataset.annotations[image_id]['filename'][:-4]
 
-            # saving output
-            # out_tensor = model()
-            predictions.append(pred)
+                pred = self.get_predictions_image(image,
+                                                conf_thresh,
+                                                iou_thresh)
+                image_out = self.show(image, sample=sample, predictions=pred)
+
+                if imsave:
+                    if image_name_suffix is None:
+                        save_image_name = os.path.join(save_folder,
+                                                    image_name + '.png')
+                    else:
+                        save_image_name = os.path.join(save_folder,
+                                                    image_name + image_name_suffix + '.png')
+
+                    image_out_bgr = cv.cvtColor(image_out, cv.COLOR_RGB2BGR)
+                    cv.imwrite(save_image_name, image_out_bgr)
+
+                if imshow:
+                    self.cv_imshow(image_out,image_name, wait_time=wait_time)
+
+                # saving output
+                # out_tensor = model()
+                predictions.append(pred)
 
         return predictions
 

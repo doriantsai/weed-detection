@@ -1,20 +1,17 @@
 #! /usr/bin/env python
 
-
-""" script to train model after running split_image_data.py and create_datasets.py """
+""" script to generate a single pr curve """
 
 import os
-# import time
 import pickle
-
-# from weed_detection.WeedDataset import WeedDataset as WD
 from weed_detection.WeedModel import WeedModel as WM
 
+# init WM object
+# load model
+# call prcurve function
 
-# create datasets
-# folder locations of dataset files
+# load dataset objects
 dataset_file = os.path.join('dataset_objects', 'Tussock_v1', 'Tussock_v1.pkl')
-
 # load dataset files via unpacking the pkl file
 if os.path.isfile(dataset_file):
     with open(dataset_file, 'rb') as f:
@@ -28,15 +25,13 @@ if os.path.isfile(dataset_file):
         hp_test = pickle.load(f)
         dataset_name = pickle.load(f)
 
-# create WM object
+# init WM object
 Tussock = WM()
 
-# call WM.train
-Tussock.train(model_name='tussock_test',
-              dataset_path=dataset_file)
+# load model
+save_model_path = os.path.join('output', 
+                               'tussock_test_2021-05-16_16_13', 
+                               'tussock_test.pth')
+Tussock.load_model(save_model_path)
 
-print(Tussock.model_name)
-print(Tussock.model_path)
-
-import code
-code.interact(local=dict(globals(), **locals()))
+# TODO call prcurve functions
