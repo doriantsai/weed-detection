@@ -23,7 +23,7 @@ import time
 # TODO
 # from PIL import Image
 from torch.utils.tensorboard import SummaryWriter
-from engine_st import train_one_epoch, evaluate
+from engine_st import train_one_epoch
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 
 torch.manual_seed(42)
@@ -61,7 +61,7 @@ if __name__ == "__main__":
         # dataset pickle file should be located in:
         # save_dataset_folder = os.path.join('output','dataset', dataset_name)
         # dataset_name + '.pkl'
-        save_dataset_path = os.path.join('..', 'dataset_preparation',
+        save_dataset_path = os.path.join('dataset',
                                          'dataset',
                                          dataset_name,
                                          dataset_name + '.pkl')
@@ -139,7 +139,7 @@ if __name__ == "__main__":
     # training
     start_time = time.time()
     print('begin training')
-    for epoch in range(hp['num_epochs']):
+    for epoch in range(hp_train['num_epochs']):
         # TODO use weights and biases to visualise training/results, rather than tensorboard
 
         # modified from coco_api tools to take in separate training and

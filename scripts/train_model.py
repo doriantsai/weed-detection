@@ -7,13 +7,13 @@ import os
 import time
 import pickle
 
-from weed_detection.WeedDataset import WeedDataset as WD
+# from weed_detection.WeedDataset import WeedDataset as WD
 from weed_detection.WeedModel import WeedModel as WM
 
 
 # create datasets
 # folder locations of dataset files
-dataset_file = os.path.join('dataset', 'Tussock_v1', 'Tussock_v1.pkl')
+dataset_file = os.path.join('dataset_objects', 'Tussock_v1', 'Tussock_v1.pkl')
 
 # load dataset files via unpacking the pkl file
 if os.path.isfile(dataset_file):
@@ -25,13 +25,15 @@ if os.path.isfile(dataset_file):
         dl_test = pickle.load(f)
         dl_val = pickle.load(f)
         hp_train = pickle.load(f)
-        hp_test = pickle.load(f)   
-    
+        hp_test = pickle.load(f)
+        dataset_name = pickle.load(f)
+
 # create WM object
 Tussock = WM()
 
 # call WM.train
-Tussock.train(model_name='tussock_test', dataset_path=dataset_file)
+Tussock.train(model_name='tussock_test',
+              dataset_path=dataset_file)
 
 print(Tussock.model_name)
 print(Tussock.model_path)

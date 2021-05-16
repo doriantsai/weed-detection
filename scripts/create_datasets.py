@@ -20,12 +20,12 @@ ann_files = ['/home/dorian/Data/AOS_TussockDataset/Tussock_v1/Annotations/annota
             '/home/dorian/Data/AOS_TussockDataset/Tussock_v1/Annotations/annotations_tussock_21032526_G507_val.json']
 
 # set hyper parameters of dataset
-batch_size = 10
+batch_size = 2
 num_workers = 10
 learning_rate = 0.005
 momentum = 0.9
 weight_decay = 0.0001
-num_epochs = 100
+num_epochs = 10
 step_size = round(num_epochs / 2)
 shuffle = True
 rescale_size = 2056
