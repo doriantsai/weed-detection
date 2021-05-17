@@ -43,65 +43,65 @@ class WeedModel:
                  hyper_parameters=None,
                  note=None):
 
-        self.weed_name = weed_name
+        self._weed_name = weed_name
         # TODO maybe save model type/architecture
         # also, hyper parameters?
-        self.model = model
-        self.model_name = model_name
-        self.model_path = model_path
+        self._model = model
+        self._model_name = model_name
+        self._model_path = model_path
 
         if device is None:
             device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-        self.device = device
+        self._device = device
 
-        self.hp = hyper_parameters
+        self._hp = hyper_parameters
         # TODO consider expanding hp from dictionary into actual properties/attributes
         # for more readability
-        self.image_width = 2464 # should be computed based on aspect ratio
-        self.image_height = 2056 # rescale_size
+        self._image_width = 2464 # should be computed based on aspect ratio
+        self._image_height = 2056 # rescale_size
 
-        self.note = note # just a capture-all string TEMP
+        self._note = note # just a capture-all string TEMP
 
 
     # getters and setters
     def set_model(self, model):
-        self.model = model
+        self._model = model
 
 
     def get_model(self):
-         return self.model
+         return self._model
 
 
     def set_model_name(self, name):
-        self.model_name = name
+        self._model_name = name
 
 
     def get_model_name(self):
-        return self.model_name
+        return self._model_name
 
 
     def set_weed_name(self, name):
-        self.weed_name = name
+        self._weed_name = name
 
 
     def get_weed_name(self):
-        return self.weed_name
+        return self._weed_name
 
 
     def set_model_path(self, path):
-        self.model_path = path
+        self._model_path = path
 
 
     def get_model_path(self):
-        return self.model_path
+        return self._model_path
 
 
     def set_hyper_parameters(self, hp):
-        self.hp = hp
+        self._hp = hp
 
 
     def get_hyper_parameters(self):
-        return self.hp
+        return self._hp
 
 
     def build_model(self, num_classes):
@@ -264,7 +264,7 @@ class WeedModel:
         # build model
         # setup number of classes (1 background, 1 class - weed species)
         model = self.build_model(num_classes=2)
-        model.to(self.device)
+        model.to(self._device)
 
         # set optimizer
         params = [p for p in model.parameters() if p.requires_grad]
@@ -304,7 +304,7 @@ class WeedModel:
                                      optimizer,
                                      dl_train,
                                      dl_val,
-                                     self.device,
+                                     self._device,
                                      epoch,
                                      val_epoch,
                                      print_freq=10)
@@ -352,9 +352,9 @@ class WeedModel:
         print('model saved: {}'.format(model_save_path))
 
         # set model
-        self.model = model
-        self.model_name = model_name
-        self.model_path = model_save_path
+        self._model = model
+        self._model_name = model_name
+        self._model_path = model_save_path
 
         return model, model_save_path
 
@@ -363,12 +363,12 @@ class WeedModel:
         """ load model to self based on model_path """
 
         if model_path is None:
-            model_path = self.model_path
+            model_path = self._model_path
 
         model = self.build_model(num_classes)
         model.load_state_dict(torch.load(model_path))
         print('loaded model: {}'.format(model_path))
-        self.model = model
+        self._model = model
 
         return model
 
@@ -387,10 +387,10 @@ class WeedModel:
         # this function finds closest epoch in snapshots folder and sets model_path, model
         # to relevant .pth file
 
-        print('old model path: {}'.format(self.model_path))
+        print('old model path: {}'.format(self._model_path))
 
         if snapshot_folder is None:
-            snapshot_folder = os.path.join('output', self.model_name, 'snapshots')
+            snapshot_folder = os.path.join('output', self._model_name, 'snapshots')
 
         # find all filenames in snapshot folder
         snapshot_files = os.listdir(snapshot_folder)
@@ -414,7 +414,7 @@ class WeedModel:
         print('corresponding epoch number: {}'.format(e[i_emin]))
 
         # set object model and model path and epoch number
-        self.model_path = os.path.join(snapshot_folder, snapshot_files[i_emin])
+        self._model_path = os.path.join(snapshot_folder, snapshot_files[i_emin])
         self.epoch = e[i_emin]
         self.load_model()
 
@@ -452,13 +452,14 @@ class WeedModel:
         """ take in model, single image, thresholds, return bbox predictions for scores > threshold """
 
         # image incoming is a tensor, since it is from a dataloader object
-        self.model.eval()  # TODO could call self.model.eval(), but for now, just want to port the scripts/functions
+        self._model.eval()  # TODO could call self.model.eval(), but for now, just want to port the scripts/functions
+
         if torch.cuda.is_available():
-            image.to(self.device)
-            self.model.to(self.device) # added, unsure if this will cause errors
+            image = image.to(self._device)
+            self._model.to(self._device) # added, unsure if this will cause errors
 
         # do model inference on single image
-        pred = self.model([image])
+        pred = self._model([image])
 
         # apply non-maxima suppression
         keep = torchvision.ops.nms(pred[0]['boxes'], pred[0]['scores'], nms_iou_thresh)
@@ -691,7 +692,7 @@ class WeedModel:
 
         # resize image to save space
         if resize_image:
-            aspect_ratio = self.image_width / self.image_height
+            aspect_ratio = self._image_width / self._image_height
             resize_width = int(resize_height * aspect_ratio)
             resize_height = int(resize_height)
             image_out = cv.resize(image_out,
@@ -712,30 +713,30 @@ class WeedModel:
         # assume image comes in as a tensor for now (eg, from image, sample in dataset)
 
         with torch.no_grad():
-            self.model.to(self.device)
-            image.to(self.device)
+            self._model.to(self._device)
+            image = image.to(self._device)
 
-            self.model.eval()
+            self._model.eval()
 
             # TODO accept different types of image input (tensor, numpy array, PIL, filename?)
 
             if image_name is None:
-                image_name = self.model_name + '_image'
-            pred = self.get_predictions_image(self.model, image, conf_thresh, iou_thresh)
+                image_name = self._model_name + '_image'
+            pred = self.get_predictions_image(image, conf_thresh, iou_thresh)
 
             if imsave or imshow:
                 image_out = self.show(image,
                                     sample=sample,
                                     predictions=pred)
             if imsave:
-                save_folder = os.path.join('output', self.model_name)
+                save_folder = os.path.join('output', self._model_name)
                 os.makedirs(save_folder, exist_ok=True)
                 save_image_name = os.path.join(save_folder, image_name + '.png')
                 image_out_bgr = cv.cvtColor(image_out, cv.COLOR_RGB2BGR)
                 cv.imwrite(save_image_name, image_out_bgr)
 
             if imshow:
-                self.cv_imshow(image_out, win_name=image_name)
+                self.cv_imshow(image_out, win_name=str(image_name))
 
         return image_out, pred
 
@@ -752,14 +753,14 @@ class WeedModel:
                       image_name_suffix=None):
         """ do inference on entire dataset """
         with torch.no_grad():
-            self.model.to(self.device)
-            self.model.eval()
+            self._model.to(self._device)
+            self._model.eval()
 
             # out = []
             predictions = []
 
             if save_folder is None:
-                save_folder = os.path.join('output', self.model_name, save_subfolder)
+                save_folder = os.path.join('output', self._model_name, save_subfolder)
 
             if imsave:
                 os.makedirs(save_folder, exist_ok=True)
@@ -815,18 +816,18 @@ class WeedModel:
         h = capture.get(cv.CAP_PROP_FRAME_HEIGHT)
         print('original video capture resolution: width={}, height={}'.format(w, h))
         # images will get resized to what the model was trained for, so get the output video size
-        print('resized video resolution: width={}, height={}'.format(self.image_width, self.image_height))
+        print('resized video resolution: width={}, height={}'.format(self._image_width, self._image_height))
 
         # TODO set webcam exposure settings
 
         # save video settings/location
         if save_folder is None:
-            save_folder = os.path.join('output', self.model_name, 'video')
+            save_folder = os.path.join('output', self._model_name, 'video')
             os.makedirs(save_folder, exist_ok=True)
 
         if video_out_name is None:
             now_str = self.get_now_str()
-            video_out_name = self.model_name + now_str + '_video.avi'
+            video_out_name = self._model_name + now_str + '_video.avi'
 
         video_out_path = os.path.join(save_folder, video_out_name)
 
@@ -835,14 +836,14 @@ class WeedModel:
         video_out = cv.VideoWriter(video_out_path,
                                    fourcc=video_write,
                                    fps=fps,
-                                   frameSize=(int(self.image_width), int(self.image_height)))
+                                   frameSize=(int(self._image_width), int(self._image_height)))
 
-        tform_rsc = Rescale(self.hp['rescale_size'])
+        tform_rsc = Rescale(self._hp['rescale_size'])
 
         # read in video
         i = 0
-        self.model.to(self.device)
-        self.model.eval()
+        self._model.to(self._device)
+        self._model.eval()
 
         while (capture.isOpened() and i < MAX_FRAMES):
 
@@ -859,7 +860,7 @@ class WeedModel:
 
                 # convert frame to tensor and send to device
                 frame = tv_transform.To_Tensor(frame)
-                frame.to(self.device)
+                frame.to(self._device)
 
                 # model inference
                 pred = self.get_predictions_image(frame, conf_thresh, iou_thresh)
@@ -1080,8 +1081,8 @@ class WeedModel:
         """ compute single pr pair for entire dataset, given the predictions """
         # note for pr_curve, see get_prcurve
 
-        self.model.eval()
-        self.model.to(self.device)
+        self._model.eval()
+        self._model.to(self._device)
 
         # annotations from the original dataset object
         dataset_annotations = dataset.dataset.annotations
@@ -1124,7 +1125,7 @@ class WeedModel:
 
                 if save_folder is None:
                     save_folder = os.path.join('output',
-                                                self.model_name,
+                                                self._model_name,
                                                 'outcomes')
                 save_subfolder = 'conf_thresh_' + str(DECISION_CONF_THRESH)
                 save_path = os.path.join(save_folder, save_subfolder)
@@ -1391,7 +1392,7 @@ class WeedModel:
         plt.xlabel('recall')
         plt.ylabel('precision')
         plt.title('precision-recall for varying confidence')
-        save_plot_name = os.path.join(save_folder, self.model_name + '_pr_raw.png')
+        save_plot_name = os.path.join(save_folder, self._model_name + '_pr_raw.png')
         plt.savefig(save_plot_name)
         if PLOT:
             plt.show()
@@ -1421,7 +1422,7 @@ class WeedModel:
         plt.ylabel('precision')
         plt.title('prec-rec curve, iou={}, ap = {:.2f}'.format(decision_iou_thresh, ap))
         # ax.legend()
-        save_plot_name = os.path.join(save_folder, self.model_name + '_pr.png')
+        save_plot_name = os.path.join(save_folder, self._model_name + '_pr.png')
         plt.savefig(save_plot_name)
         if PLOT:
             plt.show()
@@ -1435,7 +1436,7 @@ class WeedModel:
             'ap': ap,
             'f1score': f1score,
             'confidence': c_final}
-        save_file = os.path.join(save_folder, self.model_name + '_prcurve.pkl')
+        save_file = os.path.join(save_folder, self._model_name + '_prcurve.pkl')
         with open(save_file, 'wb') as f:
             pickle.dump(res, f)
 

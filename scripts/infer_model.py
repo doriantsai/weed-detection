@@ -11,7 +11,9 @@ from weed_detection.WeedModel import WeedModel as WM
 # call inference functions
 
 # load dataset objects
-dataset_file = os.path.join('dataset_objects', 'Tussock_v1', 'Tussock_v1.pkl')
+dataset_file = os.path.join('dataset_objects',
+                            'Tussock_v1',
+                            'Tussock_v1.pkl')
 # load dataset files via unpacking the pkl file
 if os.path.isfile(dataset_file):
     with open(dataset_file, 'rb') as f:
@@ -29,10 +31,13 @@ if os.path.isfile(dataset_file):
 Tussock = WM()
 
 # load model
-save_model_path = os.path.join('output', 
-                               'tussock_test_2021-05-16_16_13', 
-                               'tussock_test.pth')
+model_name = 'tussock_test_2021-05-16_16_13'
+save_model_path = os.path.join('output',
+                               model_name,
+                               model_name + '.pth')
 Tussock.load_model(save_model_path)
+Tussock.set_model_name(model_name)
+Tussock.set_model_path(save_model_path)
 
 # run model inference on single image batch
 images, samples = next(iter(dl_test))
@@ -41,7 +46,7 @@ for i in range(bs):
     image = images[i]
     sample = samples[i]
     image_id = sample['image_id']
-    image_out, pred = Tussock.infer_image(image, 
+    image_out, pred = Tussock.infer_image(image,
                                           sample=sample,
                                           imshow=True,
                                           imsave=True)
