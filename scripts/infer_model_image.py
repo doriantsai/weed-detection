@@ -1,6 +1,6 @@
 #! /usr/bin/env python
 
-""" script to infer from model """
+""" script to infer from model for single image/batch """
 
 import os
 import pickle

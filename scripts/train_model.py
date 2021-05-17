@@ -35,8 +35,8 @@ Tussock = WM()
 Tussock.train(model_name='tussock_test',
               dataset_path=dataset_file)
 
-print(Tussock.model_name)
-print(Tussock.model_path)
+print(Tussock._model_name)
+print(Tussock._model_path)
 
 import code
 code.interact(local=dict(globals(), **locals()))
