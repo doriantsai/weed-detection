@@ -1,18 +1,19 @@
 #! /usr/bin/env python
 
-""" script to generate a single pr curve """
+""" script to infer from model for entire dataset """
 
 import os
 import pickle
-import numpy as np
 from weed_detection.WeedModel import WeedModel as WM
 
 # init WM object
 # load model
-# call prcurve function
+# call inference functions
 
 # load dataset objects
-dataset_file = os.path.join('dataset_objects', 'Tussock_v1', 'Tussock_v1.pkl')
+dataset_file = os.path.join('dataset_objects',
+                            'Tussock_v1',
+                            'Tussock_v1.pkl')
 # load dataset files via unpacking the pkl file
 if os.path.isfile(dataset_file):
     with open(dataset_file, 'rb') as f:
@@ -38,24 +39,14 @@ Tussock.load_model(save_model_path)
 Tussock.set_model_name(model_name)
 Tussock.set_model_path(save_model_path)
 
-# TODO call prcurve functions
-conf_thresh = np.linspace(0.99, 0.01, num=100, endpoint=True)
-# TODO for 0.0 and 1.0 confidence threshold, produces nans because no tp
-
-iou_thresh = 0.5
-save_prcurve_folder = os.path.join('output', model_name, 'prcurve')
-res = Tussock.get_prcurve(ds_val,
-                            confidence_thresh=conf_thresh,
-                            nms_iou_thresh=iou_thresh,
-                            decision_iou_thresh=iou_thresh,
-                            save_folder=save_prcurve_folder,
-                            imsave=True)
-
-#  res = {'precision': p_final,
-#            'recall': r_final,
-#            'ap': ap,
-#            'f1score': f1score,
-#            'confidence': c_final}
+# run model inference on entire dataset
+pred = Tussock.infer_dataset(ds_test, imsave=True)
+    # image_out, pred = Tussock.infer_image(image,
+    #                                       sample=sample,
+    #                                       imshow=True,
+    #                                       imsave=True)
+    # print('{}: {}'.format(i, image_id))
+    # print('   pred = {}'.format(pred))
 
 import code
 code.interact(local=dict(globals(), **locals()))

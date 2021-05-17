@@ -41,6 +41,7 @@ class WeedModel:
                  model_path=None,
                  device=None,
                  hyper_parameters=None,
+                 epoch=None,
                  note=None):
 
         self._weed_name = weed_name
@@ -49,6 +50,9 @@ class WeedModel:
         self._model = model
         self._model_name = model_name
         self._model_path = model_path
+
+        # TODO if model_path is not None
+        # load model, model name, weed_name, etc everything possible
 
         if device is None:
             device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
@@ -61,6 +65,7 @@ class WeedModel:
         self._image_height = 2056 # rescale_size
 
         self._note = note # just a capture-all string TEMP
+        self._epoch = epoch
 
 
     # getters and setters
@@ -94,6 +99,14 @@ class WeedModel:
 
     def get_model_path(self):
         return self._model_path
+
+
+    def set_model_epoch(self, epoch):
+        self._epoch = epoch
+
+
+    def get_model_epoch(self):
+        return self._epoch
 
 
     def set_hyper_parameters(self, hp):
@@ -355,6 +368,7 @@ class WeedModel:
         self._model = model
         self._model_name = model_name
         self._model_path = model_save_path
+        self._epoch = epoch
 
         return model, model_save_path
 
@@ -415,7 +429,7 @@ class WeedModel:
 
         # set object model and model path and epoch number
         self._model_path = os.path.join(snapshot_folder, snapshot_files[i_emin])
-        self.epoch = e[i_emin]
+        self._epoch = e[i_emin]
         self.load_model()
 
         return True
@@ -544,7 +558,7 @@ class WeedModel:
         gt_box_thick = 12   # groundtruth bounding box
         dt_box_thick = 6    # detection bounding box
         out_box_thick = 3   # outcome bounding box/overlay
-        font_scale = 1
+        font_scale = 3
         font_thick = 2
 
         if transpose_color_channels:
@@ -664,6 +678,7 @@ class WeedModel:
                         sc = format(scores[i] * 100.0) # no decimals, just x100 for percent
                         cv.putText(image_out,
                                    '{}: {}/{}'.format(i, sc, outcome_list[dt_outcome[i]]),
+                                   (int(bb[0] + 10), int(bb[1] + 30)),
                                    fontFace=cv.FONT_HERSHEY_COMPLEX,
                                    fontScale=font_scale,
                                    color=outcome_color[dt_outcome[i]],
@@ -769,7 +784,7 @@ class WeedModel:
 
             for image, sample in dataset:
                 image_id = sample['image_id'].item()
-                image_name = dataset.dataset.annotations[image_id]['filename'][:-4]
+                image_name = dataset.annotations[image_id]['filename'][:-4]
 
                 pred = self.get_predictions_image(image,
                                                 conf_thresh,
@@ -896,6 +911,8 @@ class WeedModel:
         capture.release()
         video_out.release()
         cv.destroyAllWindows()
+
+        return video_out_path
 
 
     def compute_iou_bbox(self, boxA, boxB):
@@ -1074,8 +1091,8 @@ class WeedModel:
     def compute_pr_dataset(self,
                             dataset,
                             predictions,
-                            DECISION_IOU_THRESH,
                             DECISION_CONF_THRESH,
+                            DECISION_IOU_THRESH,
                             imsave=False,
                             save_folder=None):
         """ compute single pr pair for entire dataset, given the predictions """
@@ -1085,7 +1102,7 @@ class WeedModel:
         self._model.to(self._device)
 
         # annotations from the original dataset object
-        dataset_annotations = dataset.dataset.annotations
+        dataset_annotations = dataset.annotations
 
         tp_sum = 0
         fp_sum = 0
@@ -1352,10 +1369,12 @@ class WeedModel:
                                         conf_thresh=0,
                                         iou_thresh=nms_iou_thresh,
                                         save_folder=save_folder,
-                                        save_subfolder='prcurve',
+                                        save_subfolder=os.path.join('prcurve', 'detections'),
                                         imshow=imshow,
                                         imsave=imsave,
                                         image_name_suffix='_prcurve_0')
+
+
 
         # iterate over different decision thresholds
         prec = []
@@ -1367,10 +1386,11 @@ class WeedModel:
 
             _, p, r, f1 = self.compute_pr_dataset(dataset,
                                                   predictions,
-                                                  nms_iou_thresh,
                                                   conf,
+                                                  nms_iou_thresh,
                                                   imsave=imsave,
                                                   save_folder=save_folder)
+
             prec.append(p)
             rec.append(r)
             f1score.append(f1)
