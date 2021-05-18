@@ -15,20 +15,10 @@ from weed_detection.WeedModel import WeedModel as WM
 
 IMSHOW = True
 
+WeedTemp = WM()
 # load dataset objects
 dataset_file = os.path.join('dataset_objects', 'Tussock_v1', 'Tussock_v1.pkl')
-# load dataset files via unpacking the pkl file
-if os.path.isfile(dataset_file):
-    with open(dataset_file, 'rb') as f:
-        ds_train = pickle.load(f)
-        ds_test = pickle.load(f)
-        ds_val = pickle.load(f)
-        dl_train = pickle.load(f)
-        dl_test = pickle.load(f)
-        dl_val = pickle.load(f)
-        hp_train = pickle.load(f)
-        hp_test = pickle.load(f)
-        dataset_name = pickle.load(f)
+dso = WeedTemp.load_dataset_objects(dataset_file)
 
 # set the thresholds
 # TODO call prcurve functions
@@ -41,7 +31,7 @@ confidence_thresh = np.array(confidence_thresh, ndmin=1)
 
 # provide a list of model names:
 model_names = ['tussock_test_2021-05-16_16_13',
-               'blah2']
+               'tussock_test_2021-05-17_09_37']
 
 # iterate for each model_name:
 
@@ -55,11 +45,11 @@ for name in model_names:
     WeedModel.set_model_path(save_model_path)
 
     save_prcurve_folder = os.path.join('output', name, 'prcurve')
-    res = WeedModel.get_prcurve(ds_val,
+    res = WeedModel.get_prcurve(dso['ds_test'],
                                 confidence_thresh=confidence_thresh,
                                 nms_iou_thresh=nms_iou_thresh,
                                 decision_iou_thresh=decision_iou_thresh,
-                                save_folder=save_prcurve_folder))
+                                save_folder=save_prcurve_folder)
 
     results.append(res)
     WeedModelList.append(WeedModel)

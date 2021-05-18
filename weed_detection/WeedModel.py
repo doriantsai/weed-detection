@@ -129,6 +129,36 @@ class WeedModel:
         return model
 
 
+    def load_dataset_objects(self, dataset_path, return_dict=True):
+        """ load dataset objects given path """
+        if os.path.isfile(dataset_path):
+            with open(dataset_path, 'rb') as f:
+                ds_train = pickle.load(f)
+                ds_test = pickle.load(f)
+                ds_val = pickle.load(f)
+                dl_train = pickle.load(f)
+                dl_test = pickle.load(f)
+                dl_val = pickle.load(f)
+                hp_train = pickle.load(f)
+                hp_test = pickle.load(f)
+                dataset_name = pickle.load(f)
+
+        # save as a dictionary
+        if return_dict:
+            dso = {'ds_train': ds_train,
+                'ds_test': ds_test,
+                'ds_val': ds_val,
+                'dl_train': dl_train,
+                'dl_test': dl_test,
+                'dl_val': dl_val,
+                'hp_train': hp_train,
+                'hp_test': hp_test,
+                'dataset_name': dataset_name}
+            return dso
+        else:
+            return ds_train, ds_test, ds_val, dl_train, dl_test, dl_val, \
+                hp_train, hp_test, dataset_name
+
     def create_dataset_dataloader(self,
                                 root_dir,
                                 json_file,
@@ -153,6 +183,7 @@ class WeedModel:
         return tuple(zip(*batch))
 
 
+
     def create_train_test_val_datasets(self, img_folders, ann_files, hp, dataset_name):
         """ creates datasets and dataloader objects from train/test/val files """
         # arguably, should be in WeedDataset class
@@ -174,6 +205,9 @@ class WeedModel:
         hp_test = hp
         hp_test['shuffle'] = False
 
+        # TODO add in other data augmentation methods TODO make dictionary for
+        # data augmentation parameters with default values TODO but also as
+        # inputs
         tform_train = Compose([Rescale(rescale_size),
                           RandomBlur(5, (0.5, 2.0)),
                           RandomHorizontalFlip(0.5),
@@ -1412,6 +1446,7 @@ class WeedModel:
         plt.xlabel('recall')
         plt.ylabel('precision')
         plt.title('precision-recall for varying confidence')
+        os.makedirs(save_folder, exist_ok=True)
         save_plot_name = os.path.join(save_folder, self._model_name + '_pr_raw.png')
         plt.savefig(save_plot_name)
         if PLOT:
