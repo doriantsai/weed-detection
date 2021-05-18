@@ -6,18 +6,22 @@ PPT.split_image_data() """
 import os
 import weed_detection.WeedModel as WeedModel
 
-# setup folder locations
-# init object
-# call object
+# setup folder locations init object call object
 
 # NOTE: copied/pasted output from PPT.split_iamge_data()
-img_folders = ['/home/dorian/Data/AOS_TussockDataset/Tussock_v1/Images/Train',
-                '/home/dorian/Data/AOS_TussockDataset/Tussock_v1/Images/Test',
-                '/home/dorian/Data/AOS_TussockDataset/Tussock_v1/Images/Validation']
+dataset_name = 'Tussock_v3_neg_test'
+root_dir = os.path.join('/home',
+                        'dorian',
+                        'Data',
+                        'AOS_TussockDataset',
+                        dataset_name)
+img_folders = [os.path.join(root_dir, 'Images','Train'),
+               os.path.join(root_dir, 'Images', 'Test'),
+               os.path.join(root_dir, 'Images', 'Val')]
 
-ann_files = ['/home/dorian/Data/AOS_TussockDataset/Tussock_v1/Annotations/annotations_tussock_21032526_G507_train.json',
-            '/home/dorian/Data/AOS_TussockDataset/Tussock_v1/Annotations/annotations_tussock_21032526_G507_test.json',
-            '/home/dorian/Data/AOS_TussockDataset/Tussock_v1/Annotations/annotations_tussock_21032526_G507_val.json']
+ann_files = [os.path.join(root_dir, 'Annotations', 'annotations_tussock_21032526_G507_train.json'),
+            os.path.join(root_dir, 'Annotations', 'annotations_tussock_21032526_G507_test.json'),
+            os.path.join(root_dir, 'Annotations', 'annotations_tussock_21032526_G507_val.json')]
 
 # set hyper parameters of dataset
 batch_size = 10
@@ -46,7 +50,7 @@ hp_train = hp
 hp_test = hp
 hp_test['shuffle'] = False
 
-dataset_name = 'Tussock_v1'
+dataset_name = 'Tussock_v2'
 
 # init object
 Tussock = WeedModel()
@@ -56,7 +60,8 @@ dataset_path = Tussock.create_train_test_val_datasets(img_folders,
                                                       hp,
                                                       dataset_name)
 
-# TODO open pkl file and confirm that datasets match image length, but some are "augmented"?
+# TODO open pkl file and confirm that datasets match image length, but some are
+# "augmented"?
 print('dataset_path = {}'.format(dataset_path))
 
 

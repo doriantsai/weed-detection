@@ -58,14 +58,20 @@ class WeedDataset(object):
         # bounding box is read in a xmin, ymin, width and height
         # bounding box is saved as xmin, ymin, xmax, ymax
         boxes = []
-        for i in range(nobj):
-            xmin = self.annotations[idx]['regions'][str(i)]['shape_attributes']['x']
-            ymin = self.annotations[idx]['regions'][str(i)]['shape_attributes']['y']
-            width = self.annotations[idx]['regions'][str(i)]['shape_attributes']['width']
-            height = self.annotations[idx]['regions'][str(i)]['shape_attributes']['height']
-            xmax = xmin + width
-            ymax = ymin + height
-            boxes.append([xmin, ymin, xmax, ymax])
+
+        # import code
+        # code.interact(local=dict(globals(), **locals()))
+
+        if nobj > 0:
+            for i in range(nobj):
+
+                xmin = self.annotations[idx]['regions'][i]['shape_attributes']['x']
+                ymin = self.annotations[idx]['regions'][i]['shape_attributes']['y']
+                width = self.annotations[idx]['regions'][i]['shape_attributes']['width']
+                height = self.annotations[idx]['regions'][i]['shape_attributes']['height']
+                xmax = xmin + width
+                ymax = ymin + height
+                boxes.append([xmin, ymin, xmax, ymax])
         boxes = torch.as_tensor(boxes, dtype=torch.float64)
 
         # compute area

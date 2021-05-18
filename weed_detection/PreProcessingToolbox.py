@@ -152,23 +152,23 @@ class PreProcessingToolbox:
         with open(ann_out_file, 'w') as ann_file:
             json.dump(ann_dict, ann_file, indent=4)
 
-        return True
+        return ann_out_file
 
 
     def sample_dict(self, ann_dict, sample):
         """ helper function to build annotation dictionary """
-        file_ref = sample['fileref']
+        # file_ref = sample['fileref']
         file_size = sample['size']
         file_name = sample['filename']
-        imgdata = sample['base64_img_data']
+        # imgdata = sample['base64_img_data']
         file_att = sample['file_attributes']
         regions = sample['regions']
 
         ann_dict[file_name + str(file_size)] = {
-            'fileref': file_ref,
+            # 'fileref': file_ref,
             'size': file_size,
             'filename': file_name,
-            'base64_img_data': imgdata,
+            # 'base64_img_data': imgdata,
             'file_attributes': file_att,
             'regions': regions
         }
