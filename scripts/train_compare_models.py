@@ -30,6 +30,7 @@ results = []
 i = 0
 for ds in dataset_names:
 
+    # first, create datasets for the added images
     root_dir = os.path.join('/home',
                             'dorian',
                             'Data',
@@ -37,7 +38,7 @@ for ds in dataset_names:
                             ds)
     img_folders = [os.path.join(root_dir, 'Images','Train'),
                 os.path.join(root_dir, 'Images', 'Test'),
-                os.path.join(root_dir, 'Images', 'Val')]
+                os.path.join(root_dir, 'Images', 'Validation')]
 
     ann_files = [os.path.join(root_dir, 'Annotations', 'annotations_tussock_21032526_G507_train.json'),
                 os.path.join(root_dir, 'Annotations', 'annotations_tussock_21032526_G507_test.json'),

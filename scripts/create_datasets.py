@@ -17,7 +17,7 @@ root_dir = os.path.join('/home',
                         dataset_name)
 img_folders = [os.path.join(root_dir, 'Images','Train'),
                os.path.join(root_dir, 'Images', 'Test'),
-               os.path.join(root_dir, 'Images', 'Val')]
+               os.path.join(root_dir, 'Images', 'Validation')]
 
 ann_files = [os.path.join(root_dir, 'Annotations', 'annotations_tussock_21032526_G507_train.json'),
             os.path.join(root_dir, 'Annotations', 'annotations_tussock_21032526_G507_test.json'),
