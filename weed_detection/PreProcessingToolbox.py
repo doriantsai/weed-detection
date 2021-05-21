@@ -11,12 +11,17 @@ a collection of functions for the above
 import os
 import json
 import pickle
+import cv2 as cv
 from posix import ST_SYNCHRONOUS
 import numpy as np
 from PIL import Image
 import shutil
 from subprocess import call
-from weed_detection.WeedDataset import WeedDataset
+# from torch._C import namedtuple_solution_cloned_coefficient
+from weed_detection.WeedDataset import WeedDataset, Compose, \
+    RandomBlur, RandomVerticalFlip, RandomHorizontalFlip, \
+    RandomBrightness, RandomContrast, RandomHue, \
+    RandomSaturation, ToTensor
 import torch
 
 
@@ -395,3 +400,107 @@ class PreProcessingToolbox:
         img_folders = [train_folder, test_folder, val_folder]
         ann_files = [annotations_train, annotations_test, annotations_val]
         return img_folders, ann_files
+
+    # TODO agument_training_data
+    def augment_training_data(self,
+                              root_dir,
+                              img_dir,
+                              ann_in,
+                              tform_select,
+                              tform_param=None,
+                              ann_out=None,
+                              ann_transform=None,
+                              imshow=False):
+
+        # given image_folder and corresponding annotations file
+        # choose a transform with certain parameters
+        # apply transform to all images in image_folder
+        # save each transformed iamge with a unique name
+        # into image folder
+        # return with updated annotations file
+
+        # assume image_folder is synced with annotations file in
+        ann_dir = os.path.join(root_dir, 'Annotations')
+        if ann_transform is None:
+            # ann_transform = os.path.join(ann_dir, 'annotations_transform.json')
+            ann_transform = os.path.join(ann_dir, 'annotations_transform.json')
+        # select transform
+        prob = 1.0
+
+        if tform_select == 0:
+            tform = Compose([RandomBlur(11, 3), ToTensor()])
+            name_suffix = 'blur'
+        elif tform_select == 1:
+            tform = Compose([RandomHorizontalFlip(prob), ToTensor()])
+            name_suffix = 'horzFlip'
+        else:
+            tform = Compose([ToTensor()])
+            name_suffix = 'none'
+
+        # normal dataset no tform (for comparison
+        # dataset = WeedDataset(root_dir=root_dir,
+        #                        json_file=ann_in,
+        #                        transforms=Compose([ToTensor()]))
+        # create weed dataset object with appropriate transform
+        dataset_tform = WeedDataset(root_dir=root_dir,
+                               json_file=ann_in,
+                               transforms=tform,
+                               img_dir=img_dir)
+
+        # for each image in dataset, apply transform, save
+        # note: we are not using a model
+        image_name_list = []
+        target_list = []
+        ann_dict = {}
+        for image, target in dataset_tform:
+
+            # transform should be automatically applied, so should
+            # just be able to save the image
+            image_out = image.numpy()
+            image_out = np.transpose(image_out, (1,2,0))
+
+            # image name + transform name
+            image_id = target['image_id'].item()
+            image_name = dataset_tform.annotations[image_id]['filename'][:-4]
+            image_name = image_name + '_' + name_suffix
+
+            save_image_name = image_name + '.png'
+            image_out = cv.cvtColor(image_out, cv.COLOR_RGB2BGR)
+            cv.imwrite(save_image_name, image_out)
+
+            if imshow:
+                print('TODO show image')
+
+            # save name and sample
+            image_name_list.append(save_image_name)
+            target_list.append(target)
+
+            # now create new annotations for dataset and save
+            # create new ann_dict
+            # for each index, we take the sample from ann_master and make a new dict
+            # save/create new annotations file
+
+            import code
+            code.interact(local=dict(globals(), **locals()))
+            # TODO take converted/transformed target and convert to annotation
+            # style from json file
+
+            ann_dict = self.sample_dict(ann_dict, sample)
+
+        # create annotations_out_file:
+        ann_transform_file = os.path.join(ann_transform)
+        with open(ann_transform_file, 'w') as ann_file:
+            json.dump(ann_dict, ann_file, indent=4)
+
+        # append/merge with ann_in + ann_out
+        ann_files = [ann_in, ann_transform]
+
+        self.combine_annotations(ann_files, ann_dir, ann_out=ann_out)
+
+
+
+# =========================================================================== #
+
+if __name__ == "__main__":
+
+    print('PreProcessingToolbox.py')

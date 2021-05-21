@@ -18,7 +18,8 @@ import numpy as np
 T3_test = WM()
 
 # create datasets
-dataset_names = ['Tussock_v3_neg_test',
+dataset_names = ['Tussock_v2',
+                 'Tussock_v3_neg_test',
                  'Tussock_v3_neg_train_test']
 
 # provide a list of model names:
@@ -51,7 +52,7 @@ for ds in dataset_names:
     learning_rate = 0.005
     momentum = 0.9
     weight_decay = 0.0001
-    num_epochs = 100
+    num_epochs = 50
     step_size = round(num_epochs / 2)
     shuffle = True
     rescale_size = 2056
@@ -83,7 +84,11 @@ for ds in dataset_names:
 # load dataset files via unpacking the pkl file
     dso = WeedModel.load_dataset_objects(dataset_path)
 
-# create other/model comparison
+    # HACK compare with neg test to v2 the same model
+    if i == 1:
+        model_names[i] = dataset_names[0]
+
+    # create other/model comparison
     WeedModel.train(model_name=ds,
                 dataset_path=dataset_path,
                 model_name_suffix=False)
@@ -93,7 +98,7 @@ for ds in dataset_names:
     # TODO call prcurve functions
     nms_iou_thresh = 0.5
     decision_iou_thresh = 0.5
-    confidence_thresh = np.linspace(0.99, 0.01, num=100, endpoint=True)
+    confidence_thresh = np.linspace(0.99, 0.01, num=101, endpoint=True)
     confidence_thresh = np.array(confidence_thresh, ndmin=1)
     # TODO for 0.0 and 1.0 confidence threshold, produces nans because no tp
 

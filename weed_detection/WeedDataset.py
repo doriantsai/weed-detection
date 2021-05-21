@@ -24,7 +24,7 @@ class WeedDataset(object):
 
 
     # TODO maybe should actually hold the datasets/dataloader objects?
-    def __init__(self, root_dir, json_file, transforms):
+    def __init__(self, root_dir, json_file, transforms, img_dir=None):
         """
         initialise the dataset
         annotations - json file of annotations of a prescribed format
@@ -32,10 +32,16 @@ class WeedDataset(object):
         transforms - list of transforms randomly applied to dataset for training
         """
 
+        # TODO annotations shjould have root_dir/Annotations/json_file
         annotations = json.load(open(os.path.join(root_dir, json_file)))
         self.annotations = list(annotations.values())
         self.root_dir = root_dir
         self.transforms = transforms
+
+        if img_dir is not None:
+            self.img_dir = img_dir
+        else:
+            self.img_dir = root_dir
 
 
     def __getitem__(self, idx):
@@ -48,7 +54,7 @@ class WeedDataset(object):
             idx = idx.tolist()
 
         # get image
-        img_name = os.path.join(self.root_dir, self.annotations[idx]['filename'])
+        img_name = os.path.join(self.img_dir, self.annotations[idx]['filename'])
         image =  Image.open(img_name).convert("RGB")
 
         # number of bboxes
@@ -64,18 +70,26 @@ class WeedDataset(object):
 
         if nobj > 0:
             for i in range(nobj):
-
-                xmin = self.annotations[idx]['regions'][i]['shape_attributes']['x']
-                ymin = self.annotations[idx]['regions'][i]['shape_attributes']['y']
-                width = self.annotations[idx]['regions'][i]['shape_attributes']['width']
-                height = self.annotations[idx]['regions'][i]['shape_attributes']['height']
+                if isinstance(self.annotations[idx]['regions'], dict):
+                    j = str(i)
+                else:  # regions is a list type
+                    j = i
+                xmin = self.annotations[idx]['regions'][j]['shape_attributes']['x']
+                ymin = self.annotations[idx]['regions'][j]['shape_attributes']['y']
+                width = self.annotations[idx]['regions'][j]['shape_attributes']['width']
+                height = self.annotations[idx]['regions'][j]['shape_attributes']['height']
                 xmax = xmin + width
                 ymax = ymin + height
                 boxes.append([xmin, ymin, xmax, ymax])
-        boxes = torch.as_tensor(boxes, dtype=torch.float64)
+
+        if nobj == 0:
+            boxes = torch.zeros((0, 4), dtype=torch.float64)
+        else:
+            boxes = torch.as_tensor(boxes, dtype=torch.float64)
+
 
         # compute area
-        if len(boxes) == 0:
+        if nobj == 0:
             # no boxes
             area = 0
         else:
@@ -119,6 +133,33 @@ class WeedDataset(object):
         # TODO assert for valid input
         # tforms must be callable and operate on an image
         self.transforms = tforms
+
+
+    def convert_sample2annotation(self, idx, sample):
+        """ convert a given sample to annotation """
+        # TODO
+        if torch.is_tensor(idx):
+            idx = idx.tolist()
+
+        region_definition = ['Tussock']
+
+        ann = {}
+        # TODO take sample's bbox, convert to region
+        boxes = sample['boxes'].tolist()
+        labels = sample['labels'].tolist()
+        image_id = sample['image_id'].tolist()
+        area = sample['area'].tolist()
+        iscrowd = sample['iscrowd'].tolist()
+
+        for i in range(len(boxes)):
+            name = 'rect'
+            x = boxes[i][0]
+            y = boxes[i][1]
+            width = boxes[i][2] - boxes[i][0]
+            height = boxes[i][3] - boxes[i][1]
+
+        return ann
+
 
 
 class Compose(object):
