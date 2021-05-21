@@ -15,7 +15,9 @@ from weed_detection.WeedModel import WeedModel as WM
 Tussock = WM()
 
 # folder locations of dataset files
-dataset_name = 'Tussock_v3_neg_test'
+# dataset_name = 'Tussock_v3_neg_test'
+# dataset_name = 'Tussock_v2'
+dataset_name = 'Tussock_v3_neg_train_test'
 dataset_file = os.path.join('dataset_objects', dataset_name, dataset_name + '.pkl')
 
 # call WM.train

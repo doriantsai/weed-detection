@@ -10,28 +10,21 @@ from weed_detection.WeedModel import WeedModel as WM
 # load model
 # call inference functions
 
-# load dataset objects
-dataset_file = os.path.join('dataset_objects',
-                            'Tussock_v1',
-                            'Tussock_v1.pkl')
-# load dataset files via unpacking the pkl file
-if os.path.isfile(dataset_file):
-    with open(dataset_file, 'rb') as f:
-        ds_train = pickle.load(f)
-        ds_test = pickle.load(f)
-        ds_val = pickle.load(f)
-        dl_train = pickle.load(f)
-        dl_test = pickle.load(f)
-        dl_val = pickle.load(f)
-        hp_train = pickle.load(f)
-        hp_test = pickle.load(f)
-        dataset_name = pickle.load(f)
-
 # init WM object
 Tussock = WM()
 
+# load dataset objects
+dataset_name = 'Tussock_v3_neg_train_test'
+dataset_file = os.path.join('dataset_objects',
+                            dataset_name,
+                            dataset_name + '.pkl')
+# load dataset files via unpacking the pkl file
+dso = Tussock.load_dataset_objects(dataset_file)
+
+
 # load model
-model_name = 'tussock_test_2021-05-16_16_13'
+# model_name = 'tussock_test_2021-05-16_16_13'
+model_name = dataset_name
 save_model_path = os.path.join('output',
                                model_name,
                                model_name + '.pth')
@@ -40,7 +33,7 @@ Tussock.set_model_name(model_name)
 Tussock.set_model_path(save_model_path)
 
 # run model inference on entire dataset
-pred = Tussock.infer_dataset(ds_test, imsave=True)
+pred = Tussock.infer_dataset(dso['ds_test'], imsave=True)
     # image_out, pred = Tussock.infer_image(image,
     #                                       sample=sample,
     #                                       imshow=True,

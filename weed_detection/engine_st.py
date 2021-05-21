@@ -62,6 +62,11 @@ def train_one_epoch(model,
         # import code
         # code.interact(local=dict(globals(), **locals()))
 
+        # TODO for negative images, targets is empty, so
+        # we should just pass it through - no effect?
+        # for object detection, cannot pass through this..
+        # workaround is to create a new class of "other" and
+        # train that for everything that is not tussock
         loss_dict = model(images, targets)
 
         losses = sum(loss for loss in loss_dict.values())

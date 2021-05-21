@@ -5,6 +5,7 @@
 import os
 import pickle
 from weed_detection.WeedModel import WeedModel as WM
+import time
 
 # init WM object
 # load model
@@ -12,8 +13,8 @@ from weed_detection.WeedModel import WeedModel as WM
 
 # load dataset objects
 dataset_file = os.path.join('dataset_objects',
-                            'Tussock_v1',
-                            'Tussock_v1.pkl')
+                            'Tussock_v2',
+                            'Tussock_v2.pkl')
 # load dataset files via unpacking the pkl file
 if os.path.isfile(dataset_file):
     with open(dataset_file, 'rb') as f:
@@ -41,17 +42,21 @@ Tussock.set_model_path(save_model_path)
 
 # run model inference on single image batch
 images, samples = next(iter(dl_test))
-bs = hp_test['batch_size']
+bs = 1 # hp_test['batch_size']
 for i in range(bs):
     image = images[i]
     sample = samples[i]
     image_id = sample['image_id']
+    start_time = time.time()
     image_out, pred = Tussock.infer_image(image,
                                           sample=sample,
-                                          imshow=True,
+                                          imshow=False,
                                           imsave=True)
     print('{}: {}'.format(i, image_id))
     print('   pred = {}'.format(pred))
+    end_time = time.time()
+    sec = end_time - start_time
+    print('cycle time: {} sec'.format(sec))
 
 import code
 code.interact(local=dict(globals(), **locals()))
