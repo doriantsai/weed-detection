@@ -25,7 +25,7 @@ from scipy.interpolate import interp1d
 
 from weed_detection.engine_st import train_one_epoch
 from weed_detection.WeedDataset import *
-# from weed_detection.PreProcessingToolbox import PreProcessingToolbox
+from weed_detection.PreProcessingToolbox import PreProcessingToolbox as PT
 
 # from webcam import grab_webcam_image
 
@@ -37,6 +37,7 @@ class WeedModel:
                  weed_name='serrated tussock',
                  model=None,
                  model_name=None,
+                 model_folder=None,
                  model_path=None,
                  device=None,
                  hyper_parameters=None,
@@ -47,6 +48,10 @@ class WeedModel:
         # TODO maybe save model type/architecture also, hyper parameters?
         self._model = model
         self._model_name = model_name
+        if model_folder is None:
+            self._model_folder = model_name
+        else:
+            self._model_folder = model_folder
         self._model_path = model_path
 
         # TODO if model_path is not None load model, model name, weed_name, etc
@@ -54,13 +59,15 @@ class WeedModel:
 
         if device is None:
             device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+            # device = torch.device('cpu')
         self._device = device
 
         self._hp = hyper_parameters
         # TODO consider expanding hp from dictionary into actual
         # properties/attributes for more readability
-        self._image_width = 2464 # should be computed based on aspect ratio
-        self._image_height = 2056 # rescale_size
+        self._image_height = int(2056/2) # rescale_size
+        self._image_width = int(2464 /2)  # should be computed based on aspect ratio
+
 
         self._note = note # just a capture-all string TEMP
         self._epoch = epoch
@@ -74,6 +81,12 @@ class WeedModel:
     def get_model(self):
          return self._model
 
+
+    def set_model_folder(self, folder):
+        self._model_folder = folder
+
+    def get_model_folder(self):
+        return self._model_folder
 
     def set_model_name(self, name):
         self._model_name = name
@@ -262,7 +275,8 @@ class WeedModel:
     def train(self,
               model_name,
               dataset_path=None,
-              model_name_suffix=True):
+              model_name_suffix=True,
+              model_folder=None):
 
         # TODO if dataset_path is None, call create_train_test_val_datasets for
         # now, we assume this has been done/dataset_path exists and is valid
@@ -298,7 +312,10 @@ class WeedModel:
         print('Training model, model name: {}'.format(model_name))
 
         # create model's save folder
-        save_folder = os.path.join('output', model_name)
+        if model_folder is None:
+            save_folder = os.path.join('output', model_name)
+        else:
+            save_folder = os.path.join('output', model_folder)
         os.makedirs(save_folder, exist_ok=True)
         print('Model saved in folder: {}'.format(save_folder))
 
@@ -395,6 +412,7 @@ class WeedModel:
         # set model
         self._model = model
         self._model_name = model_name
+        self._model_folder = save_folder
         self._model_path = model_save_path
         self._epoch = epoch
 
@@ -431,7 +449,7 @@ class WeedModel:
         print('old model path: {}'.format(self._model_path))
 
         if snapshot_folder is None:
-            snapshot_folder = os.path.join('output', self._model_name, 'snapshots')
+            snapshot_folder = os.path.join('output', self._model_folder, 'snapshots')
 
         # find all filenames in snapshot folder
         snapshot_files = os.listdir(snapshot_folder)
@@ -501,7 +519,11 @@ class WeedModel:
             self._model.to(self._device) # added, unsure if this will cause errors
 
         # do model inference on single image
+        # start_time = time.time()
         pred = self._model([image])
+        # end_time = time.time()
+        # time_infer = end_time - start_time
+        # print(f'time infer just model = {time_infer}')
 
         # apply non-maxima suppression
         keep = torchvision.ops.nms(pred[0]['boxes'], pred[0]['scores'], nms_iou_thresh)
@@ -587,7 +609,7 @@ class WeedModel:
         gt_box_thick = 12   # groundtruth bounding box
         dt_box_thick = 6    # detection bounding box
         out_box_thick = 3   # outcome bounding box/overlay
-        font_scale = 3
+        font_scale = 2
         font_thick = 2
 
         if transpose_color_channels:
@@ -703,9 +725,10 @@ class WeedModel:
                         # add text top/left corner including outcome type prints
                         # over existing text, so needs to be the same starting
                         # string
-                        sc = format(scores[i] * 100.0) # no decimals, just x100 for percent
+                        sc = format(scores[i] * 100.0, '.0f') # no decimals, just x100 for percent
+                        ot = format(outcome_list[dt_outcome[i]])
                         cv.putText(image_out,
-                                   '{}: {}/{}'.format(i, sc, outcome_list[dt_outcome[i]]),
+                                   '{}: {}/{}'.format(i, sc, ot),
                                    (int(bb[0] + 10), int(bb[1] + 30)),
                                    fontFace=cv.FONT_HERSHEY_COMPLEX,
                                    fontScale=font_scale,
@@ -768,14 +791,19 @@ class WeedModel:
 
             if image_name is None:
                 image_name = self._model_name + '_image'
+            # start_time = time.time()
             pred = self.get_predictions_image(image, conf_thresh, iou_thresh)
+            # end_time = time.time()
+            # time_infer = end_time - start_time
+            # print(f'time to infer: {time_infer}')
+
 
             if imsave or imshow:
                 image_out = self.show(image,
                                     sample=sample,
                                     predictions=pred)
             if imsave:
-                save_folder = os.path.join('output', self._model_name)
+                save_folder = os.path.join('output', self._model_folder)
                 os.makedirs(save_folder, exist_ok=True)
                 save_image_name = os.path.join(save_folder, image_name + '.png')
                 image_out_bgr = cv.cvtColor(image_out, cv.COLOR_RGB2BGR)
@@ -806,7 +834,7 @@ class WeedModel:
             predictions = []
 
             if save_folder is None:
-                save_folder = os.path.join('output', self._model_name, save_subfolder)
+                save_folder = os.path.join('output', self._model_folder, save_subfolder)
 
             if imsave:
                 os.makedirs(save_folder, exist_ok=True)
@@ -869,7 +897,7 @@ class WeedModel:
 
         # save video settings/location
         if save_folder is None:
-            save_folder = os.path.join('output', self._model_name, 'video')
+            save_folder = os.path.join('output', self._model_folder, 'video')
             os.makedirs(save_folder, exist_ok=True)
 
         if video_out_name is None:
@@ -1182,9 +1210,11 @@ class WeedModel:
 
                 if save_folder is None:
                     save_folder = os.path.join('output',
-                                                self._model_name,
+                                                self._model_folder,
                                                 'outcomes')
-                save_subfolder = 'conf_thresh_' + str(DECISION_CONF_THRESH)
+
+                conf_str = format(DECISION_CONF_THRESH, '.2f')
+                save_subfolder = 'conf_thresh_' + conf_str
                 save_path = os.path.join(save_folder, save_subfolder)
                 os.makedirs(save_path, exist_ok=True)
 
@@ -1269,8 +1299,8 @@ class WeedModel:
             plt.title('prec-rec, max-binned')
             ax.legend()
 
-            os.makedirs(os.path.join('output', save_name), exist_ok=True)
-            save_plot_name = os.path.join('output', save_name, save_name + '_test_pr_smooth.png')
+            os.makedirs(os.path.join('output', self._model_folder), exist_ok=True)
+            save_plot_name = os.path.join('output', self._model_folder, save_name + '_test_pr_smooth.png')
             plt.savefig(save_plot_name)
 
         # now, expand prec/rec values to extent of the whole precision/recall
@@ -1319,8 +1349,8 @@ class WeedModel:
             plt.title('prec-rec, interpolated')
             ax.legend()
 
-            os.makedirs(os.path.join('output', save_name), exist_ok=True)
-            save_plot_name = os.path.join('output', save_name, save_name + '_test_pr_interp.png')
+            os.makedirs(os.path.join('output', self._model_folder), exist_ok=True)
+            save_plot_name = os.path.join('output', self._model_folder, save_name + '_test_pr_interp.png')
             plt.savefig(save_plot_name)
             # plt.show()
 
