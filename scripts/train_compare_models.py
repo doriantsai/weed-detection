@@ -4,18 +4,21 @@
 """ script to train model after running split_image_data.py and create_datasets.py """
 
 import os
-from scripts.create_datasets import Tussock
+# from scripts.create_datasets import Tussock
 # import time
 # import pickle
 
 # from weed_detection.WeedDataset import WeedDataset as WD
 from weed_detection.WeedModel import WeedModel as WM
+from weed_detection.PreProcessingToolbox import PreProcessingToolbox as PT
 import matplotlib.pyplot as plt
 import numpy as np
 
 
 # create WM object
 T3_test = WM()
+
+
 
 # create datasets
 dataset_names = ['Tussock_v2',
@@ -24,6 +27,11 @@ dataset_names = ['Tussock_v2',
 
 # provide a list of model names:
 model_names = dataset_names
+
+# set model folders
+model_folders = model_names
+model_folders[1] = model_names[0]
+
 
 # iterate for each model_name:
 WeedModelList = []
@@ -45,6 +53,16 @@ for ds in dataset_names:
                 os.path.join(root_dir, 'Annotations', 'annotations_tussock_21032526_G507_test.json'),
                 os.path.join(root_dir, 'Annotations', 'annotations_tussock_21032526_G507_val.json')]
 
+    ann_master_file = 'annotations_tussock_21032526_G507_master.json'
+    ann_dir = os.path.join(root_dir, 'Annotations')
+    ann_master_path = os.path.join(ann_dir, ann_master_file)
+
+    # check valid ann_files with img_folders
+    ProTool = PT()
+    for i in range(len(img_folders)):
+        ProTool.sync_annotations(img_folders[i],
+                                 ann_master_path,
+                                 ann_files[i])
 
     # set hyper parameters of dataset
     batch_size = 10
@@ -52,10 +70,10 @@ for ds in dataset_names:
     learning_rate = 0.005
     momentum = 0.9
     weight_decay = 0.0001
-    num_epochs = 50
+    num_epochs = 100
     step_size = round(num_epochs / 2)
     shuffle = True
-    rescale_size = 2056
+    rescale_size = int(2056 /2)
 
     # make a hyperparameter dictionary
     hp={}
@@ -69,29 +87,26 @@ for ds in dataset_names:
     hp['shuffle'] = shuffle
     hp['rescale_size'] = rescale_size
 
-    hp_train = hp
-    hp_test = hp
-    hp_test['shuffle'] = False
+    # hp_train = hp
+    # hp_test = hp
+    # hp_test['shuffle'] = False
 
-    WeedModel = WM()
+    WeedModel = WM(model_name=ds, model_folder=model_folders[i])
+
     dataset_path = WeedModel.create_train_test_val_datasets(img_folders,
-                                                      ann_files,
-                                                      hp,
-                                                      ds)
+                                                            ann_files,
+                                                            hp,
+                                                            ds)
 
     # dataset_file = os.path.join('dataset_objects', dataset_name0, dataset_name0 + '.pkl')
 
 # load dataset files via unpacking the pkl file
     dso = WeedModel.load_dataset_objects(dataset_path)
 
-    # HACK compare with neg test to v2 the same model
-    if i == 1:
-        model_names[i] = dataset_names[0]
-
     # create other/model comparison
     WeedModel.train(model_name=ds,
-                dataset_path=dataset_path,
-                model_name_suffix=False)
+                    dataset_path=dataset_path,
+                    model_name_suffix=False)
 
     # --------------------------------------------------------------------------- #
     # set the thresholds
@@ -108,13 +123,15 @@ for ds in dataset_names:
     WeedModel.load_model(save_model_path)
     WeedModel.set_model_name(name)
     WeedModel.set_model_path(save_model_path)
+    WeedModel.set_model_folder(model_folders[i])
 
-    save_prcurve_folder = os.path.join('output', name, 'prcurve')
+    save_prcurve_folder = os.path.join('output', model_folders[i], 'prcurve')
     res = WeedModel.get_prcurve(dso['ds_test'],
                                 confidence_thresh=confidence_thresh,
                                 nms_iou_thresh=nms_iou_thresh,
                                 decision_iou_thresh=decision_iou_thresh,
-                                save_folder=save_prcurve_folder)
+                                save_folder=save_prcurve_folder,
+                                imsave=True)
 
     results.append(res)
     WeedModelList.append(WeedModel)

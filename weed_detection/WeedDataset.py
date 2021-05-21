@@ -10,6 +10,7 @@ import torch
 import torch.utils.data
 import json
 import matplotlib.pyplot as plt
+from torchvision.models.detection.rpn import RegionProposalNetwork
 import torchvision.transforms as T
 import random
 
@@ -33,7 +34,7 @@ class WeedDataset(object):
         """
 
         # TODO annotations shjould have root_dir/Annotations/json_file
-        annotations = json.load(open(os.path.join(root_dir, json_file)))
+        annotations = json.load(open(os.path.join(root_dir, 'Annotations', json_file)))
         self.annotations = list(annotations.values())
         self.root_dir = root_dir
         self.transforms = transforms
@@ -135,30 +136,9 @@ class WeedDataset(object):
         self.transforms = tforms
 
 
-    def convert_sample2annotation(self, idx, sample):
-        """ convert a given sample to annotation """
-        # TODO
-        if torch.is_tensor(idx):
-            idx = idx.tolist()
 
-        region_definition = ['Tussock']
 
-        ann = {}
-        # TODO take sample's bbox, convert to region
-        boxes = sample['boxes'].tolist()
-        labels = sample['labels'].tolist()
-        image_id = sample['image_id'].tolist()
-        area = sample['area'].tolist()
-        iscrowd = sample['iscrowd'].tolist()
 
-        for i in range(len(boxes)):
-            name = 'rect'
-            x = boxes[i][0]
-            y = boxes[i][1]
-            width = boxes[i][2] - boxes[i][0]
-            height = boxes[i][3] - boxes[i][1]
-
-        return ann
 
 
 

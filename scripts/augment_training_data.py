@@ -47,9 +47,9 @@ root_dir = os.path.join('/home',
                         dataset_name)
 img_dir = os.path.join(root_dir, 'Images', 'Validation')
 ann_dir = 'Annotations'
-ann_in = os.path.join(ann_dir, 'annotations_tussock_21032526_G507_val.json')
+ann_in = os.path.join('annotations_tussock_21032526_G507_val.json')
 tform_select = 0
-ann_out = os.path.join(ann_dir, 'annotations_val_transform_combined.json')
+ann_out = os.path.join('annotations_val_transform_combined.json')
 
 
 ProTool = PT()
@@ -58,6 +58,8 @@ ProTool.augment_training_data(root_dir,
                               ann_in,
                               tform_select,
                               ann_out=ann_out)
+
+# TODO confirm that augmented data works/json files are correct
 # test dataset - should be orderd
 # i = 0
 # for image, sample in dataset:

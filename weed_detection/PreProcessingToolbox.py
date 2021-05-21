@@ -401,7 +401,7 @@ class PreProcessingToolbox:
         ann_files = [annotations_train, annotations_test, annotations_val]
         return img_folders, ann_files
 
-    # TODO agument_training_data
+
     def augment_training_data(self,
                               root_dir,
                               img_dir,
@@ -442,29 +442,35 @@ class PreProcessingToolbox:
         #                        json_file=ann_in,
         #                        transforms=Compose([ToTensor()]))
         # create weed dataset object with appropriate transform
-        dataset_tform = WeedDataset(root_dir=root_dir,
+        dataset = WeedDataset(root_dir=root_dir,
                                json_file=ann_in,
                                transforms=tform,
                                img_dir=img_dir)
 
+        save_folder = os.path.join(root_dir, 'Images','Augmented')
+        os.makedirs(save_folder, exist_ok=True)
+
+        region_definition = ['__background__', 'Tussock']
+
         # for each image in dataset, apply transform, save
         # note: we are not using a model
         image_name_list = []
-        target_list = []
+        sample_list = []
         ann_dict = {}
-        for image, target in dataset_tform:
+        for image, sample in dataset:
 
             # transform should be automatically applied, so should
             # just be able to save the image
             image_out = image.numpy()
             image_out = np.transpose(image_out, (1,2,0))
+            image_out = cv.normalize(image_out, None, 0, 255, cv.NORM_MINMAX, cv.CV_8U)
 
             # image name + transform name
-            image_id = target['image_id'].item()
-            image_name = dataset_tform.annotations[image_id]['filename'][:-4]
+            image_id = sample['image_id'].item()
+            image_name = dataset.annotations[image_id]['filename'][:-4]
             image_name = image_name + '_' + name_suffix
 
-            save_image_name = image_name + '.png'
+            save_image_name = os.path.join(save_folder, image_name + '.png')
             image_out = cv.cvtColor(image_out, cv.COLOR_RGB2BGR)
             cv.imwrite(save_image_name, image_out)
 
@@ -473,19 +479,64 @@ class PreProcessingToolbox:
 
             # save name and sample
             image_name_list.append(save_image_name)
-            target_list.append(target)
+            sample_list.append(sample)
 
             # now create new annotations for dataset and save
             # create new ann_dict
             # for each index, we take the sample from ann_master and make a new dict
             # save/create new annotations file
 
-            import code
-            code.interact(local=dict(globals(), **locals()))
+
             # TODO take converted/transformed target and convert to annotation
             # style from json file
+            # ann_dict = self.
+            # ann_dict[file_name + str(file_size)]
+            boxes = sample['boxes'].tolist()
+            labels = sample['labels'].tolist()
+            # image_id = sample['image_id'].tolist()
+            # area = sample['area'].tolist()
+            # iscrowd = sample['iscrowd'].tolist()
 
-            ann_dict = self.sample_dict(ann_dict, sample)
+            regions = {}
+            for i in range(len(boxes)):
+                name = 'rect' # bounding boxes
+                x = boxes[i][0]
+                y = boxes[i][1]
+                width = boxes[i][2] - boxes[i][0]
+                height = boxes[i][3] - boxes[i][1]
+
+                shape_attributes = {'name': name,
+                                    'x': int(x),
+                                    'y': int(y),
+                                    'width': int(width),
+                                    'height': int(height)}
+
+                region_attributes = {'Weed': region_definition[labels[i]]}
+                attributes = {'shape_attributes': shape_attributes,
+                            'region_attributes': region_attributes}
+                regions[str(i)] = attributes
+
+            ann_orig = dataset.annotations
+            file_ref = ann_orig[image_id]['fileref']
+            file_size = ann_orig[image_id]['size'] # file size might actually change
+            file_name = ann_orig[image_id]['filename']
+            base_img_data = ann_orig[image_id]['base64_img_data']
+            file_attributes = ann_orig[image_id]['file_attributes']
+            # region_attributes = ann_orig[image_id]['region_attributes']
+            # regions = ann_orig[image_id]['regions'] # we replace this w transformed
+
+
+            # ann_dict[file_name + str(file_size)] = {
+            ann_sample = {'fileref': file_ref,
+                'size': file_size,
+                'filename': file_name,
+                'base64_img_data': base_img_data,
+                'file_attributes': file_attributes,
+                'regions': regions,
+                'region_attributes': region_attributes}
+
+            ann_dict[file_name + str(file_size)] = ann_sample
+            # ann_dict = self.sample_dict(ann_dict, target)
 
         # create annotations_out_file:
         ann_transform_file = os.path.join(ann_transform)
@@ -496,7 +547,6 @@ class PreProcessingToolbox:
         ann_files = [ann_in, ann_transform]
 
         self.combine_annotations(ann_files, ann_dir, ann_out=ann_out)
-
 
 
 # =========================================================================== #

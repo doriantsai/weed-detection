@@ -32,7 +32,7 @@ weight_decay = 0.0001
 num_epochs = 100
 step_size = round(num_epochs / 2)
 shuffle = True
-rescale_size = 2056
+rescale_size = 2056 / 2
 
 # make a hyperparameter dictionary
 hp={}
