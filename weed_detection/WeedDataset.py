@@ -247,22 +247,6 @@ class RandomHorizontalFlip(object):
         return image, sample
 
 
-class RandomBlur(object):
-    """ Gaussian blur images """
-
-    def __init__(self, kernel_size=3, sigma=(0.1, 2.0)):
-        """ kernel size and standard deviation (sigma) of Gaussian blur """
-        # kernel must be an odd number
-        self.kernel_size = kernel_size
-        self.sigma = sigma
-
-
-    def __call__(self, image, sample):
-        """ apply blur to image """
-        image = tvtransfunc.gaussian_blur(image, self.kernel_size, self.sigma)
-        return image, sample
-
-
 class RandomVerticalFlip(object):
     """ Random vertical flip """
 
@@ -287,23 +271,54 @@ class RandomVerticalFlip(object):
         return image, sample
 
 
+class RandomBlur(object):
+    """ Gaussian blur images """
+
+    def __init__(self, kernel_size=5, sigma=(0.1, 2.0)):
+        """ kernel size and standard deviation (sigma) of Gaussian blur """
+        # TODO consider the amount of blur in x- and y-directions
+        # might be similar to simulating motion blur due to vehicle motion
+        # eg, more y-dir blur = building robustness against faster moving vehicle?
+        # kernel must be an odd number
+        self.kernel_size = kernel_size
+        self.sigma = sigma
+
+
+    def __call__(self, image, sample):
+        """ apply blur to image """
+        # image = tvtransfunc.gaussian_blur(image, self.kernel_size) # sigma calculated automatically
+        image = tvtransfunc.gaussian_blur(image, self.kernel_size, self.sigma)
+        return image, sample
+
+
+
 class RandomBrightness(object):
     """ Random color jitter transform """
 
     def __init__(self,
                  prob,
-                 brightness=0):
+                 brightness=0,
+                 range = [0.25, 1.75],
+                 rand=True):
         self.prob = prob
         # check brightness single non-negative 0 gives a black image, 1
         # gives the original image while 2 increases the brightness by a factor
         # of 2
         self.brightness = brightness
+        self.rand = rand
+        self.range = range
 
     def __call__(self, image, sample):
         """ apply change in brightnes/constrast/saturation/hue """
 
         if random.random() < self.prob:
-            image = tvtransfunc.adjust_brightness(image, self.brightness)
+            if self.rand:
+                # create random brightness within given range
+                # random.random() is between 0, 1 random float
+                brightness = random.random()* (self.range[1] - self.range[0]) + self.range[0]
+                image = tvtransfunc.adjust_brightness(image, brightness)
+            else:
+                image = tvtransfunc.adjust_brightness(image, self.brightness)
         return image, sample
 
 
@@ -312,18 +327,26 @@ class RandomContrast(object):
 
     def __init__(self,
                  prob,
-                 contrast=0):
+                 contrast=0,
+                 range = [0.5, 1.5],
+                 rand=True):
         self.prob = prob
         # Can be any non negative number. 0 gives a solid gray image, 1
         # gives the original image while 2 increases the contrast by a factor of
         # 2.
         self.contrast=contrast
+        self.rand = rand
+        self.range = range
 
     def __call__(self, image, sample):
         """ apply change in brightnes/constrast/saturation/hue """
 
         if random.random() < self.prob:
-            image = tvtransfunc.adjust_contrast(image, self.contrast)
+            if self.rand:
+                contrast = random.random()* (self.range[1] - self.range[0]) + self.range[0]
+                image = tvtransfunc.adjust_contrast(image, contrast)
+            else:
+                image = tvtransfunc.adjust_contrast(image, self.contrast)
         return image, sample
 
 
@@ -332,7 +355,9 @@ class RandomHue(object):
 
     def __init__(self,
                  prob,
-                 hue=0):
+                 hue=0,
+                 range=[-0.2, 0.2],
+                 rand=True):
         self.prob = prob
         # hue is a single number ranging from
         # Should be in [-0.5, 0.5]. 0.5 and -0.5 give complete reversal of
@@ -340,26 +365,43 @@ class RandomHue(object):
         # respectively. 0 means no shift. Therefore, both -0.5 and 0.5 will give
         # an image with complementary colors while 0 gives the original image.
         self.hue = hue
+        self.rand = rand
+        self.range = range
 
     def __call__(self, image, sample):
         """ apply change in brightnes/constrast/saturation/hue """
 
         if random.random() < self.prob:
-            image = tvtransfunc.adjust_hue(image, self.hue)
+            if self.rand:
+                hue = random.random()* (self.range[1] - self.range[0]) + self.range[0]
+                image = tvtransfunc.adjust_hue(image, hue)
+            else:
+                image = tvtransfunc.adjust_hue(image, self.hue)
         return image, sample
 
 
 class RandomSaturation(object):
     """ Random saturation """
 
-    def __init__(self, prob, saturation=0):
+    def __init__(self,
+                 prob,
+                 saturation=0,
+                 range=[0.5, 1.5],
+                 rand=True):
         self.prob = prob
         # 0 will give a black and white image, 1 will give the original
         # image while 2 will enhance the saturation by a factor of 2.
         self.saturation = saturation
+        self.rand = rand
+        self.range = range
+
 
     def __call__(self, image, sample):
         """ apply change in saturation """
         if random.random() < self.prob:
-            image = tvtransfunc.adjust_saturation(image, self.saturation)
+            if self.rand:
+                sat = random.random()* (self.range[1] - self.range[0]) + self.range[0]
+                image = tvtransfunc.adjust_saturation(image, sat)
+            else:
+                image = tvtransfunc.adjust_saturation(image, self.saturation)
         return image, sample

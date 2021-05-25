@@ -1460,9 +1460,9 @@ class WeedModel:
         end_time = time.time()
 
         sec = end_time - start_time
-        print('training time: {} sec'.format(sec))
-        print('training time: {} min'.format(sec / 60.0))
-        print('training time: {} hrs'.format(sec / 3600.0))
+        print('prcurve time: {} sec'.format(sec))
+        print('prcurve time: {} min'.format(sec / 60.0))
+        print('prcurve time: {} hrs'.format(sec / 3600.0))
 
         rec = np.array(rec)
         prec = np.array(prec)

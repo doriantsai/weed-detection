@@ -11,24 +11,14 @@ from weed_detection.WeedModel import WeedModel as WM
 # load model
 # call prcurve function
 
+model_name = 'Tussock_v2'
+model_folder = 'Tussock_v3_neg_test'
+dataset_name = 'Tussock_v3_neg_test'
 
 # init WM object
-Tussock = WM()
+Tussock = WM(model_name=model_name,
+             model_folder=model_folder)
 
-# load dataset objects
-# dataset_name = 'Tussock_v1'
-# dataset_name = 'Tussock_v2'
-dataset_name = 'Tussock_v3_neg_test'
-dataset_file = os.path.join('dataset_objects', dataset_name, dataset_name + '.pkl')
-# load dataset files via unpacking the pkl file
-dso = Tussock.load_dataset_objects(dataset_file)
-
-# import code
-# code.interact(local=dict(globals(), **locals()))
-
-# load model
-# model_name = 'tussock_test_2021-05-16_16_13'
-model_name = 'Tussock_v3_neg_train_test_2021-05-20_13_58'
 save_model_path = os.path.join('output',
                                model_name,
                                model_name + '.pth')
@@ -36,7 +26,16 @@ Tussock.load_model(save_model_path)
 Tussock.set_model_name(model_name)
 Tussock.set_model_path(save_model_path)
 
-conf_thresh = np.linspace(0.99, 0.01, num=101, endpoint=True)
+# load dataset objects
+# dataset_name = 'Tussock_v1'
+# dataset_name = 'Tussock_v2'
+
+dataset_file = os.path.join('dataset_objects', dataset_name, dataset_name + '.pkl')
+# load dataset files via unpacking the pkl file
+dso = Tussock.load_dataset_objects(dataset_file)
+
+
+conf_thresh = np.linspace(0.99, 0.01, num=51, endpoint=True)
 # TODO for 0.0 and 1.0 confidence threshold, produces nans because no tp
 
 iou_thresh = 0.5
@@ -46,7 +45,11 @@ res = Tussock.get_prcurve(dso['ds_test'],
                             nms_iou_thresh=iou_thresh,
                             decision_iou_thresh=iou_thresh,
                             save_folder=save_prcurve_folder,
-                            imsave=True)
+                            imsave=False)
+print(res)
+# with imasve=True, 0.30500981178548603 hrs
+# with imsave=False, ? 0.2239314360751046 hrs
+
 
 #  res = {'precision': p_final,
 #            'recall': r_final,
