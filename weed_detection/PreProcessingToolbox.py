@@ -23,6 +23,7 @@ from weed_detection.WeedDataset import WeedDataset, Compose, \
     RandomBrightness, RandomContrast, RandomHue, \
     RandomSaturation, ToTensor
 import torch
+import random
 
 
 class PreProcessingToolbox:
@@ -410,6 +411,7 @@ class PreProcessingToolbox:
                               tform_param=None,
                               ann_out=None,
                               ann_transform=None,
+                              ann_append=False,
                               imshow=False):
 
         # given image_folder and corresponding annotations file
@@ -424,18 +426,61 @@ class PreProcessingToolbox:
         if ann_transform is None:
             # ann_transform = os.path.join(ann_dir, 'annotations_transform.json')
             ann_transform = os.path.join(ann_dir, 'annotations_transform.json')
+
         # select transform
         prob = 1.0
+        # probability of transform happening
+
 
         if tform_select == 0:
-            tform = Compose([RandomBlur(11, 3), ToTensor()])
-            name_suffix = 'blur'
+            tform = Compose([RandomVerticalFlip(prob), ToTensor()])
+            name_suffix = 'vertFlip'
+
         elif tform_select == 1:
             tform = Compose([RandomHorizontalFlip(prob), ToTensor()])
             name_suffix = 'horzFlip'
+        elif tform_select == 2:
+            # unsure of how to randomly generate odd numbers, so workaround:
+            # create an array of reasonable kernel sizes, and randint an index
+            k_size = [5, 7, 9, 11, 13, 15, 17]
+            idx = random.randint(0, len(k_size) - 1)
+            # kernel_size = 5; # odd number from 3 - 21
+            # sigma_x = () * sigma = 0.3 * ((kernel_size - 1) * 0.5 - 1 + 0.8)
+            # sigma_y = ()
+            tform = Compose([RandomBlur(kernel_size=k_size[idx]), ToTensor()])
+            name_suffix = 'blur'
+        elif tform_select == 3:
+            brightness = random.random()*2.0
+            # check brightness single non-negative 0 gives a black image, 1
+        # gives the original image while 2 increases the brightness by a factor
+        # of 2
+            tform = Compose([RandomBrightness(prob), ToTensor()])
+            name_suffix = 'bright'
+        elif tform_select == 4:
+            # Can be any non negative number. 0 gives a solid gray image, 1
+        # gives the original image while 2 increases the contrast by a factor of
+        # 2.
+            tform = Compose([RandomContrast(prob), ToTensor()])
+            name_suffix = 'contrast'
+        elif tform_select == 5:
+            # hue is a single number ranging from
+        # Should be in [-0.5, 0.5]. 0.5 and -0.5 give complete reversal of
+        # hue channel in HSV space in positive and negative direction
+        # respectively. 0 means no shift. Therefore, both -0.5 and 0.5 will give
+        # an image with complementary colors while 0 gives the original image.
+            tform = Compose([RandomHue(prob), ToTensor()])
+            name_suffix = 'hue'
+        elif tform_select == 6:
+            # 0 will give a black and white image, 1 will give the original
+        # image while 2 will enhance the saturation by a factor of 2.
+            tform = Compose([RandomSaturation(prob), ToTensor()])
+            name_suffix = 'saturatation'
         else:
+            # nothing/no transform
             tform = Compose([ToTensor()])
             name_suffix = 'none'
+
+        print(f'transform selected: {tform_select} = {name_suffix}')
 
         # normal dataset no tform (for comparison
         # dataset = WeedDataset(root_dir=root_dir,
@@ -454,6 +499,7 @@ class PreProcessingToolbox:
 
         # for each image in dataset, apply transform, save
         # note: we are not using a model
+        image_path_list = []
         image_name_list = []
         sample_list = []
         ann_dict = {}
@@ -470,15 +516,16 @@ class PreProcessingToolbox:
             image_name = dataset.annotations[image_id]['filename'][:-4]
             image_name = image_name + '_' + name_suffix
 
-            save_image_name = os.path.join(save_folder, image_name + '.png')
+            save_image_path = os.path.join(save_folder, image_name + '.png')
             image_out = cv.cvtColor(image_out, cv.COLOR_RGB2BGR)
-            cv.imwrite(save_image_name, image_out)
+            cv.imwrite(save_image_path, image_out)
 
             if imshow:
                 print('TODO show image')
 
             # save name and sample
-            image_name_list.append(save_image_name)
+            image_path_list.append(save_image_path)
+            image_name_list.append(image_name)
             sample_list.append(sample)
 
             # now create new annotations for dataset and save
@@ -529,19 +576,23 @@ class PreProcessingToolbox:
             # ann_dict[file_name + str(file_size)] = {
             ann_sample = {'fileref': file_ref,
                 'size': file_size,
-                'filename': file_name,
+                'filename': image_name, # replace with new image_name
                 'base64_img_data': base_img_data,
                 'file_attributes': file_attributes,
                 'regions': regions,
                 'region_attributes': region_attributes}
 
-            ann_dict[file_name + str(file_size)] = ann_sample
+            ann_dict[image_name + str(file_size)] = ann_sample
             # ann_dict = self.sample_dict(ann_dict, target)
 
         # create annotations_out_file:
         ann_transform_file = os.path.join(ann_transform)
-        with open(ann_transform_file, 'w') as ann_file:
-            json.dump(ann_dict, ann_file, indent=4)
+        if ann_append:
+            with open(ann_transform_file, 'a+') as ann_file:
+                json.dump(ann_dict, ann_file, indent=4)
+        else:
+            with open(ann_transform_file, 'w') as ann_file:
+                json.dump(ann_dict, ann_file, indent=4)
 
         # append/merge with ann_in + ann_out
         ann_files = [ann_in, ann_transform]

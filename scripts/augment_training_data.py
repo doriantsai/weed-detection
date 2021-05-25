@@ -48,7 +48,16 @@ root_dir = os.path.join('/home',
 img_dir = os.path.join(root_dir, 'Images', 'Validation')
 ann_dir = 'Annotations'
 ann_in = os.path.join('annotations_tussock_21032526_G507_val.json')
-tform_select = 0
+
+# 0: vert flip
+# 1: horz flip
+# 2: blur
+# 3: bright
+# 4: contrast
+# 5: hue
+# 6: saturation
+tform_select = 3
+
 ann_out = os.path.join('annotations_val_transform_combined.json')
 
 
@@ -69,3 +78,7 @@ ProTool.augment_training_data(root_dir,
 #     # if i > 1:
 #     #     break
 #     i += 1
+print('done augmenting training data')
+
+import code
+code.interact(local=dict(globals(), **locals()))

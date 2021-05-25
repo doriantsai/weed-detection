@@ -26,7 +26,7 @@ dataset_names = ['Tussock_v2',
 # TODO call prcurve functions
 nms_iou_thresh = 0.5
 decision_iou_thresh = 0.5
-confidence_thresh = np.linspace(0.99, 0.01, num=3, endpoint=True)
+confidence_thresh = np.linspace(0.99, 0.01, num=51, endpoint=True)
 confidence_thresh = np.array(confidence_thresh, ndmin=1)
 # TODO for 0.0 and 1.0 confidence threshold, produces nans because no tp
 
@@ -35,6 +35,11 @@ confidence_thresh = np.array(confidence_thresh, ndmin=1)
 model_names = ['Tussock_v2',
                'Tussock_v2',
                'Tussock_v3_neg_train_test']
+
+# where to store the results
+model_folders = [dataset_names[0],
+                 dataset_names[1],
+                 dataset_names[2]]
 
 # iterate for each model_name:
 
@@ -46,15 +51,11 @@ for name in model_names:
     dataset_file = os.path.join('dataset_objects', dataset_names[i], dataset_names[i] + '.pkl')
     dso = WeedTemp.load_dataset_objects(dataset_file)
 
-    WeedModel = WM()
+    WeedModel = WM(model_name=name, model_folder=model_folders[i])
     save_model_path = os.path.join('output', name, name + '.pth')
     WeedModel.load_model(save_model_path)
     WeedModel.set_model_name(name)
     WeedModel.set_model_path(save_model_path)
-
-    # HACK for negative testing images
-    if i == 1:
-        name = 'Tussock_v3_neg_test'
 
     save_prcurve_folder = os.path.join('output', name, 'prcurve')
     res = WeedModel.get_prcurve(dso['ds_test'],
