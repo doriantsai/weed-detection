@@ -9,6 +9,7 @@ import weed_detection.WeedModel as WeedModel
 # setup folder locations init object call object
 
 # NOTE: copied/pasted output from PPT.split_iamge_data()
+# dataset_name = 'Tussock_v3_augment'
 dataset_name = 'Tussock_v3_neg_train_test'
 root_dir = os.path.join('/home',
                         'dorian',
@@ -18,6 +19,10 @@ root_dir = os.path.join('/home',
 img_folders = [os.path.join(root_dir, 'Images','Train'),
                os.path.join(root_dir, 'Images', 'Test'),
                os.path.join(root_dir, 'Images', 'Validation')]
+
+# ann_files = [os.path.join(root_dir, 'Annotations', 'annotations_train_augmented_combined.json'),
+#             os.path.join(root_dir, 'Annotations', 'annotations_tussock_21032526_G507_test.json'),
+#             os.path.join(root_dir, 'Annotations', 'annotations_tussock_21032526_G507_val.json')]
 
 ann_files = [os.path.join(root_dir, 'Annotations', 'annotations_tussock_21032526_G507_train.json'),
             os.path.join(root_dir, 'Annotations', 'annotations_tussock_21032526_G507_test.json'),
@@ -32,7 +37,7 @@ weight_decay = 0.0001
 num_epochs = 100
 step_size = round(num_epochs / 2)
 shuffle = True
-rescale_size = 2056 / 2
+rescale_size = int(2056 / 2)
 
 # make a hyperparameter dictionary
 hp={}

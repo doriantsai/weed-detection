@@ -17,10 +17,13 @@ IMSHOW = True
 
 WeedTemp = WM()
 # load dataset objects
-dataset_names = ['Tussock_v2',
-                 'Tussock_v3_neg_test',
-                 'Tussock_v3_neg_train_test']
+# dataset_names = ['Tussock_v2',
+#                  'Tussock_v3_neg_test',
+#                  'Tussock_v3_neg_train_test']
 
+dataset_names = ['Tussock_v2',
+                 'Tussock_v2']
+                #  'Tussock_v3_neg_train
 
 # set the thresholds
 # TODO call prcurve functions
@@ -32,14 +35,13 @@ confidence_thresh = np.array(confidence_thresh, ndmin=1)
 
 
 # provide a list of model names:
-model_names = ['Tussock_v2',
-               'Tussock_v2',
-               'Tussock_v3_neg_train_test']
+model_names = ['Tussock_v2 epoch 100',
+               'Tussock_v2 epoch 20']
+            #    'Tussock_v3_neg_train_test']
 
 # where to store the results
 model_folders = [dataset_names[0],
-                 dataset_names[1],
-                 dataset_names[2]]
+                 dataset_names[1]]
 
 # iterate for each model_name:
 
@@ -52,10 +54,14 @@ for name in model_names:
     dso = WeedTemp.load_dataset_objects(dataset_file)
 
     WeedModel = WM(model_name=name, model_folder=model_folders[i])
-    save_model_path = os.path.join('output', name, name + '.pth')
+    save_model_path = os.path.join('output', model_folders[i], model_folders[i] + '.pth')
     WeedModel.load_model(save_model_path)
     WeedModel.set_model_name(name)
     WeedModel.set_model_path(save_model_path)
+
+    # TEMP changing epoch for "early stopping"
+    if i == 1:
+        WeedModel.set_snapshot(20)
 
     save_prcurve_folder = os.path.join('output', name, 'prcurve')
     res = WeedModel.get_prcurve(dso['ds_test'],

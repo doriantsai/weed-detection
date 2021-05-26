@@ -350,13 +350,14 @@ class RandomContrast(object):
         return image, sample
 
 
+# NOTE changing the hue seemed to really screw up the results, or potentially should only make the slightest
 class RandomHue(object):
     """ Random hue jitter transform """
 
     def __init__(self,
                  prob,
                  hue=0,
-                 range=[-0.2, 0.2],
+                 range=[-0.1, 0.1],
                  rand=True):
         self.prob = prob
         # hue is a single number ranging from

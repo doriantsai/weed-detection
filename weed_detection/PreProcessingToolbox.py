@@ -98,7 +98,17 @@ class PreProcessingToolbox:
         # else:
 
         for i in range(len(ann_files)):
-            ann.append(json.load(open(os.path.join(ann_dir, ann_files[i]))))
+
+            ann_open = os.path.join(ann_dir, ann_files[i])
+            # try:
+            # print(i)
+            # print(ann_open)
+            # import code
+            # code.interact(local=dict(globals(), **locals()))
+            ann.append(json.load(open(ann_open)))
+            # except:
+            #     print(f'ERROR: failed to open {ann_open}')
+            #     break
 
         # for now, assume unique key-value pairs, but should probably check length
         ann_all = {}
@@ -412,7 +422,8 @@ class PreProcessingToolbox:
                               ann_out=None,
                               ann_transform=None,
                               ann_append=False,
-                              imshow=False):
+                              imshow=False,
+                              rm_folder=False):
 
         # given image_folder and corresponding annotations file
         # choose a transform with certain parameters
@@ -425,8 +436,9 @@ class PreProcessingToolbox:
         ann_dir = os.path.join(root_dir, 'Annotations')
         if ann_transform is None:
             # ann_transform = os.path.join(ann_dir, 'annotations_transform.json')
-            ann_transform = os.path.join(ann_dir, 'annotations_transform.json')
+            ann_transform = 'annotations_transform.json'
 
+        ann_transform_path = os.path.join(ann_dir,ann_transform)
         # select transform
         prob = 1.0
         # probability of transform happening
@@ -440,39 +452,24 @@ class PreProcessingToolbox:
             tform = Compose([RandomHorizontalFlip(prob), ToTensor()])
             name_suffix = 'horzFlip'
         elif tform_select == 2:
-            # unsure of how to randomly generate odd numbers, so workaround:
+            # random kernel size
             # create an array of reasonable kernel sizes, and randint an index
             k_size = [5, 7, 9, 11, 13, 15, 17]
             idx = random.randint(0, len(k_size) - 1)
             # kernel_size = 5; # odd number from 3 - 21
-            # sigma_x = () * sigma = 0.3 * ((kernel_size - 1) * 0.5 - 1 + 0.8)
-            # sigma_y = ()
+            # sigma = () * sigma = 0.3 * ((kernel_size - 1) * 0.5 - 1 + 0.8)
             tform = Compose([RandomBlur(kernel_size=k_size[idx]), ToTensor()])
             name_suffix = 'blur'
         elif tform_select == 3:
-            brightness = random.random()*2.0
-            # check brightness single non-negative 0 gives a black image, 1
-        # gives the original image while 2 increases the brightness by a factor
-        # of 2
             tform = Compose([RandomBrightness(prob), ToTensor()])
             name_suffix = 'bright'
         elif tform_select == 4:
-            # Can be any non negative number. 0 gives a solid gray image, 1
-        # gives the original image while 2 increases the contrast by a factor of
-        # 2.
             tform = Compose([RandomContrast(prob), ToTensor()])
             name_suffix = 'contrast'
         elif tform_select == 5:
-            # hue is a single number ranging from
-        # Should be in [-0.5, 0.5]. 0.5 and -0.5 give complete reversal of
-        # hue channel in HSV space in positive and negative direction
-        # respectively. 0 means no shift. Therefore, both -0.5 and 0.5 will give
-        # an image with complementary colors while 0 gives the original image.
             tform = Compose([RandomHue(prob), ToTensor()])
             name_suffix = 'hue'
         elif tform_select == 6:
-            # 0 will give a black and white image, 1 will give the original
-        # image while 2 will enhance the saturation by a factor of 2.
             tform = Compose([RandomSaturation(prob), ToTensor()])
             name_suffix = 'saturatation'
         else:
@@ -493,7 +490,12 @@ class PreProcessingToolbox:
                                img_dir=img_dir)
 
         save_folder = os.path.join(root_dir, 'Images','Augmented')
+        if rm_folder and os.path.isdir(save_folder):
+            # remove all files in folder
+            print(f'WARNING: removing all files in folder {save_folder}')
+            shutil.rmtree(save_folder)
         os.makedirs(save_folder, exist_ok=True)
+
 
         region_definition = ['__background__', 'Tussock']
 
@@ -576,22 +578,37 @@ class PreProcessingToolbox:
             # ann_dict[file_name + str(file_size)] = {
             ann_sample = {'fileref': file_ref,
                 'size': file_size,
-                'filename': image_name, # replace with new image_name
+                'filename': image_name + '.png', # replace with new image_name
                 'base64_img_data': base_img_data,
                 'file_attributes': file_attributes,
                 'regions': regions,
                 'region_attributes': region_attributes}
 
-            ann_dict[image_name + str(file_size)] = ann_sample
+            ann_dict[image_name + '.png' + str(file_size)] = ann_sample
             # ann_dict = self.sample_dict(ann_dict, target)
 
         # create annotations_out_file:
-        ann_transform_file = os.path.join(ann_transform)
+
         if ann_append:
-            with open(ann_transform_file, 'a+') as ann_file:
-                json.dump(ann_dict, ann_file, indent=4)
+            # tried to just use 'a+' for dumping json file, but doesn't play
+            # well with multiple objects. Must combine into a single object if
+
+            # ann_transform_path already exists, combine insert ann_dict into
+            # ann_transform
+            # so first load existing ann_transform_path, then append ann_dict
+            if os.path.isfile(ann_transform_path):
+                # if already a file, we load the file
+                ann_old = json.load(open(ann_transform_path))
+                ann_all = {**ann_old, **ann_dict}
+                with open(ann_transform_path, 'w') as ann_file:
+                    json.dump(ann_all, ann_file, indent=4)
+            else:
+                # ann_transform_path is not a file, so shouldn't cause any
+                # problems
+                with open(ann_transform_path, 'w') as ann_file:
+                    json.dump(ann_dict, ann_file, indent=4)
         else:
-            with open(ann_transform_file, 'w') as ann_file:
+            with open(ann_transform_path, 'w') as ann_file:
                 json.dump(ann_dict, ann_file, indent=4)
 
         # append/merge with ann_in + ann_out
@@ -599,6 +616,7 @@ class PreProcessingToolbox:
 
         self.combine_annotations(ann_files, ann_dir, ann_out=ann_out)
 
+        return ann_out, save_folder
 
 # =========================================================================== #
 
