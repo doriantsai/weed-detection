@@ -23,20 +23,24 @@
 # do model comparison with two datasets
 
 import os
+import shutil
 from weed_detection.WeedModel import WeedModel as WM
 from weed_detection.PreProcessingToolbox import PreProcessingToolbox as PT
 
 # load dataset objects
 dataset_name = 'Tussock_v3_augment'
-dataset_file = os.path.join('dataset_objects', dataset_name, dataset_name + '.pkl')
+# dataset_file = os.path.join('dataset_objects', dataset_name, dataset_name + '.pkl')
 
 # load dataset files via unpacking the pkl file
-WeedModel = WM()
-print('loading dataset: {}'.format(dataset_file))
-dso = WeedModel.load_dataset_objects(dataset_file)
+# WeedModel = WM()
+# print('loading dataset: {}'.format(dataset_file))
+# dso = WeedModel.load_dataset_objects(dataset_file)
 
-# HACK temporarily do ds_val since it is the smallest
-dataset = dso['ds_val']
+# dataset = dso['ds_test']
+
+ProTool = PT()
+
+
 
 
 # folder locations and file names
@@ -45,28 +49,55 @@ root_dir = os.path.join('/home',
                         'Data',
                         'AOS_TussockDataset',
                         dataset_name)
-img_dir = os.path.join(root_dir, 'Images', 'Validation')
+img_dir = os.path.join(root_dir, 'Images', 'Train')
 ann_dir = 'Annotations'
-ann_in = os.path.join('annotations_tussock_21032526_G507_val.json')
+ann_in = os.path.join('annotations_tussock_21032526_G507_train.json')
 
-# 0: vert flip
-# 1: horz flip
-# 2: blur
-# 3: bright
-# 4: contrast
-# 5: hue
-# 6: saturation
-tform_select = 3
+tform_vector = [0, 1, 2, 3, 4, 5, 6]
+for i in range(len(tform_vector)):
+    # 0: vert flip
+    # 1: horz flip
+    # 2: blur
+    # 3: bright
+    # 4: contrast
+    # 5: hue
+    # 6: saturation
+    tform_select = tform_vector[i]
 
-ann_out = os.path.join('annotations_val_transform_combined.json')
+    ann_out = os.path.join('annotations_train_augmented.json')
 
 
-ProTool = PT()
-ProTool.augment_training_data(root_dir,
-                              img_dir,
-                              ann_in,
-                              tform_select,
-                              ann_out=ann_out)
+    if i == 0:
+        ann_append = False
+        rm_folder = True
+    else:
+        ann_append = True
+        rm_folder = False
+    ProTool.augment_training_data(root_dir,
+                                img_dir,
+                                ann_in,
+                                tform_select,
+                                ann_out=ann_out,
+                                ann_append=ann_append,
+                                rm_folder=rm_folder)
+
+
+# at the end, copy all augmented images into training folder
+# then commence training?
+
+# lastly, combine augmented training data json with original image training data json
+print('combining augmented json with original training json')
+ProTool.combine_annotations([ann_in, ann_out],
+                             ann_dir=os.path.join(root_dir, ann_dir),
+                             ann_out='annotations_train_augmented_combined.json')
+
+# copy all Augmented Images into Train folder
+print('copying augmented image files to training folder')
+save_folder = os.path.join(root_dir, 'Images', 'Augmented')
+files = os.listdir(save_folder)
+for f in files:
+    shutil.copyfile(os.path.join(save_folder, f),
+                    os.path.join(img_dir, f))
 
 # TODO confirm that augmented data works/json files are correct
 # test dataset - should be orderd
