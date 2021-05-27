@@ -5,7 +5,12 @@
 import os
 from weed_detection.WeedModel import WeedModel as WM
 from weed_detection.PreProcessingToolbox import PreProcessingToolbox as PT
+import numpy as np
+import matplotlib.pyplot as plt
 
+
+# boolean to control if we need to train models or not
+TRAIN = False
 
 # PT object
 ProTool = PT()
@@ -43,6 +48,7 @@ dataset_names = model_names
 
 print(dataset_names)
 
+
 # set hyper parameters of dataset
 batch_size = 10
 num_workers = 10
@@ -53,42 +59,101 @@ num_epochs = 100
 step_size = round(num_epochs / 2)
 shuffle = True
 
+# set the thresholds
+nms_iou_thresh = 0.5
+decision_iou_thresh = 0.5
+confidence_thresh = np.linspace(0.99, 0.01, num=51, endpoint=True)
+confidence_thresh = np.array(confidence_thresh, ndmin=1)
+
+results = []
 for i in range(len(image_sizes)):
     rescale_size = image_sizes[i]
+    
+    if TRAIN:
+        #  make a hyperparameter dictionary
+        hp={}
+        hp['batch_size'] = batch_size
+        hp['num_workers'] = num_workers
+        hp['learning_rate'] = learning_rate
+        hp['momentum'] = momentum
+        hp['step_size'] = step_size
+        hp['weight_decay'] = weight_decay
+        hp['num_epochs'] = num_epochs
+        hp['shuffle'] = shuffle
+        hp['rescale_size'] = rescale_size
 
-    #  make a hyperparameter dictionary
-    hp={}
-    hp['batch_size'] = batch_size
-    hp['num_workers'] = num_workers
-    hp['learning_rate'] = learning_rate
-    hp['momentum'] = momentum
-    hp['step_size'] = step_size
-    hp['weight_decay'] = weight_decay
-    hp['num_epochs'] = num_epochs
-    hp['shuffle'] = shuffle
-    hp['rescale_size'] = rescale_size
+        # create dataset, which defines the hyperparameters for rescale size
+        WeedModel = WM(model_name=model_names[i])
+        ds_path = WeedModel.create_train_test_val_datasets(img_folders, ann_files, hp, dataset_names[i])
 
-    # create dataset, which defines the hyperparameters for rescale size
-    WeedModel = WM(model_name=model_names[i])
-    ds_path = WeedModel.create_train_test_val_datasets(img_folders, ann_files, hp, dataset_names[i])
+        # train model
+        WeedModel.train(model_name=model_names[i],
+                        dataset_path=ds_path,
+                        model_name_suffix=False)
 
-    # train model
-    WeedModel.train(model_name=model_names[i],
-                    dataset_path=ds_path,
-                    model_name_suffix=False)
+        # # delete weed model, because of memory limitations?
+        # del(WeedModel)
+    else:
+        # load model from relevant model_names folder
+        # set datapath to evaluate on
+        # run pr_curve/model_compare code on the X number of models
+        WeedModel = WM(model_name=model_names[i])
 
-    # delete weed model, because of memory limitations?
-    del(WeedModel)
+        dataset_file = os.path.join('dataset_objects', dataset_names[i], dataset_names[i] + '.pkl')
+        dso = WeedModel.load_dataset_objects(dataset_file)
 
+        save_model_path = os.path.join('output', model_names[i], model_names[i] + '.pth')
+        WeedModel.load_model(save_model_path)
+        WeedModel.set_model_name(model_names[i])
+        WeedModel.set_model_path(save_model_path)
 
+        save_prcurve_folder = os.path.join('output', model_names[i], 'prcurve')
+        res = WeedModel.get_prcurve(dso['ds_test'],
+                                confidence_thresh=confidence_thresh,
+                                nms_iou_thresh=nms_iou_thresh,
+                                decision_iou_thresh=decision_iou_thresh,
+                                save_folder=save_prcurve_folder,
+                                imsave=True)
+        results.append(res)
+        # WeedModelList.append(WeedModel)
 
 # train model with rescale size set for each scale index
 # do model comparison on each model with the same datasets (including both positive and negative images)
 
 # get PR curve for all
 
+# now plot:
+fig, ax = plt.subplots()
+ap_list = []
+for i, r in enumerate(results):
+    prec = r['precision']
+    rec = r['recall']
+    ap = r['ap']
+    f1score = r['f1score']
+    c = r['confidence']
+
+    m_str = 'm={}, ap={:.2f}'.format(model_names[i], ap)
+    ax.plot(rec, prec, label=m_str)
+    ap_list.append(ap)
+
+ax.legend()
+plt.xlabel('recall')
+plt.ylabel('precision')
+plt.title('model comparison: PR curve')
+
+mdl_names_str = "".join(model_names)
+save_plot_name = os.path.join('output', 'model_compare_' +  mdl_names_str + '.png')
+plt.savefig((save_plot_name))
+if IMSHOW:
+    plt.show()
+
+print('model comparison complete')
+for i, m in enumerate(model_names):
+    print(str(i) + ' model: ' + m)
+
 # also, get a model inference times, (JUST model inference)
 # plot on a graph vs time to compute for a single image
 
 # also, create a mini test set of 100 images for training faster!
+
 
