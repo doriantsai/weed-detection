@@ -4,12 +4,18 @@
 
 import os
 from weed_detection.WeedModel import WeedModel as WM
+from weed_detection.PreProcessingToolbox import PreProcessingToolbox as PT
 
 
+# PT object
+ProTool = PT()
 
 # setup parameters/folders:
-dataset_folder = 'Tussock_v2_mini'
+# dataset_folder = 'Tussock_v2_mini'
+dataset_folder = 'Tussock_v2'
 root_dir = os.path.join('/home', 'dorian','Data','AOS_TussockDataset', dataset_folder)
+
+ann_master = os.path.join(root_dir, 'Annotations', 'annotations_tussock_21032526_G507_master.json')
 
 ann_files = [os.path.join(root_dir, 'Annotations', 'annotations_tussock_21032526_G507_train.json'),
             os.path.join(root_dir, 'Annotations', 'annotations_tussock_21032526_G507_test.json'),
@@ -18,6 +24,13 @@ ann_files = [os.path.join(root_dir, 'Annotations', 'annotations_tussock_21032526
 img_folders = [os.path.join(root_dir, 'Images','Train'),
                os.path.join(root_dir, 'Images', 'Test'),
                os.path.join(root_dir, 'Images', 'Validation')]
+
+
+# sync ann_files with respective image folders
+ProTool = PT()
+ann_files_out = []
+for i in range(len(img_folders)):
+    ann_files_out.append(ProTool.sync_annotations(img_folders[i], ann_master, ann_files[i]))
 
 # setup model for rescale sizes of:
 image_sizes = [256, 512, 1024, 2056]
@@ -28,6 +41,7 @@ for i in range(len(image_sizes)):
 
 dataset_names = model_names
 
+print(dataset_names)
 
 # set hyper parameters of dataset
 batch_size = 10
@@ -59,11 +73,13 @@ for i in range(len(image_sizes)):
     ds_path = WeedModel.create_train_test_val_datasets(img_folders, ann_files, hp, dataset_names[i])
 
     # train model
-    WeedModel.train(model_name=model_names[i], dataset_path=ds_path)
+    WeedModel.train(model_name=model_names[i],
+                    dataset_path=ds_path,
+                    model_name_suffix=False)
 
-    # delete weed model, because of space
+    # delete weed model, because of memory limitations?
     del(WeedModel)
-    
+
 
 
 # train model with rescale size set for each scale index
