@@ -73,6 +73,10 @@ class WeedModel:
         self._epoch = epoch
 
 
+    @property
+    def model(self):
+        return self._model
+
     # getters and setters
     def set_model(self, model):
         self._model = model
@@ -420,15 +424,16 @@ class WeedModel:
         return model, model_save_path
 
 
-    def load_model(self, model_path=None, num_classes=2):
+    def load_model(self, model_path=None, num_classes=2, **kwargs):
         """ load model to self based on model_path """
 
         if model_path is None:
             model_path = self._model_path
 
         model = self.build_model(num_classes)
-        model.load_state_dict(torch.load(model_path))
+        model.load_state_dict(torch.load(model_path, **kwargs))
         print('loaded model: {}'.format(model_path))
+        model.to(self._device)
         self._model = model
 
         return model
@@ -610,7 +615,7 @@ class WeedModel:
         gt_box_thick = 12   # groundtruth bounding box
         dt_box_thick = 6    # detection bounding box
         out_box_thick = 3   # outcome bounding box/overlay
-        font_scale = 2
+        font_scale = 2 # font scale should be function of image size
         font_thick = 2
 
         if transpose_color_channels:
