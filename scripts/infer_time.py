@@ -7,10 +7,12 @@ from weed_detection.WeedModel import WeedModel as WM
 from weed_detection.PreProcessingToolbox import PreProcessingToolbox as PT
 import numpy as np
 import matplotlib.pyplot as plt
+import time
 
 
 # boolean to control if we need to train models or not
-TRAIN = False
+TRAIN = True
+IMSHOW = False
 
 # PT object
 ProTool = PT()
@@ -39,6 +41,7 @@ for i in range(len(img_folders)):
 
 # setup model for rescale sizes of:
 image_sizes = [256, 512, 1024, 2056]
+snapshot_epoch = [30, 30, 35, 65] # NOTE need to retrain several times
 
 model_names = []
 for i in range(len(image_sizes)):
@@ -68,7 +71,7 @@ confidence_thresh = np.array(confidence_thresh, ndmin=1)
 results = []
 for i in range(len(image_sizes)):
     rescale_size = image_sizes[i]
-    
+
     if TRAIN:
         #  make a hyperparameter dictionary
         hp={}
@@ -99,22 +102,25 @@ for i in range(len(image_sizes)):
         # run pr_curve/model_compare code on the X number of models
         WeedModel = WM(model_name=model_names[i])
 
-        dataset_file = os.path.join('dataset_objects', dataset_names[i], dataset_names[i] + '.pkl')
-        dso = WeedModel.load_dataset_objects(dataset_file)
+
 
         save_model_path = os.path.join('output', model_names[i], model_names[i] + '.pth')
         WeedModel.load_model(save_model_path)
         WeedModel.set_model_name(model_names[i])
         WeedModel.set_model_path(save_model_path)
+        WeedModel.set_snapshot(snapshot_epoch[i])
 
-        save_prcurve_folder = os.path.join('output', model_names[i], 'prcurve')
-        res = WeedModel.get_prcurve(dso['ds_test'],
-                                confidence_thresh=confidence_thresh,
-                                nms_iou_thresh=nms_iou_thresh,
-                                decision_iou_thresh=decision_iou_thresh,
-                                save_folder=save_prcurve_folder,
-                                imsave=True)
-        results.append(res)
+    dataset_file = os.path.join('dataset_objects', dataset_names[i], dataset_names[i] + '.pkl')
+    dso = WeedModel.load_dataset_objects(dataset_file)
+
+    save_prcurve_folder = os.path.join('output', model_names[i], 'prcurve')
+    res = WeedModel.get_prcurve(dso['ds_test'],
+                            confidence_thresh=confidence_thresh,
+                            nms_iou_thresh=nms_iou_thresh,
+                            decision_iou_thresh=decision_iou_thresh,
+                            save_folder=save_prcurve_folder,
+                            imsave=True)
+    results.append(res)
         # WeedModelList.append(WeedModel)
 
 # train model with rescale size set for each scale index
@@ -132,13 +138,14 @@ for i, r in enumerate(results):
     f1score = r['f1score']
     c = r['confidence']
 
-    m_str = 'm={}, ap={:.2f}'.format(model_names[i], ap)
+    m_str = 'm={}, ap={:.3f}'.format(model_names[i], ap)
     ax.plot(rec, prec, label=m_str)
     ap_list.append(ap)
 
 ax.legend()
 plt.xlabel('recall')
 plt.ylabel('precision')
+plt.grid(True)
 plt.title('model comparison: PR curve')
 
 mdl_names_str = "".join(model_names)
@@ -156,4 +163,33 @@ for i, m in enumerate(model_names):
 
 # also, create a mini test set of 100 images for training faster!
 
+import code
+code.interact(local=dict(globals(), **locals()))
 
+# ============================== #
+# now code to plot computation time vs image size
+
+# CPU = False
+# # image_sizes
+# for i in range(len(image_sizes)):
+#     # load model
+#     WeedModel = WM(model_name=model_names[i])
+
+#     dataset_file = os.path.join('dataset_objects', dataset_names[i], dataset_names[i] + '.pkl')
+#     dso = WeedModel.load_dataset_objects(dataset_file)
+
+#     save_model_path = os.path.join('output', model_names[i], model_names[i] + '.pth')
+#     WeedModel.load_model(save_model_path)
+#     WeedModel.set_model_name(model_names[i])
+#     WeedModel.set_model_path(save_model_path)
+#     WeedModel.set_snapshot(snapshot_epoch[i])
+
+#     # get image:
+#     dataset = dso['test']
+#     image, sample = next(iter(dataset))
+#     # start time
+#     start_time = time.time()
+
+#     if CPU:
+#         WeedModel.device('cpu')
+#     output = WeedModel.model([image])
