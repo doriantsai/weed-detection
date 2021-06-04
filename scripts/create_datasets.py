@@ -9,8 +9,8 @@ import weed_detection.WeedModel as WeedModel
 # setup folder locations init object call object
 
 # NOTE: copied/pasted output from PPT.split_iamge_data()
-# dataset_name = 'Tussock_v3_augment'
-dataset_name = 'Tussock_v3_neg_train_test'
+dataset_name = 'Tussock_v3_augment'
+# dataset_name = 'Tussock_v3_neg_train_test'
 root_dir = os.path.join('/home',
                         'dorian',
                         'Data',
@@ -34,10 +34,10 @@ num_workers = 10
 learning_rate = 0.005
 momentum = 0.9
 weight_decay = 0.0001
-num_epochs = 100
+num_epochs = 75
 step_size = round(num_epochs / 2)
 shuffle = True
-rescale_size = int(2056 / 2)
+rescale_size = int(256)
 
 # make a hyperparameter dictionary
 hp={}

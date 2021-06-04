@@ -424,14 +424,14 @@ class WeedModel:
         return model, model_save_path
 
 
-    def load_model(self, model_path=None, num_classes=2, **kwargs):
+    def load_model(self, model_path=None, num_classes=2, map_location="cuda:0"):
         """ load model to self based on model_path """
 
         if model_path is None:
             model_path = self._model_path
 
         model = self.build_model(num_classes)
-        model.load_state_dict(torch.load(model_path, **kwargs))
+        model.load_state_dict(torch.load(model_path, map_location=map_location))
         print('loaded model: {}'.format(model_path))
         model.to(self._device)
         self._model = model

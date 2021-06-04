@@ -38,6 +38,7 @@ def train_one_epoch(model,
     """
 
     model.train()
+    model.to(device)
     metric_logger = MetricLogger(delimiter="  ")
     metric_logger.add_meter('lr', SmoothedValue(window_size=1, fmt='{value:.6f}'))
 
@@ -55,6 +56,8 @@ def train_one_epoch(model,
         lr_scheduler = warmup_lr_scheduler(optimizer, warmup_iters, warmup_factor)
 
     for images, targets in metric_logger.log_every(data_loader_train, print_freq, header):
+
+        # put images and targets onto GPU
         images = list(image.to(device) for image in images)
 
         targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
