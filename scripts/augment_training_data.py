@@ -53,7 +53,7 @@ img_dir = os.path.join(root_dir, 'Images', 'Train')
 ann_dir = 'Annotations'
 ann_in = os.path.join('annotations_tussock_21032526_G507_train.json')
 
-tform_vector = [0, 1, 2, 3, 4, 5, 6]
+tform_vector = [0, 1, 2, 3, 4, 6]
 for i in range(len(tform_vector)):
     # 0: vert flip
     # 1: horz flip

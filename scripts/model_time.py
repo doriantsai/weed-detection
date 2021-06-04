@@ -55,7 +55,7 @@ for i in range(len(image_sizes)):
 dataset_names = model_names
 
 
-CPU = False
+CPU = True
 if CPU:
     device=torch.device('cpu')
 else:
@@ -73,7 +73,10 @@ for i in range(len(image_sizes)):
     dso = WeedModel.load_dataset_objects(dataset_file)
 
     save_model_path = os.path.join('output', model_names[i], model_names[i] + '.pth')
-    WeedModel.load_model(save_model_path, map_location="cuda:0")
+    if CPU:
+        WeedModel.load_model(save_model_path, map_location="cpu")
+    else:
+        WeedModel.load_model(save_model_path, map_location="cuda:0")
     WeedModel.set_model_name(model_names[i])
     WeedModel.set_model_path(save_model_path)
     WeedModel.set_snapshot(snapshot_epoch[i])
@@ -120,7 +123,13 @@ plt.xlabel('image sizes [pix]')
 plt.ylabel('model inference times [s]')
 plt.grid(True)
 mdl_names_str = "".join(model_names)
-save_plot_name = os.path.join('output', 'model_times_' +  mdl_names_str + '.png')
+
+if CPU:
+    plt.title('Model inference times (CPU)')
+    save_plot_name = os.path.join('output', 'model_times_cpu_' +  mdl_names_str + '.png')
+else:
+    plt.title('Model inference times (GPU)')
+    save_plot_name = os.path.join('output', 'model_times_gpu_' +  mdl_names_str + '.png')
 plt.savefig((save_plot_name))
 plt.show()
 
