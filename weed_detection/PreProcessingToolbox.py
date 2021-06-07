@@ -618,8 +618,72 @@ class PreProcessingToolbox:
 
         return ann_out, save_folder
 
+
+    def get_polyon(annotations, idx, image_id, count):
+        """ extract x, y coordinates if available """
+        try:
+            # reg = annotations[idx]['regions']
+            # poly = []
+            # # find which regions are polygons
+            # # TODO should be able to do this in one line w/ list comprehension
+            # if len(reg) > 0:
+            #     for i in range(len(reg)):
+            #         if reg[i]['shape_attributes']['name'] == 'polygon':
+            #             poly.append(reg[i])
+
+            # if len(poly) > 0:
+            #     for j in range(len(poly)):
+            #         x_points = poly[j]['shape_attributes']['all_points_x']
+            #         y_points = poly[j]['shape_attributes']['all_points_y']
+            x_points = annotations[idx]['regions'][count]['shape_attributes']['all_points_x']
+
+        all_points = []
+        for i, x in enumerate(x_points):
+
+
+    # https://towardsdatascience.com/generating-image-segmentation-masks-the-easy-way-dd4d3656dbd1
+    def create_masks_from_poly(self,
+                               img_dir_in,
+                               ann_file_path,
+                               img_dir_out=None):
+        """ create binary masks for given folder img_dir_in and ann_file, output
+        to img_dir_out """
+
+        # read in the ann_file
+        # load it
+        # sort through all regions with "polygon" type
+        # get all x, y points
+        print(ann_file_path)
+        with open(ann_file_path) as f:
+            ann_dict = json.load(f)
+
+        ann = list(ann_dict.values())
+
+
+        idx = 0 # TODO will index in WeedDataset.py
+        # reg = data[idx]['regions']
+
+
+        import code
+        code.interact(local=dict(globals(), **locals()))
+
+
+
+
 # =========================================================================== #
 
 if __name__ == "__main__":
 
     print('PreProcessingToolbox.py')
+
+    """ testing create_masks_from_poly """
+
+    ppt = PreProcessingToolbox()
+    db_name = 'Tussock_v0_mini'
+    root_dir = os.path.join('/home', 'dorian', 'Data', 'AOS_TussockDataset',
+                              db_name)
+    img_dir_in = os.path.join(root_dir, 'Images')
+    ann_file_name = 'via_project_29Apr2021_17h43m_json_bbox_poly_pt.json'
+    ann_file_path = os.path.join(root_dir, 'Annotations', ann_file_name)
+    img_dir_out = os.path.join(root_dir, 'temp')
+    ppt.create_masks_from_poly(img_dir_in, ann_file_path, img_dir_out)
