@@ -619,35 +619,57 @@ class PreProcessingToolbox:
         return ann_out, save_folder
 
 
-    def get_polyon(annotations, idx, image_id, count):
+    def get_polyons_image(annotations, idx):
         """ extract x, y coordinates if available """
-        try:
-            # reg = annotations[idx]['regions']
-            # poly = []
-            # # find which regions are polygons
-            # # TODO should be able to do this in one line w/ list comprehension
-            # if len(reg) > 0:
-            #     for i in range(len(reg)):
-            #         if reg[i]['shape_attributes']['name'] == 'polygon':
-            #             poly.append(reg[i])
-
-            # if len(poly) > 0:
-            #     for j in range(len(poly)):
-            #         x_points = poly[j]['shape_attributes']['all_points_x']
-            #         y_points = poly[j]['shape_attributes']['all_points_y']
-            x_points = annotations[idx]['regions'][count]['shape_attributes']['all_points_x']
+        # all_points is a list of x,y points per index (ie, for a single image)
+        # eg, all_points[0] = [x_pts0, y_pts0] for 0'th polygon
+        #     all_points[1] = [x_pts1, y_pts1]
+        
+        # try:
+        reg = annotations[idx]['regions']
+        poly = []
+        # find which regions are polygons
+        # TODO should be able to do this in one line w/ list comprehension
+        if len(reg) > 0:
+            for i in range(len(reg)):
+                if reg[i]['shape_attributes']['name'] == 'polygon':
+                    poly.append(reg[i])
 
         all_points = []
-        for i, x in enumerate(x_points):
+        if len(poly) > 0:
+            for j in range(len(poly)):
+                x_points = poly[j]['shape_attributes']['all_points_x']
+                y_points = poly[j]['shape_attributes']['all_points_y']
+                all_points.append([x_points, y_points])
+            # x_points = annotations[idx]['regions'][count]['shape_attributes']['all_points_x']
+            # y_points = annotations[idx]['regions'][count]['shape_attributes']['all_points_y']
+        # except:
+        #     print('No polygon. Skipping', image_id)
+        #     return
+                
+        n_poly = len(poly)
+
+        return all_points, n_poly
 
 
     # https://towardsdatascience.com/generating-image-segmentation-masks-the-easy-way-dd4d3656dbd1
     def create_masks_from_poly(self,
                                img_dir_in,
                                ann_file_path,
-                               img_dir_out=None):
+                               mask_dir_out=None):
         """ create binary masks for given folder img_dir_in and ann_file, output
         to img_dir_out """
+
+        # grab one image to get image width/height
+        img_files = os.listdir(img_dir_in)
+        try:
+            # assume it is an image file
+            image = Image.open(img_files[0])
+            IMAGE_WIDTH = image.shape[0] # could be the wrong syntax TODO
+            IMAGE_HEIGHT = image.shape[1]
+        except:
+            print(f'could not open image from {img_files[0]}')
+            return
 
         # read in the ann_file
         # load it
@@ -657,11 +679,50 @@ class PreProcessingToolbox:
         with open(ann_file_path) as f:
             ann_dict = json.load(f)
 
-        ann = list(ann_dict.values())
+        annotations = list(ann_dict.values())
 
+        # goal is each image has a mask, with each polygon masked with a different number
+        image_poly = {}
+        image_ids = []
+        for itr in annotations:
+            filename = annotations[itr]['filename']
+            image_id = filename[:-4]
+            # count_masks_per_image = 0  # count of masks/single groundtruth image
 
-        idx = 0 # TODO will index in WeedDataset.py
-        # reg = data[idx]['regions']
+            image_poly[image_id] = self.get_polyons_image(annotations, itr)
+            image_ids.append(image_id)
+
+        # print(f'dictionary size: {len(image_poly)}')
+
+        # create folder for masks
+        if mask_dir_out is None:
+            mask_dir_out = os.path.join('masks')
+        os.makedirs(img_dir_out, exist_ok=True)
+
+        # for each image/iteration in annotations, generate mask and save image
+        # each mask's values are incremented 
+        # NOTE we expect no more than 256 masks in a single image
+        for i, polygons in enumerate(image_poly):
+            # num_masks = len(polygons)
+            mask = np.zeros((IMAGE_WIDTH, IMAGE_HEIGHT))
+
+            # TODO check valid polygon? 
+            # might not be closed, etc
+            # if there are any polygons, fill them in onto mask
+            # with unique label
+            count_polygons = 1
+            if len(polygons) > 0:
+                for poly in polygons:
+                    p = np.array(poly)
+                    count_polygons += 1
+                    cv.fillPoly(mask, [p], color=(count_polygons))
+
+            # save mask
+            mask_name = image_ids[i] + "_mask.png"
+            print(mask_name)
+            mask_filepath = os.path.join(mask_dir_out, mask_name)
+            cv.imwrite(mask_filepath, mask)
+            
 
 
         import code
