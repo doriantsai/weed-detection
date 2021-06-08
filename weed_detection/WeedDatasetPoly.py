@@ -20,12 +20,17 @@ from torchvision.transforms import functional as tvtransfunc
 from torchvision.datasets.video_utils import VideoClips
 
 
-class WeedDataset(object):
-    """ weed dataset object """
+class WeedDatasetPoly(object):
+    """ weed dataset object for polygons """
 
 
     # TODO maybe should actually hold the datasets/dataloader objects?
-    def __init__(self, root_dir, json_file, transforms, img_dir=None):
+    def __init__(self, 
+                 root_dir, 
+                 json_file, 
+                 transforms, 
+                 img_dir=None, 
+                 mask_dir=None):
         """
         initialise the dataset
         annotations - json file of annotations of a prescribed format
@@ -45,14 +50,14 @@ class WeedDataset(object):
         else:
             self.img_dir = os.path.join(self.root_dir, 'Images')
 
-        # if mask_dir is not None:
-        #     self.mask_dir = mask_dir
-        # else:
-        #     self.mask_dir = os.path.join(self.root_dir, 'Masks')
+        if mask_dir is not None:
+            self.mask_dir = mask_dir
+        else:
+            self.mask_dir = os.path.join(self.root_dir, 'Masks')
 
         # load all image files, sorting them to ensure aligned (dictionaries are unsorted)
-        # self.imgs = list(sorted(os.listdir(self.img_dir)))
-        # self.masks = list(sorted(os.listdir(self.mask_dir)))
+        self.imgs = list(sorted(os.listdir(self.img_dir)))
+        self.masks = list(sorted(os.listdir(self.mask_dir)))
 
 
 
@@ -70,25 +75,25 @@ class WeedDataset(object):
         image =  Image.open(img_name).convert("RGB")
 
         # get mask
-        # mask_name = os.path.join(self.mask_dir, self.annotations[idx]['filename'][:-4] + '_mask.png')
-        # mask = Image.open(mask_name)
+        mask_name = os.path.join(self.mask_dir, self.annotations[idx]['filename'][:-4] + '_mask.png')
+        mask = Image.open(mask_name)
         # # convert PIL image to np array
-        # mask = np.array(mask)
+        mask = np.array(mask)
 
         # instances are encoded as different colors 
-        # obj_ids = np.unique(mask)
+        obj_ids = np.unique(mask)
         # first id is the background, so remove it
-        # obj_ids = obj_ids[1:]
+        obj_ids = obj_ids[1:]
 
         # split the color-encoded mask into a set of binary masks
         # NOTE unsure if this will work as intended
-        # masks = mask == obj_ids[:, None, None]
+        masks = mask == obj_ids[:, None, None]
 
         # get bounding boxes for each object
-        # nobj = len(obj_ids)
+        nobj = len(obj_ids)
 
         # number of bboxes
-        nobj = len(self.annotations[idx]['regions'])
+        # nobj = len(self.annotations[idx]['regions'])
 
         # get bbox
         # bounding box is read in a xmin, ymin, width and height
@@ -99,26 +104,34 @@ class WeedDataset(object):
         # code.interact(local=dict(globals(), **locals()))
 
         # bounding boxes code for fasterrcnn
+        # if nobj > 0:
+        #     for i in range(nobj):
+        #         if isinstance(self.annotations[idx]['regions'], dict):
+        #             j = str(i)
+        #         else:  # regions is a list type
+        #             j = i
+        #         xmin = self.annotations[idx]['regions'][j]['shape_attributes']['x']
+        #         ymin = self.annotations[idx]['regions'][j]['shape_attributes']['y']
+        #         width = self.annotations[idx]['regions'][j]['shape_attributes']['width']
+        #         height = self.annotations[idx]['regions'][j]['shape_attributes']['height']
+        #         xmax = xmin + width
+        #         ymax = ymin + height
+        #         boxes.append([xmin, ymin, xmax, ymax])
         if nobj > 0:
             for i in range(nobj):
-                if isinstance(self.annotations[idx]['regions'], dict):
-                    j = str(i)
-                else:  # regions is a list type
-                    j = i
-                xmin = self.annotations[idx]['regions'][j]['shape_attributes']['x']
-                ymin = self.annotations[idx]['regions'][j]['shape_attributes']['y']
-                width = self.annotations[idx]['regions'][j]['shape_attributes']['width']
-                height = self.annotations[idx]['regions'][j]['shape_attributes']['height']
-                xmax = xmin + width
-                ymax = ymin + height
+                pos = np.where(masks[i])
+                xmin = np.min(pos[1])
+                xmax = np.max(pos[1])
+                ymin = np.min(pos[0])
+                ymax = np.max(pos[0])
                 boxes.append([xmin, ymin, xmax, ymax])
-
 
         if nobj == 0:
             boxes = torch.zeros((0, 4), dtype=torch.float64)
         else:
             boxes = torch.as_tensor(boxes, dtype=torch.float64)
 
+        masks = torch.as_tensor(masks, dtype=torch.uint8)
 
         # compute area
         if nobj == 0:
@@ -143,6 +156,7 @@ class WeedDataset(object):
         sample['image_id'] = image_id
         sample['area'] = area
         sample['iscrowd'] = iscrowd
+        sample['masks'] = masks
 
         # apply transforms to image and sample
         if self.transforms:

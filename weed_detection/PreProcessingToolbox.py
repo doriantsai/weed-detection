@@ -11,6 +11,7 @@ a collection of functions for the above
 import os
 import json
 import pickle
+from weed_detection.WeedDatasetPoly import WeedDatasetPoly
 import cv2 as cv
 from posix import ST_SYNCHRONOUS
 import numpy as np
@@ -328,7 +329,8 @@ class PreProcessingToolbox:
                          ann_val_file,
                          ann_test_file,
                          ratio_train_test=[0.7, 0.2],
-                         clear_image_folders=True):
+                         clear_image_folders=True,
+                         annotation_type='bbox'):
         """ prepare dataset/dataloader objects by randomly taking images from all_folder,
         and splitting them randomly into Train/Test/Val with respecctive annotation files
         """
@@ -356,7 +358,11 @@ class PreProcessingToolbox:
         self.sync_annotations(all_folder, ann_master, ann_all)
 
         # create dummy weed dataset object to do random split
-        wd = WeedDataset(all_folder, ann_all, transforms=None)
+        if annotation_type == 'poly':
+            wd = WeedDatasetPoly(all_folder, ann_all, transforms=None)
+        else:
+            # bounding boxes
+            wd = WeedDataset(all_folder, ann_all, transforms=None)
 
         # dataset lengths
         files = os.listdir(all_folder)

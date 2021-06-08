@@ -6,6 +6,7 @@ functionality, such as training, inference, evaluation
 """
 
 import os
+from weed_detection.WeedDatasetPoly import WeedDatasetPoly
 import torch
 import torchvision
 import re
@@ -20,6 +21,7 @@ import matplotlib.pyplot as plt
 # TODO replace tensorboard with weightsandbiases
 from torch.utils.tensorboard import SummaryWriter
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
+from torchvision.models.detection.mask_rcnn import MaskRCNNPredictor
 from torchvision.transforms import functional as tv_transform
 from scipy.interpolate import interp1d
 
@@ -132,7 +134,7 @@ class WeedModel:
         return self._hp
 
 
-    def build_model(self, num_classes):
+    def build_fasterrcnn_model(self, num_classes):
         """ build fasterrcnn model for set number of classes """
 
         # load instance of model pre-trained on coco:
@@ -141,6 +143,30 @@ class WeedModel:
         in_features = model.roi_heads.box_predictor.cls_score.in_features
         # replace pre-trained head with new one
         model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
+        return model
+    
+
+    def build_maskrcnn_model(self, num_classes):
+        """ build maskrcnn model for set number of classes """
+
+        # load instance segmentation model pre-trained on COCO
+        model = torchvision.models.detection.maskrcnn_resnet50_fpn(pretrained=True)
+
+        # get number of input features for the classifier
+        in_features = model.roi_heads.box_predictor.cls_score.in_features
+
+        # replace pretrained head with new one
+        model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
+
+        # now get number of input features for mask classifier
+        in_features_mask = model.roi_heads.mask_predictor.conv5_mask.in_channels
+        hidden_layer = 256
+
+        # replace mask predictor with a new one
+        model.roi_heads.mask_predictor = MaskRCNNPredictor(in_features_mask,
+                                                           hidden_layer,
+                                                           num_classes)
+
         return model
 
 
@@ -178,13 +204,18 @@ class WeedModel:
                                 root_dir,
                                 json_file,
                                 transforms,
-                                hp):
+                                hp,
+                                annotation_type='poly'):
         # assume tforms already defined outside of this function
         batch_size = hp['batch_size']
         num_workers = hp['num_workers']
         shuffle= hp['shuffle']
 
-        dataset = WeedDataset(root_dir, json_file, transforms)
+        if annotation_type == 'poly':
+            dataset = WeedDatasetPoly(root_dir, json_file, transforms)
+        else:
+            dataset = WeedDataset(root_dir, json_file, transforms)
+            
         # setup dataloaders for efficient access to datasets
         dataloader = torch.utils.data.DataLoader(dataset,
                                                  batch_size=batch_size,
@@ -330,7 +361,7 @@ class WeedModel:
 
         # build model setup number of classes (1 background, 1 class - weed
         # species)
-        model = self.build_model(num_classes=2)
+        model = self.build_fasterrcnn_model(num_classes=2)
         model.to(self._device)
 
         # set optimizer
@@ -430,7 +461,7 @@ class WeedModel:
         if model_path is None:
             model_path = self._model_path
 
-        model = self.build_model(num_classes)
+        model = self.build_fasterrcnn_model(num_classes)
         model.load_state_dict(torch.load(model_path, map_location=map_location))
         print('loaded model: {}'.format(model_path))
         model.to(self._device)
