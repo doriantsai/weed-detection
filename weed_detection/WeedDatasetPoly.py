@@ -25,11 +25,11 @@ class WeedDatasetPoly(object):
 
 
     # TODO maybe should actually hold the datasets/dataloader objects?
-    def __init__(self, 
-                 root_dir, 
-                 json_file, 
-                 transforms, 
-                 img_dir=None, 
+    def __init__(self,
+                 root_dir,
+                 json_file,
+                 transforms,
+                 img_dir=None,
                  mask_dir=None):
         """
         initialise the dataset
@@ -44,16 +44,16 @@ class WeedDatasetPoly(object):
         self.root_dir = root_dir
         self.transforms = transforms
 
-        
+
         if img_dir is not None:
             self.img_dir = img_dir
         else:
-            self.img_dir = os.path.join(self.root_dir, 'Images')
+            self.img_dir = os.path.join(self.root_dir, 'Images', 'All')
 
         if mask_dir is not None:
             self.mask_dir = mask_dir
         else:
-            self.mask_dir = os.path.join(self.root_dir, 'Masks')
+            self.mask_dir = os.path.join(self.root_dir, 'Masks', 'All')
 
         # load all image files, sorting them to ensure aligned (dictionaries are unsorted)
         self.imgs = list(sorted(os.listdir(self.img_dir)))
@@ -80,7 +80,7 @@ class WeedDatasetPoly(object):
         # # convert PIL image to np array
         mask = np.array(mask)
 
-        # instances are encoded as different colors 
+        # instances are encoded as different colors
         obj_ids = np.unique(mask)
         # first id is the background, so remove it
         obj_ids = obj_ids[1:]
