@@ -308,15 +308,23 @@ class PreProcessingToolbox:
         return True
 
 
-    def copy_images(self, dataset, all_folder, save_folder):
+    def copy_images(self, dataset, all_folder, save_folder, mask=False):
         """ copy images specified in dataset from all_folder to save_folder """
         for image, sample in dataset:
             image_id = sample['image_id'].item()
-            img_name = dataset.dataset.annotations[image_id]['filename']
+            if mask:
+                img_name = dataset.dataset.annotations[image_id]['filename'][:-4] + '_mask.png'
+            else:
+                img_name = dataset.dataset.annotations[image_id]['filename']
+
             new_img_path = os.path.join(save_folder, img_name)
             old_img_path = os.path.join(all_folder, img_name)
-            # print('copy from: {}'.format(old_img_path))
-            # print('       to: {}'.format(new_img_path))
+
+            # if mask:
+            #     print('copy from: {}'.format(old_img_path))
+            #     print('       to: {}'.format(new_img_path))
+            #     import code
+            #     code.interact(local=dict(globals(), **locals()))
             shutil.copyfile(old_img_path, new_img_path)
 
 
@@ -330,7 +338,8 @@ class PreProcessingToolbox:
                          ann_test_file,
                          ratio_train_test=[0.7, 0.2],
                          clear_image_folders=True,
-                         annotation_type='bbox'):
+                         annotation_type='poly',
+                         mask_folder=None):
         """ prepare dataset/dataloader objects by randomly taking images from all_folder,
         and splitting them randomly into Train/Test/Val with respecctive annotation files
         """
@@ -340,11 +349,45 @@ class PreProcessingToolbox:
         test_folder = os.path.join(root_dir, 'Images','Test')
         val_folder = os.path.join(root_dir, 'Images', 'Validation')
 
+        if clear_image_folders:
+            if os.path.isdir(train_folder):
+                print(f'WARNING: removing all files in folder {train_folder}')
+                shutil.rmtree(train_folder)
+            if os.path.isdir(test_folder):
+                print(f'WARNING: removing all files in folder {test_folder}')
+                shutil.rmtree(test_folder)
+            if os.path.isdir(val_folder):
+                print(f'WARNING: removing all files in folder {val_folder}')
+                shutil.rmtree(val_folder)
+
         os.makedirs(train_folder, exist_ok=True)
         os.makedirs(test_folder, exist_ok=True)
         os.makedirs(val_folder, exist_ok=True)
 
-        # TODO if clear_image_folders is True, then delete/clear all image files
+        if mask_folder is None:
+            mask_folder = os.path.join(root_dir, 'Masks', 'All')
+
+        if annotation_type == 'poly':
+            mask_train_folder = os.path.join(root_dir, 'Masks', 'Train')
+            mask_test_folder = os.path.join(root_dir, 'Masks','Test')
+            mask_val_folder = os.path.join(root_dir, 'Masks', 'Validation')
+
+            if clear_image_folders:
+                if os.path.isdir(mask_train_folder):
+                    print(f'WARNING: removing all files in folder {mask_train_folder}')
+                    shutil.rmtree(mask_train_folder)
+                if os.path.isdir(mask_test_folder):
+                    print(f'WARNING: removing all files in folder {mask_test_folder}')
+                    shutil.rmtree(mask_test_folder)
+                if os.path.isdir(mask_val_folder):
+                    print(f'WARNING: removing all files in folder {mask_val_folder}')
+                    shutil.rmtree(mask_val_folder)
+
+            os.makedirs(mask_train_folder, exist_ok=True)
+            os.makedirs(mask_test_folder, exist_ok=True)
+            os.makedirs(mask_val_folder, exist_ok=True)
+
+
         # already in train/test/val folders
 
         ann_dir = os.path.join(root_dir, 'Annotations')
@@ -359,10 +402,10 @@ class PreProcessingToolbox:
 
         # create dummy weed dataset object to do random split
         if annotation_type == 'poly':
-            wd = WeedDatasetPoly(all_folder, ann_all, transforms=None)
+            wd = WeedDatasetPoly(root_dir, ann_all, transforms=None)
         else:
             # bounding boxes
-            wd = WeedDataset(all_folder, ann_all, transforms=None)
+            wd = WeedDataset(root_dir, ann_all, transforms=None)
 
         # dataset lengths
         files = os.listdir(all_folder)
@@ -414,6 +457,12 @@ class PreProcessingToolbox:
         self.sync_annotations(val_folder, ann_all, annotations_val)
         self.sync_annotations(test_folder, ann_all, annotations_test)
         print('sync json with image folders complete')
+
+        # copy masks to corresponding folders as well!
+        if annotation_type == 'poly':
+            self.copy_images(ds_train, mask_folder, mask_train_folder, mask=True)
+            self.copy_images(ds_val, mask_folder, mask_val_folder, mask=True)
+            self.copy_images(ds_test, mask_folder, mask_test_folder, mask=True)
 
         # package output
         img_folders = [train_folder, test_folder, val_folder]

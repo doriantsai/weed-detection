@@ -144,7 +144,7 @@ class WeedModel:
         # replace pre-trained head with new one
         model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
         return model
-    
+
 
     def build_maskrcnn_model(self, num_classes):
         """ build maskrcnn model for set number of classes """
@@ -205,17 +205,22 @@ class WeedModel:
                                 json_file,
                                 transforms,
                                 hp,
-                                annotation_type='poly'):
+                                annotation_type='poly',
+                                mask_dir=None):
         # assume tforms already defined outside of this function
         batch_size = hp['batch_size']
         num_workers = hp['num_workers']
         shuffle= hp['shuffle']
 
         if annotation_type == 'poly':
-            dataset = WeedDatasetPoly(root_dir, json_file, transforms)
+            dataset = WeedDatasetPoly(root_dir,
+                                      json_file,
+                                      transforms,
+                                      img_dir=root_dir,
+                                      mask_dir=mask_dir)
         else:
             dataset = WeedDataset(root_dir, json_file, transforms)
-            
+
         # setup dataloaders for efficient access to datasets
         dataloader = torch.utils.data.DataLoader(dataset,
                                                  batch_size=batch_size,
@@ -230,7 +235,13 @@ class WeedModel:
 
 
 
-    def create_train_test_val_datasets(self, img_folders, ann_files, hp, dataset_name):
+    def create_train_test_val_datasets(self,
+                                       img_folders,
+                                       ann_files,
+                                       hp,
+                                       dataset_name,
+                                       annotation_type='poly',
+                                       mask_folders=None):
         """ creates datasets and dataloader objects from train/test/val files
         """
         # arguably, should be in WeedDataset class
@@ -239,6 +250,11 @@ class WeedModel:
         train_folder = img_folders[0]
         test_folder = img_folders[1]
         val_folder = img_folders[2]
+
+        if mask_folders is not None:
+            mask_train_folder = mask_folders[0]
+            mask_test_folder = mask_folders[1]
+            mask_val_folder = mask_folders[2]
 
         # should be full path list to json files (ann_dir + ann_xx_file)
         ann_train = ann_files[0]
@@ -268,17 +284,23 @@ class WeedModel:
         ds_train, dl_train = self.create_dataset_dataloader(train_folder,
                                                             ann_train,
                                                             tform_train,
-                                                            hp_train)
+                                                            hp_train,
+                                                            annotation_type,
+                                                            mask_dir=mask_train_folder)
 
         ds_test, dl_test = self.create_dataset_dataloader(test_folder,
                                                           ann_test,
                                                           tform_test,
-                                                          hp_test)
+                                                          hp_test,
+                                                          annotation_type,
+                                                          mask_dir=mask_test_folder)
 
         ds_val, dl_val = self.create_dataset_dataloader(val_folder,
                                                         ann_val,
                                                         tform_test,
-                                                        hp_test)
+                                                        hp_test,
+                                                        annotation_type,
+                                                        mask_dir=mask_val_folder)
 
         # save datasets/dataloaders for later use TODO dataset_name default?
         save_dataset_folder = os.path.join('dataset_objects', dataset_name)
