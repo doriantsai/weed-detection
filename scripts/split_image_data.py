@@ -20,11 +20,13 @@ root_dir = os.path.join('/home',
 # folder containing all images to be used for testing/training/validation
 all_folder = os.path.join(root_dir, 'Images', 'All')
 # corresponding annotations file to Images/All
-ann_all_file = 'annotations_tussock_21032526_G507_all.json'
+# ann_all_file = 'annotations_tussock_21032526_G507_all.json'
+ann_all_file = 'via_project_29Apr2021_17h43m_json_bbox_poly_pt.json'
 
 # annotation files Master (contains all images - we don't touch this file, just
 # use it as a reference/check)
-ann_master_file = 'annotations_tussock_21032526_G507_master.json'
+# ann_master_file = 'annotations_tussock_21032526_G507_master.json'
+ann_master_file = 'via_project_29Apr2021_17h43m_json_bbox_poly_pt.json'
 
 # annotation files out
 ann_train_file = 'annotations_tussock_21032526_G507_train.json'

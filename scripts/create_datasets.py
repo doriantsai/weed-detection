@@ -9,7 +9,8 @@ import weed_detection.WeedModel as WeedModel
 # setup folder locations init object call object
 
 # NOTE: copied/pasted output from PPT.split_iamge_data()
-dataset_name = 'Tussock_v3_augment'
+# dataset_name = 'Tussock_v3_augment'
+dataset_name = 'Tussock_v0_mini'
 # dataset_name = 'Tussock_v3_neg_train_test'
 root_dir = os.path.join('/home',
                         'dorian',
