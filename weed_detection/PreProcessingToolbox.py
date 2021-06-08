@@ -25,6 +25,8 @@ from weed_detection.WeedDataset import WeedDataset, Compose, \
 import torch
 import random
 
+import matplotlib.pyplot as plt # somewhat redundany w cv, but provides better image/plot analysis/gui tools
+
 
 class PreProcessingToolbox:
     """ collection of functions to preprocessing the dataset """
@@ -619,12 +621,12 @@ class PreProcessingToolbox:
         return ann_out, save_folder
 
 
-    def get_polyons_image(annotations, idx):
+    def get_polyons_image(self, annotations, idx):
         """ extract x, y coordinates if available """
         # all_points is a list of x,y points per index (ie, for a single image)
         # eg, all_points[0] = [x_pts0, y_pts0] for 0'th polygon
         #     all_points[1] = [x_pts1, y_pts1]
-        
+
         # try:
         reg = annotations[idx]['regions']
         poly = []
@@ -646,10 +648,10 @@ class PreProcessingToolbox:
         # except:
         #     print('No polygon. Skipping', image_id)
         #     return
-                
-        n_poly = len(poly)
 
-        return all_points, n_poly
+        # n_poly = len(poly)
+
+        return all_points
 
 
     # https://towardsdatascience.com/generating-image-segmentation-masks-the-easy-way-dd4d3656dbd1
@@ -664,11 +666,12 @@ class PreProcessingToolbox:
         img_files = os.listdir(img_dir_in)
         try:
             # assume it is an image file
-            image = Image.open(img_files[0])
-            IMAGE_WIDTH = image.shape[0] # could be the wrong syntax TODO
-            IMAGE_HEIGHT = image.shape[1]
+
+            image = Image.open(os.path.join(img_dir_in, img_files[0]))
+            IMAGE_WIDTH = image.size[0] # could be the wrong syntax TODO
+            IMAGE_HEIGHT = image.size[1]
         except:
-            print(f'could not open image from {img_files[0]}')
+            print(f'could not open image from {os.path.join(img_dir_in, img_files[0])}')
             return
 
         # read in the ann_file
@@ -684,12 +687,13 @@ class PreProcessingToolbox:
         # goal is each image has a mask, with each polygon masked with a different number
         image_poly = {}
         image_ids = []
-        for itr in annotations:
-            filename = annotations[itr]['filename']
+        for i in range(len(annotations)):
+
+            filename = annotations[i]['filename']
             image_id = filename[:-4]
             # count_masks_per_image = 0  # count of masks/single groundtruth image
 
-            image_poly[image_id] = self.get_polyons_image(annotations, itr)
+            image_poly[image_id] = self.get_polyons_image(annotations, i)
             image_ids.append(image_id)
 
         # print(f'dictionary size: {len(image_poly)}')
@@ -697,32 +701,58 @@ class PreProcessingToolbox:
         # create folder for masks
         if mask_dir_out is None:
             mask_dir_out = os.path.join('masks')
-        os.makedirs(img_dir_out, exist_ok=True)
+        os.makedirs(mask_dir_out, exist_ok=True)
 
         # for each image/iteration in annotations, generate mask and save image
-        # each mask's values are incremented 
+        # each mask's values are incremented
         # NOTE we expect no more than 256 masks in a single image
-        for i, polygons in enumerate(image_poly):
+        image_poly_list = list(image_poly.values())
+        for i, polygons in enumerate(image_poly_list):
             # num_masks = len(polygons)
-            mask = np.zeros((IMAGE_WIDTH, IMAGE_HEIGHT))
+            mask = np.zeros((IMAGE_WIDTH, IMAGE_HEIGHT), np.int32)
 
-            # TODO check valid polygon? 
+            # TODO check valid polygon?
             # might not be closed, etc
             # if there are any polygons, fill them in onto mask
             # with unique label
-            count_polygons = 1
+
+            # import code
+            # code.interact(local=dict(globals(), **locals()))
             if len(polygons) > 0:
+                count_polygons = 0
                 for poly in polygons:
-                    p = np.array(poly)
+                    poly_pts = np.array(poly, np.int32).transpose()
                     count_polygons += 1
-                    cv.fillPoly(mask, [p], color=(count_polygons))
+                    # import code
+                    # code.interact(local=dict(globals(), **locals()))
+                    cv.fillPoly(mask, [poly_pts], color=(count_polygons))
 
             # save mask
             mask_name = image_ids[i] + "_mask.png"
             print(mask_name)
             mask_filepath = os.path.join(mask_dir_out, mask_name)
             cv.imwrite(mask_filepath, mask)
-            
+
+            # show image
+            SHOW = False
+            if SHOW:
+                # mask_out = cv.normalize(mask, None, 0, 255, cv.NORM_MINMAX, cv.CV_8U)
+                # # mask_out = cv.cvtColor(mask_out, cv.COLOR_RGB2BGR)
+                # win_name = mask_name
+                # wait_time=0
+                # cv.namedWindow(win_name, cv.WINDOW_GUI_NORMAL)
+                # cv.imshow(win_name, mask_out)
+                # cv.waitKey(wait_time)
+                # cv.destroyWindow(win_name)
+                plt.imshow(mask)
+                plt.title(mask_name)
+                plt.show()
+
+
+
+            # import code
+            # code.interact(local=dict(globals(), **locals()))
+
 
 
         import code
@@ -746,5 +776,5 @@ if __name__ == "__main__":
     img_dir_in = os.path.join(root_dir, 'Images')
     ann_file_name = 'via_project_29Apr2021_17h43m_json_bbox_poly_pt.json'
     ann_file_path = os.path.join(root_dir, 'Annotations', ann_file_name)
-    img_dir_out = os.path.join(root_dir, 'temp')
+    img_dir_out = os.path.join(root_dir, 'Masks')
     ppt.create_masks_from_poly(img_dir_in, ann_file_path, img_dir_out)
