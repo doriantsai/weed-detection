@@ -85,6 +85,8 @@ class WeedDatasetPoly(object):
         # first id is the background, so remove it
         obj_ids = obj_ids[1:]
 
+        # import code
+        # code.interact(local=dict(globals(), **locals()))
         # split the color-encoded mask into a set of binary masks
         # NOTE unsure if this will work as intended
         masks = mask == obj_ids[:, None, None]
@@ -203,6 +205,29 @@ class Compose(object):
             image, target = t(image, target)
         return image, target
 
+class ToTensor(object):
+    """ convert ndarray to sample in Tensors """
+
+    def __call__(self, image, sample):
+        """ convert image and sample to tensors """
+
+        # convert image
+        image = tvtransfunc.to_tensor(image)
+
+        # convert samples
+        boxes = sample['boxes']
+        if not torch.is_tensor(boxes):
+            boxes = torch.from_numpy(boxes)
+        sample['boxes'] = boxes
+
+        masks = sample['masks']
+        if not torch.is_tensor(masks):
+            masks = torch.from_numpy(masks)
+        sample['masks'] = masks
+
+
+        return image, sample
+
 
 class Rescale(object):
     """ Rescale image to given size """
@@ -228,8 +253,17 @@ class Rescale(object):
         # do the transform
         img = T.Resize((new_w, new_h))(image)
 
+
         # apply transform to bbox as well
         if sample is not None:
+
+            # apply resize to mask as well
+            mask = sample["masks"]
+            m = T.Resize((new_w, new_h))(mask)  # HACK FIXME
+            # import code
+            # code.interact(local=dict(globals(), **locals()))
+            sample['masks'] = m
+
             xChange = float(new_w) / float(w)
             yChange = float(new_h) / float(h)
             bbox = sample["boxes"]  # [xmin ymin xmax ymax]
@@ -246,23 +280,6 @@ class Rescale(object):
             return img
 
 
-class ToTensor(object):
-    """ convert ndarray to sample in Tensors """
-
-    def __call__(self, image, sample):
-        """ convert image and sample to tensors """
-
-        # convert image
-        image = tvtransfunc.to_tensor(image)
-
-        # convert samples
-        boxes = sample['boxes']
-        if not torch.is_tensor(boxes):
-            boxes = torch.from_numpy(boxes)
-        sample['boxes'] = boxes
-
-        return image, sample
-
 
 class RandomHorizontalFlip(object):
     """ Random horozintal flip """
@@ -275,8 +292,13 @@ class RandomHorizontalFlip(object):
     def __call__(self, image, sample):
         """ apply horizontal image flip to image and sample """
 
+        # import code
+        # code.interact(local=dict(globals(), **locals()))
+
+
         if random.random() < self.prob:
             w, h = image.size[:2]
+
             # flip image
             image = image.transpose(method=Image.FLIP_LEFT_RIGHT)
 
@@ -288,6 +310,16 @@ class RandomHorizontalFlip(object):
             if len(bbox) > 0:
                 bbox[:, [0, 2]] = w - bbox[:, [2, 0]]  # note the indices switch (must flip the box as well!)
                 sample['boxes'] = bbox
+
+            # flip mask
+            mask = sample['masks']
+
+            # import code
+            # code.interact(local=dict(globals(), **locals()))
+
+            # mask = mask.transpose(method=Image.FLIP_LEFT_RIGHT)
+            mask = torch.flip(mask, [2])
+            sample['masks'] = mask
 
         return image, sample
 
@@ -313,6 +345,13 @@ class RandomVerticalFlip(object):
                 # bbox[:, [0, 2]] = w - bbox[:, [2, 0]]
                 bbox[:, [1, 3]] = h - bbox[:, [3, 1]]
                 sample['boxes'] = bbox
+
+            # flip mask
+            mask = sample['masks']
+            # mask = mask.transpose(method=Image.FLIP_TOP_BOTTOM)
+            mask = torch.flip(mask, [1])
+            sample['masks'] = mask
+
         return image, sample
 
 
@@ -333,6 +372,7 @@ class RandomBlur(object):
         """ apply blur to image """
         # image = tvtransfunc.gaussian_blur(image, self.kernel_size) # sigma calculated automatically
         image = tvtransfunc.gaussian_blur(image, self.kernel_size, self.sigma)
+        # TODO not sure if I should blur the mask? Mask RCNN accepts only binary mask, or can it be weighted?
         return image, sample
 
 

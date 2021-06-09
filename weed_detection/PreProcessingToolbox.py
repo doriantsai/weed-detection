@@ -27,6 +27,8 @@ import torch
 import random
 
 import matplotlib.pyplot as plt # somewhat redundany w cv, but provides better image/plot analysis/gui tools
+from matplotlib.patches import Polygon
+from matplotlib.collections import PatchCollection
 
 
 class PreProcessingToolbox:
@@ -368,6 +370,7 @@ class PreProcessingToolbox:
             mask_folder = os.path.join(root_dir, 'Masks', 'All')
 
         if annotation_type == 'poly':
+            print('making mask folders')
             mask_train_folder = os.path.join(root_dir, 'Masks', 'Train')
             mask_test_folder = os.path.join(root_dir, 'Masks','Test')
             mask_val_folder = os.path.join(root_dir, 'Masks', 'Validation')
@@ -764,7 +767,7 @@ class PreProcessingToolbox:
         image_poly_list = list(image_poly.values())
         for i, polygons in enumerate(image_poly_list):
             # num_masks = len(polygons)
-            mask = np.zeros((IMAGE_WIDTH, IMAGE_HEIGHT), np.int32)
+            mask = np.zeros((IMAGE_HEIGHT, IMAGE_WIDTH), np.int32)
 
             # TODO check valid polygon?
             # might not be closed, etc
@@ -788,9 +791,10 @@ class PreProcessingToolbox:
             mask_filepath = os.path.join(mask_dir_out, mask_name)
             cv.imwrite(mask_filepath, mask)
 
+
             # show image
             SHOW = False
-            if SHOW:
+            SAVE = False
                 # mask_out = cv.normalize(mask, None, 0, 255, cv.NORM_MINMAX, cv.CV_8U)
                 # # mask_out = cv.cvtColor(mask_out, cv.COLOR_RGB2BGR)
                 # win_name = mask_name
@@ -799,16 +803,40 @@ class PreProcessingToolbox:
                 # cv.imshow(win_name, mask_out)
                 # cv.waitKey(wait_time)
                 # cv.destroyWindow(win_name)
-                plt.imshow(mask)
-                plt.title(mask_name)
-                plt.show()
+                # plt.imshow(mask)
+                # plt.title(mask_name)
+                # plt.show()
 
 
 
-            # import code
-            # code.interact(local=dict(globals(), **locals()))
+            if SHOW or SAVE:
+                # import code
+                # code.interact(local=dict(globals(), **locals()))
+                print(f'image shape: {image.size}')
+                print(f'mask shape: {mask.shape}')
+                img_filename = os.path.join(img_dir_in, annotations[i]['filename'])
+                image = Image.open(img_filename)
+                patches = []
+                if len(polygons) > 0:
+                    for poly in polygons:
+                        polt_pts = np.array(poly, np.int32).transpose()
+                        patches.append(Polygon(polt_pts, closed=True))
 
+                colors = 100 * np.random.rand(len(patches))
+                p = PatchCollection(patches, alpha=0.4)
+                p.set_array(colors)
 
+                fig, ax = plt.subplots(2, 1)
+                ax[0].imshow(image)
+                # plt.imshow(image)
+                # plot ontop the polygon
+
+                ax[0].add_collection(p)
+
+                # compare polygon to original image and annotation?
+                ax[1].imshow(mask)
+                if SHOW:
+                    plt.show()
 
         import code
         code.interact(local=dict(globals(), **locals()))
@@ -828,8 +856,8 @@ if __name__ == "__main__":
     db_name = 'Tussock_v0_mini'
     root_dir = os.path.join('/home', 'dorian', 'Data', 'AOS_TussockDataset',
                               db_name)
-    img_dir_in = os.path.join(root_dir, 'Images')
+    img_dir_in = os.path.join(root_dir, 'Images', 'All')
     ann_file_name = 'via_project_29Apr2021_17h43m_json_bbox_poly_pt.json'
     ann_file_path = os.path.join(root_dir, 'Annotations', ann_file_name)
-    img_dir_out = os.path.join(root_dir, 'Masks')
+    img_dir_out = os.path.join(root_dir, 'Masks', 'All')
     ppt.create_masks_from_poly(img_dir_in, ann_file_path, img_dir_out)
