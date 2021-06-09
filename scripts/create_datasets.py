@@ -21,6 +21,13 @@ img_folders = [os.path.join(root_dir, 'Images','Train'),
                os.path.join(root_dir, 'Images', 'Test'),
                os.path.join(root_dir, 'Images', 'Validation')]
 
+mask_dir = os.path.join(root_dir, 'Masks')
+mask_folders = [os.path.join(mask_dir, 'Train'),
+               os.path.join(mask_dir, 'Test'),
+               os.path.join(mask_dir, 'Validation')]
+all_mask_dir = os.path.join(mask_dir, 'All')
+
+
 # ann_files = [os.path.join(root_dir, 'Annotations', 'annotations_train_augmented_combined.json'),
 #             os.path.join(root_dir, 'Annotations', 'annotations_tussock_21032526_G507_test.json'),
 #             os.path.join(root_dir, 'Annotations', 'annotations_tussock_21032526_G507_val.json')]
@@ -35,7 +42,7 @@ num_workers = 10
 learning_rate = 0.005
 momentum = 0.9
 weight_decay = 0.0001
-num_epochs = 75
+num_epochs = 10
 step_size = round(num_epochs / 2)
 shuffle = True
 rescale_size = int(256)
@@ -64,11 +71,19 @@ Tussock = WeedModel()
 dataset_path = Tussock.create_train_test_val_datasets(img_folders,
                                                       ann_files,
                                                       hp,
-                                                      dataset_name)
+                                                      dataset_name,
+                                                      annotation_type='poly',
+                                                      mask_folders=mask_folders)
 
 # TODO open pkl file and confirm that datasets match image length, but some are
 # "augmented"?
 print('dataset_path = {}'.format(dataset_path))
 
+# test forward pass
+dso = Tussock.load_dataset_objects(dataset_path)
+dataset = dso['ds_train']
+dataloader = dso['dl_train']
 
 
+import code
+code.interact(local=dict(globals(), **locals()))

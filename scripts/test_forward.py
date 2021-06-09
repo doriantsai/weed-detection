@@ -43,16 +43,18 @@ all_folder = os.path.join(root_dir, 'Images', 'All')
 ann_master_file = 'via_project_29Apr2021_17h43m_json_bbox_poly_pt.json'
 ann_all_file = 'via_project_29Apr2021_17h43m_json_bbox_poly_pt.json'
 
-ProTool = PreProcessingToolbox()
-img_folders, ann_files = ProTool.split_image_data(root_dir,
-                                                  all_folder,
-                                                  ann_master_file,
-                                                  ann_all_file,
-                                                  ann_files[0],
-                                                  ann_files[2],
-                                                  ann_files[1],
-                                                  mask_folder=all_mask_dir,
-                                                  annotation_type='poly')
+SPLIT = False
+if SPLIT:
+    ProTool = PreProcessingToolbox()
+    img_folders, ann_files = ProTool.split_image_data(root_dir,
+                                                    all_folder,
+                                                    ann_master_file,
+                                                    ann_all_file,
+                                                    ann_files[0],
+                                                    ann_files[2],
+                                                    ann_files[1],
+                                                    mask_folder=all_mask_dir,
+                                                    annotation_type='poly')
 
 # TODO create dataset objects
 #
@@ -61,9 +63,9 @@ batch_size = 10
 num_workers = 10
 learning_rate = 0.005
 momentum = 0.9
-weight_decay = 0.0001
-num_epochs = 75
-step_size = round(num_epochs / 2)
+weight_decay = 0.0005
+num_epochs = 10
+step_size = 3 # round(num_epochs / 2)
 shuffle = True
 rescale_size = int(256)
 
@@ -100,8 +102,8 @@ images, targets = next(iter(dataloader))
 images = list(image for image in images)
 targets = [{k: v for k, v in t.items()} for t in targets]
 
-import code
-code.interact(local=dict(globals(), **locals()))
+# import code
+# code.interact(local=dict(globals(), **locals()))
 
 model = Tussock.build_maskrcnn_model(num_classes=2)
 
@@ -110,7 +112,7 @@ print(output)
 
 # for inference
 model.eval()  # I don't think this works, but maybe
-x = [torch.rand(3, 300, 400), torch.rand(3, 500, 400)]
+x = [torch.rand(3, 256, 256), torch.rand(3, 256, 256)]
 predictions = model(x)
 print(predictions)
 
@@ -118,7 +120,27 @@ print(predictions)
 # Tussock.train(model_name=dataset_name,
 #               dataset_path=dataset_path)
 
+i = 0
+img = images[i]
+targ = targets[i]
+mask = targ['masks']
 
+print(img.shape)
+print(mask.shape)
+
+import numpy as np
+import matplotlib.pyplot as plt
+img = img.cpu().numpy()
+mask = mask.cpu().numpy()
+
+img = np.transpose(img, (1,2,0))
+mask = np.transpose(mask, (1,2,0))
+
+
+fig, ax = plt.subplots(2,1)
+ax[0].imshow(img)
+ax[1].imshow(mask)
+plt.show()
 
 import code
 code.interact(local=dict(globals(), **locals()))

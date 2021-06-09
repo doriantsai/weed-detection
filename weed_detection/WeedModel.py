@@ -6,7 +6,8 @@ functionality, such as training, inference, evaluation
 """
 
 import os
-from weed_detection.WeedDatasetPoly import WeedDatasetPoly
+# from weed_detection.WeedDatasetPoly import WeedDatasetPoly
+
 import torch
 import torchvision
 import re
@@ -26,7 +27,9 @@ from torchvision.transforms import functional as tv_transform
 from scipy.interpolate import interp1d
 
 from weed_detection.engine_st import train_one_epoch
-from weed_detection.WeedDataset import *
+# from weed_detection.WeedDataset import *
+import weed_detection.WeedDataset as WD
+import weed_detection.WeedDatasetPoly as WDP
 from weed_detection.PreProcessingToolbox import PreProcessingToolbox as PT
 
 # from webcam import grab_webcam_image
@@ -160,7 +163,7 @@ class WeedModel:
 
         # now get number of input features for mask classifier
         in_features_mask = model.roi_heads.mask_predictor.conv5_mask.in_channels
-        hidden_layer = 256
+        hidden_layer = 256  # TODO check what this variable is
 
         # replace mask predictor with a new one
         model.roi_heads.mask_predictor = MaskRCNNPredictor(in_features_mask,
@@ -213,13 +216,13 @@ class WeedModel:
         shuffle= hp['shuffle']
 
         if annotation_type == 'poly':
-            dataset = WeedDatasetPoly(root_dir,
+            dataset = WDP.WeedDatasetPoly(root_dir,
                                       json_file,
                                       transforms,
                                       img_dir=root_dir,
                                       mask_dir=mask_dir)
         else:
-            dataset = WeedDataset(root_dir, json_file, transforms)
+            dataset = WD.WeedDataset(root_dir, json_file, transforms)
 
         # setup dataloaders for efficient access to datasets
         dataloader = torch.utils.data.DataLoader(dataset,
@@ -261,7 +264,7 @@ class WeedModel:
         ann_test = ann_files[1]
         ann_val = ann_files[2]
 
-        # TODO: check hp is valid, should instead have transform parameters dict
+        # TODO: check hp is valid, shou-ld instead have transform parameters dict
         rescale_size = hp['rescale_size']
 
         hp_train = hp
@@ -271,13 +274,23 @@ class WeedModel:
         # TODO add in other data augmentation methods TODO make dictionary for
         # data augmentation parameters with default values TODO but also as
         # inputs
-        tform_train = Compose([Rescale(rescale_size),
-                          RandomBlur(5, (0.5, 2.0)),
-                          RandomHorizontalFlip(0.5),
-                          RandomVerticalFlip(0.5),
-                          ToTensor()])
-        tform_test = Compose([Rescale(rescale_size),
-                         ToTensor()])
+        if annotation_type == 'poly':
+            print('creating poly transforms')
+            tform_train = WDP.Compose([WDP.Rescale(rescale_size),
+                            WDP.RandomBlur(5, (0.5, 2.0)),
+                            WDP.RandomHorizontalFlip(0),
+                            WDP.RandomVerticalFlip(0),
+                            WDP.ToTensor()])
+            tform_test = WDP.Compose([WDP.Rescale(rescale_size),
+                            WDP.ToTensor()])
+        else:
+            tform_train = WD.Compose([WD.Rescale(rescale_size),
+                            WD.RandomBlur(5, (0.5, 2.0)),
+                            WD.RandomHorizontalFlip(0.5),
+                            WD.RandomVerticalFlip(0.5),
+                            WD.ToTensor()])
+            tform_test = WD.Compose([WD.Rescale(rescale_size),
+                            WD.ToTensor()])
 
 
         # create dataset and dataloader objects for each set of images
@@ -334,7 +347,8 @@ class WeedModel:
               model_name,
               dataset_path=None,
               model_name_suffix=True,
-              model_folder=None):
+              model_folder=None,
+              annotation_type='poly'):
 
         # TODO if dataset_path is None, call create_train_test_val_datasets for
         # now, we assume this has been done/dataset_path exists and is valid
@@ -383,7 +397,12 @@ class WeedModel:
 
         # build model setup number of classes (1 background, 1 class - weed
         # species)
-        model = self.build_fasterrcnn_model(num_classes=2)
+        if annotation_type == 'poly':
+            print('building maskrcnn model')
+            model = self.build_maskrcnn_model(num_classes=2)
+        else:
+            print('building fasterrcnn model')
+            model = self.build_fasterrcnn_model(num_classes=2)
         model.to(self._device)
 
         # set optimizer
@@ -477,13 +496,22 @@ class WeedModel:
         return model, model_save_path
 
 
-    def load_model(self, model_path=None, num_classes=2, map_location="cuda:0"):
+    def load_model(self,
+                   model_path=None,
+                   num_classes=2,
+                   map_location="cuda:0",
+                   annotation_type='poly'):
         """ load model to self based on model_path """
 
         if model_path is None:
             model_path = self._model_path
 
-        model = self.build_fasterrcnn_model(num_classes)
+        if annotation_type == 'poly':
+            print('loading maskrcnn')
+            model = self.build_maskrcnn_model(num_classes)
+        else:
+            print('loading fasterrcnn')
+            model = self.build_fasterrcnn_model(num_classes)
         model.load_state_dict(torch.load(model_path, map_location=map_location))
         print('loaded model: {}'.format(model_path))
         model.to(self._device)
@@ -585,18 +613,21 @@ class WeedModel:
         # print(f'time infer just model = {time_infer}')
 
         # apply non-maxima suppression
+        # TODO nms based on iou, what about masks?
         keep = torchvision.ops.nms(pred[0]['boxes'], pred[0]['scores'], nms_iou_thresh)
 
         pred_class = [i for i in list(pred[0]['labels'][keep].cpu().numpy())]
         pred_boxes = [[bb[0], bb[1], bb[2], bb[3]] for bb in list(pred[0]['boxes'][keep].detach().cpu().numpy())]
         # scores are ordered from highest to lowest
         pred_score = list(pred[0]['scores'][keep].detach().cpu().numpy())
+        pred_masks = list(pred[0]['masks'][keep].detach().cpu().numpy())
 
         # package
         pred_final = {}
         pred_final['boxes'] = pred_boxes
         pred_final['classes'] = pred_class
         pred_final['scores'] = pred_score
+        pred_final['masks'] = pred_masks
 
         # apply confidence threshold
         pred_final = self.threshold_predictions(pred_final, conf_thresh)
@@ -610,6 +641,7 @@ class WeedModel:
         pred_boxes = pred['boxes']
         pred_class = pred['classes']
         pred_score = pred['scores']
+        pred_masks = pred['masks']
 
         if len(pred_score) > 0:
             if max(pred_score) < thresh: # none of pred_score > thresh, then return empty
@@ -617,21 +649,25 @@ class WeedModel:
                 pred_boxes = []
                 pred_class = []
                 pred_score = []
+                pred_masks = []
             else:
                 pred_thresh = [pred_score.index(x) for x in pred_score if x > thresh][-1]
                 pred_boxes = pred_boxes[:pred_thresh+1]
                 pred_class = pred_class[:pred_thresh+1]
                 pred_score = pred_score[:pred_thresh+1]
+                pred_masks = pred_masks[:pred_thresh+1]
         else:
             pred_thresh = []
             pred_boxes = []
             pred_class = []
             pred_score = []
+            pred_masks = []
 
         predictions = {}
         predictions['boxes'] = pred_boxes
         predictions['classes'] = pred_class
         predictions['scores'] = pred_score
+        predictions['masks'] = pred_masks
 
         return predictions
 
@@ -826,6 +862,212 @@ class WeedModel:
                                   interpolation=cv.INTER_CUBIC)
         return image_out
 
+    def show_mask(self,
+                    image,
+                    sample=None,
+                    predictions=None,
+                    outcomes=None,
+                    sample_color=(0, 0, 255), # RGB
+                    predictions_color=(255, 0, 0),
+                    iou_color=(255, 255, 255),
+                    transpose_image_channels=True,
+                    transpose_color_channels=False,
+                    resize_image=False,
+                    resize_height=(256),
+                    mask_alpha=0.5):
+        """ show image, sample/groundtruth, model predictions, outcomes
+        (TP/FP/etc) """
+        # TODO rename "show" to something like "create_plot" or "markup", as we
+        # don't actually show the image assume image comes in as a tensor, as in
+        # the same format it was input into the model
+
+        # set plotting parameters
+        gt_box_thick = 12   # groundtruth bounding box
+        dt_box_thick = 6    # detection bounding box
+        out_box_thick = 3   # outcome bounding box/overlay
+        font_scale = 2 # font scale should be function of image size
+        font_thick = 2
+
+
+        if transpose_color_channels:
+            # image tensor comes in as [color channels, length, width] format
+            print('swap color channels in tensor format')
+            image = image[(2, 0, 1), :, :]
+
+        # move to cpu and convert from tensor to numpy array since opencv
+        # requires numpy arrays
+        image_out = image.cpu().numpy()
+
+        if transpose_image_channels:
+            # if we were working with BGR as opposed to RGB
+            image_out = np.transpose(image_out, (1, 2, 0))
+
+        # normalize image from 0,1 to 0,255
+        image_out = cv.normalize(image_out, None, 0, 255, cv.NORM_MINMAX, cv.CV_8U)
+
+        # ----------------------------------- #
+        # first plot groundtruth boxes
+        if sample is not None:
+            # NOTE we assume sample is also a tensor
+            boxes_gt = sample['boxes']
+            if len(boxes_gt) > 0:
+                n_gt, _ = boxes_gt.size()
+                for i in range(n_gt):
+                    bb = np.array(boxes_gt[i, :].cpu(), dtype=np.float32) # TODO just specify int8 or imt16?
+                    # overwrite the original image with groundtruth boxes
+                    image_out = cv.rectangle(image_out,
+                                            (int(bb[0]), int(bb[1])),
+                                            (int(bb[2]), int(bb[3])),
+                                            color=sample_color,
+                                            thickness=gt_box_thick)
+            mask = sample['masks']
+            if len(mask) > 0:  # probably not necessary - "if there is a mask"
+                # mask = mask[(2, 0, 1), :, :] # mask is binary
+                mask = mask.cpu().numpy()
+                mask = np.transpose(mask, )
+                mask = np.transpose(mask, (1, 2, 0))
+                # image_overlay = image_out.copy()
+                # make mask a coloured image, as opposed to a binary thing
+                mask = cv.cvtColor(mask, cv.COLOR_GRAY2BGR)
+                mask2 = mask
+                mask_color = [255, 0, 0]
+                mask2[:,:,0] = mask[:,:,0] * mask_color[0] # BGR
+                mask2[:,:,1] = mask[:,:,1] * mask_color[1] # BGR
+                mask2[:,:,2] = mask[:,:,2] * mask_color[2] # BGR
+                mask_alpha = 0.5
+                import code
+                code.interact(local=dict(globals(), **locals()))
+                image_out2 = cv.addWeighted(mask2, mask_alpha, image_out, 1-mask_alpha, 0)
+                # cv.addWeighted(mask, mask_alpha, )
+
+                plt.imshow(image_out2)
+                plt.show()
+                import code
+                code.interact(local=dict(globals(), **locals()))
+
+
+        # ----------------------------------- #
+        # second, plot predictions
+        if predictions is not None:
+            boxes_pd = predictions['boxes']
+            scores = predictions['scores']
+
+            if len(boxes_pd) > 0:
+                for i in range(len(boxes_pd)):
+                    bb = np.array(boxes_pd[i], dtype=np.float32) # TODO just specify int8 or imt16?
+                    image_out = cv.rectangle(image_out,
+                                            (int(bb[0]), int(bb[1])),
+                                            (int(bb[2]), int(bb[3])),
+                                            color=predictions_color,
+                                            thickness=dt_box_thick)
+
+                    # add text to top left corner of bbox
+                    sc = format(scores[i] * 100.0, '.0f') # no decimals, just x100 for percent
+                    cv.putText(image_out,
+                               '{}: {}'.format(i, sc),
+                               (int(bb[0] + 10), int(bb[1] + 30)), # buffer numbers should be function of font scale
+                               fontFace=cv.FONT_HERSHEY_COMPLEX,
+                               fontScale=font_scale,
+                               color=predictions_color,
+                               thickness=font_thick)
+
+        # ----------------------------------- #
+        # third, add iou info (within the predicitons if statement)
+            if outcomes is not None:
+                iou = outcomes['dt_iou']
+
+                # iou is a list or array with iou values for each boxes_pd
+                if len(iou) > 0 and len(boxes_pd) > 0:
+                    for i in range(len(iou)):
+                        bb = np.array(boxes_pd[i], dtype=np.float32)
+                        # print in top/left corner of bbox underneath bbox # and
+                        # score
+                        iou_str = format(iou[i], '.2f') # max 2 decimal places
+                        cv.putText(image_out,
+                                   'iou: {}'.format(iou_str),
+                                   (int(bb[0] + 10), int(bb[1] + 60)),
+                                   fontFace=cv.FONT_HERSHEY_COMPLEX,
+                                   fontScale=font_scale,
+                                   color=iou_color,
+                                   thickness=font_thick)
+
+        # ----------------------------------- #
+        # fourth, add outcomes
+            if (outcomes is not None) and (sample is not None):
+                # for each prediction, if there is a sample, then there is a
+                # known outcome being an array from 1-4:
+                outcome_list = ['TP', 'FP', 'FN', 'TN']
+                # choose colour scheme default: blue is groundtruth default: red
+                # is detection -> red is false negative green is true positive
+                # yellow is false positive
+                outcome_color = [(0, 255, 0),   # TP - green
+                                (255, 255, 0), # FP - yellow
+                                (255, 0, 0),   # FN - red
+                                (0, 0, 0)]     # TN - black
+                # structure of the outcomes dictionary outcomes = {'dt_outcome':
+                # dt_outcome, # detections, integer index for tp/fp/fn
+                # 'gt_outcome': gt_outcome, # groundtruths, integer index for fn
+                # 'dt_match': dt_match, # detections, boolean matched or not
+                # 'gt_match': gt_match, # gt, boolean matched or not 'fn_gt':
+                # fn_gt, # boolean for gt false negatives 'fn_dt': fn_dt, #
+                # boolean for dt false negatives 'tp': tp, # true positives for
+                # detections 'fp': fp, # false positives for detections
+                # 'dt_iou': dt_iou} # intesection over union scores for
+                # detections
+                dt_outcome = outcomes['dt_outcome']
+                if len(dt_outcome) > 0 and len(boxes_pd) > 0:
+                    for i in range(len(boxes_pd)):
+                        # replot detection boxes based on outcome
+                        bb = np.array(boxes_pd[i], dtype=np.float32)
+                        image_out = cv.rectangle(image_out,
+                                                (int(bb[0]), int(bb[1])),
+                                                (int(bb[2]), int(bb[3])),
+                                                color=outcome_color[dt_outcome[i]],
+                                                thickness=out_box_thick)
+                        # add text top/left corner including outcome type prints
+                        # over existing text, so needs to be the same starting
+                        # string
+                        sc = format(scores[i] * 100.0, '.0f') # no decimals, just x100 for percent
+                        ot = format(outcome_list[dt_outcome[i]])
+                        cv.putText(image_out,
+                                   '{}: {}/{}'.format(i, sc, ot),
+                                   (int(bb[0] + 10), int(bb[1] + 30)),
+                                   fontFace=cv.FONT_HERSHEY_COMPLEX,
+                                   fontScale=font_scale,
+                                   color=outcome_color[dt_outcome[i]],
+                                   thickness=font_thick)
+
+                # handle false negative cases (ie, groundtruth bboxes)
+                boxes_gt = sample['boxes']
+                fn_gt = outcomes['fn_gt']
+                if len(fn_gt) > 0 and len(boxes_gt) > 0:
+                    for j in range(len(boxes_gt)):
+                        # gt boxes already plotted, so only replot them if false
+                        # negatives
+                        if fn_gt[j]: # if True
+                            bb = np.array(boxes_gt[j,:].cpu(), dtype=np.float32)
+                            image_out = cv.rectangle(image_out,
+                                                (int(bb[0]), int(bb[1])),
+                                                (int(bb[2]), int(bb[3])),
+                                                color=outcome_color[2],
+                                                thickness=out_box_thick)
+                            cv.putText(image_out,
+                                '{}: {}'.format(j, outcome_list[2]),
+                                (int(bb[0]+ 10), int(bb[1]) + 30),
+                                fontFace=cv.FONT_HERSHEY_COMPLEX,
+                                fontScale=font_scale,
+                                color=outcome_color[2], # index for FN
+                                thickness=font_thick)
+
+        # resize image to save space
+        if resize_image:
+            aspect_ratio = self._image_width / self._image_height
+            resize_width = int(resize_height * aspect_ratio)
+            resize_height = int(resize_height)
+            image_out = cv.resize(image_out,
+                                  (resize_width, resize_height),
+                                  interpolation=cv.INTER_CUBIC)
+        return image_out
 
     def infer_image(self,
                     image,
@@ -858,7 +1100,7 @@ class WeedModel:
 
 
             if imsave or imshow:
-                image_out = self.show(image,
+                image_out = self.show_mask(image,
                                     sample=sample,
                                     predictions=pred)
             if imsave:
