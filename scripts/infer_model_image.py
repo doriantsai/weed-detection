@@ -6,7 +6,7 @@ import os
 import pickle
 from weed_detection.WeedModel import WeedModel as WM
 import time
-
+import matplotlib.pyplot as plt
 # init WM object
 # load model
 # call inference functions
@@ -34,7 +34,7 @@ Tussock = WM()
 
 # load model
 # model_name = 'tussock_test_2021-05-16_16_13'
-model_name = 'Tussock_v0_mini_2021-06-09_10_37'
+model_name = 'Tussock_v0_mini_2021-06-14_13_25'
 save_model_path = os.path.join('output',
                                model_name,
                                model_name + '.pth')
@@ -75,7 +75,7 @@ for i in range(bs):
                                           sample=sample,
                                           imshow=False,
                                           imsave=True,
-                                          conf_thresh=0.31)
+                                          conf_thresh=0.16)
     print('{}: {}'.format(i, image_id))
     print('   pred = {}'.format(pred))
     end_time = time.time()
