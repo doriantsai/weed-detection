@@ -622,6 +622,7 @@ class WeedModel:
         pred_score = list(pred[0]['scores'][keep].detach().cpu().numpy())
         pred_masks = list(pred[0]['masks'][keep].detach().cpu().numpy())
 
+
         # package
         pred_final = {}
         pred_final['boxes'] = pred_boxes
@@ -632,6 +633,8 @@ class WeedModel:
         # apply confidence threshold
         pred_final = self.threshold_predictions(pred_final, conf_thresh)
 
+        # import code
+        # code.interact(local=dict(globals(), **locals()))
         return pred_final
 
 
@@ -693,7 +696,7 @@ class WeedModel:
              transpose_image_channels=True,
              transpose_color_channels=False,
              resize_image=False,
-             resize_height=(1080)):
+             resize_height=(256)):
         """ show image, sample/groundtruth, model predictions, outcomes
         (TP/FP/etc) """
         # TODO rename "show" to something like "create_plot" or "markup", as we
@@ -873,8 +876,7 @@ class WeedModel:
                     transpose_image_channels=True,
                     transpose_color_channels=False,
                     resize_image=False,
-                    resize_height=(256),
-                    mask_alpha=0.5):
+                    resize_height=(256)):
         """ show image, sample/groundtruth, model predictions, outcomes
         (TP/FP/etc) """
         # TODO rename "show" to something like "create_plot" or "markup", as we
@@ -882,12 +884,16 @@ class WeedModel:
         # the same format it was input into the model
 
         # set plotting parameters
-        gt_box_thick = 12   # groundtruth bounding box
-        dt_box_thick = 6    # detection bounding box
-        out_box_thick = 3   # outcome bounding box/overlay
-        font_scale = 2 # font scale should be function of image size
-        font_thick = 2
+        gt_box_thick = 6   # groundtruth bounding box
+        dt_box_thick = 3    # detection bounding box
+        out_box_thick = 2   # outcome bounding box/overlay
+        font_scale = 1 # TODO font scale should be function of image size
+        font_thick = 1
+        sample_mask_color = [0, 0, 255] # RGB
+        sample_mask_alpha = 0.25
 
+        pred_mask_color = [255, 0, 0] # RGB
+        pred_mask_alpha = 0.25
 
         if transpose_color_channels:
             # image tensor comes in as [color channels, length, width] format
@@ -924,26 +930,25 @@ class WeedModel:
             if len(mask) > 0:  # probably not necessary - "if there is a mask"
                 # mask = mask[(2, 0, 1), :, :] # mask is binary
                 mask = mask.cpu().numpy()
-                mask = np.transpose(mask, )
                 mask = np.transpose(mask, (1, 2, 0))
                 # image_overlay = image_out.copy()
                 # make mask a coloured image, as opposed to a binary thing
-                mask = cv.cvtColor(mask, cv.COLOR_GRAY2BGR)
-                mask2 = mask
-                mask_color = [255, 0, 0]
-                mask2[:,:,0] = mask[:,:,0] * mask_color[0] # BGR
-                mask2[:,:,1] = mask[:,:,1] * mask_color[1] # BGR
-                mask2[:,:,2] = mask[:,:,2] * mask_color[2] # BGR
-                mask_alpha = 0.5
-                import code
-                code.interact(local=dict(globals(), **locals()))
-                image_out2 = cv.addWeighted(mask2, mask_alpha, image_out, 1-mask_alpha, 0)
+                mask2 = cv.cvtColor(mask, cv.COLOR_GRAY2BGR)
+
+                mask2[:,:,0] = mask2[:,:,0] * sample_mask_color[0] # BGR
+                mask2[:,:,1] = mask2[:,:,1] * sample_mask_color[1] # BGR
+                mask2[:,:,2] = mask2[:,:,2] * sample_mask_color[2] # BGR
+                # import code
+                # code.interact(local=dict(globals(), **locals()))
+                image_out = cv.addWeighted(src1=mask2,
+                                           alpha=sample_mask_alpha,
+                                           src2=image_out,
+                                           beta=1-sample_mask_alpha,
+                                           gamma=0)
                 # cv.addWeighted(mask, mask_alpha, )
 
-                plt.imshow(image_out2)
-                plt.show()
-                import code
-                code.interact(local=dict(globals(), **locals()))
+                # plt.imshow(image_out2)
+                # plt.show()
 
 
         # ----------------------------------- #
@@ -951,6 +956,7 @@ class WeedModel:
         if predictions is not None:
             boxes_pd = predictions['boxes']
             scores = predictions['scores']
+            masks = predictions['masks']
 
             if len(boxes_pd) > 0:
                 for i in range(len(boxes_pd)):
@@ -971,6 +977,30 @@ class WeedModel:
                                color=predictions_color,
                                thickness=font_thick)
 
+            if len(masks) > 0:
+                for i in range(len(masks)):
+                    mask = masks[i]
+                    mask = np.transpose(mask, (1, 2, 0))
+
+                    mask2 = cv.cvtColor(mask, cv.COLOR_GRAY2BGR)
+                    mask2[:,:,0] = mask2[:,:,0] * pred_mask_color[0] # BGR
+                    mask2[:,:,1] = mask2[:,:,1] * pred_mask_color[1] # BGR
+                    mask2[:,:,2] = mask2[:,:,2] * pred_mask_color[2] # BGR
+                    mask2 = mask2.astype(np.uint8)
+
+                    # import code
+                    # code.interact(local=dict(globals(), **locals()))
+                    image_out = cv.addWeighted(src1=mask2,
+                                                alpha=pred_mask_alpha,
+                                                src2=image_out,
+                                                beta=1-pred_mask_alpha,
+                                                gamma=0)
+                    # import code
+                    # code.interact(local=dict(globals(), **locals()))
+
+                    # masks already a numpy array, float32
+                    # TODO just show mask
+                    # THEN show overlay of predicted mask (red)
         # ----------------------------------- #
         # third, add iou info (within the predicitons if statement)
             if outcomes is not None:
@@ -1076,7 +1106,8 @@ class WeedModel:
                     imsave=False,
                     image_name=None,
                     conf_thresh=0.5,
-                    iou_thresh=0.5):
+                    iou_thresh=0.5,
+                    annotation_type='poly'):
         """ do inference on a single image """
         # assume image comes in as a tensor for now (eg, from image, sample in
         # dataset)
@@ -1100,9 +1131,14 @@ class WeedModel:
 
 
             if imsave or imshow:
-                image_out = self.show_mask(image,
-                                    sample=sample,
-                                    predictions=pred)
+                if annotation_type == 'poly':
+                    image_out = self.show_mask(image,
+                                                sample=sample,
+                                                predictions=pred)
+                else:
+                    image_out = self.show(image,
+                                          sample=sample,
+                                          predictions=pred)
             if imsave:
                 save_folder = os.path.join('output', self._model_folder)
                 os.makedirs(save_folder, exist_ok=True)
