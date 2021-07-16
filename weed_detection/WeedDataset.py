@@ -39,7 +39,7 @@ class WeedDataset(object):
         self.root_dir = root_dir
         self.transforms = transforms
 
-        
+
         if img_dir is not None:
             self.img_dir = img_dir
         else:
@@ -75,7 +75,7 @@ class WeedDataset(object):
         # # convert PIL image to np array
         # mask = np.array(mask)
 
-        # instances are encoded as different colors 
+        # instances are encoded as different colors
         # obj_ids = np.unique(mask)
         # first id is the background, so remove it
         # obj_ids = obj_ids[1:]
@@ -165,11 +165,6 @@ class WeedDataset(object):
         # TODO assert for valid input
         # tforms must be callable and operate on an image
         self.transforms = tforms
-
-
-
-
-
 
 
 

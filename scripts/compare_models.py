@@ -21,8 +21,8 @@ WeedTemp = WM()
 #                  'Tussock_v3_neg_test',
 #                  'Tussock_v3_neg_train_test']
 
-dataset_names = ['Tussock_v2',
-                 'Tussock_v2']
+dataset_names = ['Tussock_v3_neg_train_test',
+                 'Tussock_v3_neg_train_test']
                 #  'Tussock_v3_neg_train
 
 # set the thresholds
@@ -35,13 +35,19 @@ confidence_thresh = np.array(confidence_thresh, ndmin=1)
 
 
 # provide a list of model names:
-model_names = ['Tussock_v2 epoch 100',
-               'Tussock_v2 epoch 20']
+# model_names = ['Tussock_v2 epoch 100',
+#                'Tussock_v2 epoch 20']
             #    'Tussock_v3_neg_train_test']
+model_names = ['Tussock_v3_neg_train_test',
+               'Tussock_v3_neg_train_test']
 
 # where to store the results
 model_folders = [dataset_names[0],
                  dataset_names[1]]
+
+dataset_object_names = ['Tussock_v3_neg_train_test_shortgrass',
+                        'Tussock_v3_neg_train_test_longgrass']
+legend_names = ['short grass', 'long grass']
 
 # iterate for each model_name:
 
@@ -50,18 +56,22 @@ WeedModelList = []
 i = 0
 for name in model_names:
 
-    dataset_file = os.path.join('dataset_objects', dataset_names[i], dataset_names[i] + '.pkl')
+    # dataset_file = os.path.join('dataset_objects', dataset_names[i], dataset_names[i] + '.pkl')
+    dataset_file = os.path.join('dataset_objects', dataset_object_names[i], dataset_object_names[i] + '.pkl')
     dso = WeedTemp.load_dataset_objects(dataset_file)
 
     WeedModel = WM(model_name=name, model_folder=model_folders[i])
     save_model_path = os.path.join('output', model_folders[i], model_folders[i] + '.pth')
-    WeedModel.load_model(save_model_path)
+    WeedModel.load_model(save_model_path, annotation_type='box')
     WeedModel.set_model_name(name)
     WeedModel.set_model_path(save_model_path)
 
     # TEMP changing epoch for "early stopping"
-    if i == 1:
-        WeedModel.set_snapshot(20)
+    # if i == 1:
+    #     WeedModel.set_snapshot(20)
+
+    # import code
+    # code.interact(local=dict(globals(), **locals()))
 
     save_prcurve_folder = os.path.join('output', name, 'prcurve')
     res = WeedModel.get_prcurve(dso['ds_test'],
@@ -69,7 +79,8 @@ for name in model_names:
                                 nms_iou_thresh=nms_iou_thresh,
                                 decision_iou_thresh=decision_iou_thresh,
                                 save_folder=save_prcurve_folder,
-                                imsave=True)
+                                imsave=True,
+                                annotation_type='box')
 
     results.append(res)
     WeedModelList.append(WeedModel)
@@ -91,7 +102,8 @@ for i, r in enumerate(results):
     f1score = r['f1score']
     c = r['confidence']
 
-    m_str = 'm={}, ap={:.2f}'.format(model_names[i], ap)
+    # m_str = 'm={}, ap={:.2f}'.format(model_names[i], ap)
+    m_str = 'm={}, ap={:.2f}'.format(legend_names[i], ap)
     ax.plot(rec, prec, label=m_str)
     ap_list.append(ap)
 
@@ -100,7 +112,7 @@ plt.xlabel('recall')
 plt.ylabel('precision')
 plt.title('model comparison: PR curve')
 
-mdl_names_str = "".join(model_names)
+mdl_names_str = "".join(legend_names)
 save_plot_name = os.path.join('output', 'model_compare_' +  mdl_names_str + '.png')
 plt.savefig((save_plot_name))
 if IMSHOW:
@@ -109,6 +121,7 @@ if IMSHOW:
 print('model comparison complete')
 for i, m in enumerate(model_names):
     print(str(i) + ' model: ' + m)
+    print(str(i) + ' name: ' + legend_names[i])
 
 # TODO add runtime notes?
 

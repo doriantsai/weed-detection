@@ -6,6 +6,7 @@ functionality, such as training, inference, evaluation
 """
 
 import os
+from jedi.inference.gradual import annotation
 # from weed_detection.WeedDatasetPoly import WeedDatasetPoly
 
 import torch
@@ -209,20 +210,26 @@ class WeedModel:
                                 transforms,
                                 hp,
                                 annotation_type='poly',
-                                mask_dir=None):
+                                mask_dir=None,
+                                img_dir=None):
         # assume tforms already defined outside of this function
         batch_size = hp['batch_size']
         num_workers = hp['num_workers']
         shuffle= hp['shuffle']
+        if img_dir is None:
+            img_dir = root_dir
 
         if annotation_type == 'poly':
             dataset = WDP.WeedDatasetPoly(root_dir,
                                       json_file,
                                       transforms,
-                                      img_dir=root_dir,
+                                      img_dir=img_dir,
                                       mask_dir=mask_dir)
         else:
-            dataset = WD.WeedDataset(root_dir, json_file, transforms)
+            dataset = WD.WeedDataset(root_dir,
+                                     json_file,
+                                     transforms,
+                                     img_dir=img_dir)
 
         # setup dataloaders for efficient access to datasets
         dataloader = torch.utils.data.DataLoader(dataset,
@@ -284,6 +291,8 @@ class WeedModel:
             tform_test = WDP.Compose([WDP.Rescale(rescale_size),
                             WDP.ToTensor()])
         else:
+            # import code
+            # code.interact(local=dict(globals(), **locals()))
             tform_train = WD.Compose([WD.Rescale(rescale_size),
                             WD.RandomBlur(5, (0.5, 2.0)),
                             WD.RandomHorizontalFlip(0.5),
@@ -594,7 +603,8 @@ class WeedModel:
     def get_predictions_image(self,
                               image,
                               conf_thresh,
-                              nms_iou_thresh):
+                              nms_iou_thresh,
+                              annotation_type='poly'):
         """ take in model, single image, thresholds, return bbox predictions for
         scores > threshold """
 
@@ -620,7 +630,8 @@ class WeedModel:
         pred_boxes = [[bb[0], bb[1], bb[2], bb[3]] for bb in list(pred[0]['boxes'][keep].detach().cpu().numpy())]
         # scores are ordered from highest to lowest
         pred_score = list(pred[0]['scores'][keep].detach().cpu().numpy())
-        pred_masks = list(pred[0]['masks'][keep].detach().cpu().numpy())
+        if annotation_type == 'poly':
+            pred_masks = list(pred[0]['masks'][keep].detach().cpu().numpy())
 
 
         # package
@@ -628,23 +639,25 @@ class WeedModel:
         pred_final['boxes'] = pred_boxes
         pred_final['classes'] = pred_class
         pred_final['scores'] = pred_score
-        pred_final['masks'] = pred_masks
+        if annotation_type == 'poly':
+            pred_final['masks'] = pred_masks
 
         # apply confidence threshold
-        pred_final = self.threshold_predictions(pred_final, conf_thresh)
+        pred_final = self.threshold_predictions(pred_final, conf_thresh, annotation_type)
 
         # import code
         # code.interact(local=dict(globals(), **locals()))
         return pred_final
 
 
-    def threshold_predictions(self, pred, thresh):
+    def threshold_predictions(self, pred, thresh, annotation_type='poly'):
         """ apply confidence threshold to predictions """
 
         pred_boxes = pred['boxes']
         pred_class = pred['classes']
         pred_score = pred['scores']
-        pred_masks = pred['masks']
+        if annotation_type == 'poly':
+            pred_masks = pred['masks']
 
         if len(pred_score) > 0:
             if max(pred_score) < thresh: # none of pred_score > thresh, then return empty
@@ -652,25 +665,29 @@ class WeedModel:
                 pred_boxes = []
                 pred_class = []
                 pred_score = []
-                pred_masks = []
+                if annotation_type == 'poly':
+                    pred_masks = []
             else:
                 pred_thresh = [pred_score.index(x) for x in pred_score if x > thresh][-1]
                 pred_boxes = pred_boxes[:pred_thresh+1]
                 pred_class = pred_class[:pred_thresh+1]
                 pred_score = pred_score[:pred_thresh+1]
-                pred_masks = pred_masks[:pred_thresh+1]
+                if annotation_type == 'poly':
+                    pred_masks = pred_masks[:pred_thresh+1]
         else:
             pred_thresh = []
             pred_boxes = []
             pred_class = []
             pred_score = []
-            pred_masks = []
+            if annotation_type == 'poly':
+                pred_masks = []
 
         predictions = {}
         predictions['boxes'] = pred_boxes
         predictions['classes'] = pred_class
         predictions['scores'] = pred_score
-        predictions['masks'] = pred_masks
+        if annotation_type == 'poly':
+            predictions['masks'] = pred_masks
 
         return predictions
 
@@ -926,26 +943,29 @@ class WeedModel:
                                             (int(bb[2]), int(bb[3])),
                                             color=sample_color,
                                             thickness=gt_box_thick)
-            mask = sample['masks']
-            if len(mask) > 0:  # probably not necessary - "if there is a mask"
+            masks = sample['masks']
+            if len(masks) > 0:  # probably not necessary - "if there is a mask"
                 # mask = mask[(2, 0, 1), :, :] # mask is binary
-                mask = mask.cpu().numpy()
-                mask = np.transpose(mask, (1, 2, 0))
-                # image_overlay = image_out.copy()
-                # make mask a coloured image, as opposed to a binary thing
-                mask2 = cv.cvtColor(mask, cv.COLOR_GRAY2BGR)
+                for i in range(len(masks)):
+                    mask = masks[i]
+                    mask = mask.cpu().numpy()
+                    # import code
+                    # code.interact(local=dict(globals(), **locals()))
+                    # mask = np.transpose(mask, (1, 2, 0))
+                    # image_overlay = image_out.copy()
+                    # make mask a coloured image, as opposed to a binary thing
+                    mask2 = cv.cvtColor(mask, cv.COLOR_GRAY2BGR)
 
-                mask2[:,:,0] = mask2[:,:,0] * sample_mask_color[0] # BGR
-                mask2[:,:,1] = mask2[:,:,1] * sample_mask_color[1] # BGR
-                mask2[:,:,2] = mask2[:,:,2] * sample_mask_color[2] # BGR
-                # import code
-                # code.interact(local=dict(globals(), **locals()))
-                image_out = cv.addWeighted(src1=mask2,
-                                           alpha=sample_mask_alpha,
-                                           src2=image_out,
-                                           beta=1-sample_mask_alpha,
-                                           gamma=0)
-                # cv.addWeighted(mask, mask_alpha, )
+                    mask2[:,:,0] = mask2[:,:,0] * sample_mask_color[0] # BGR
+                    mask2[:,:,1] = mask2[:,:,1] * sample_mask_color[1] # BGR
+                    mask2[:,:,2] = mask2[:,:,2] * sample_mask_color[2] # BGR
+                    # import code
+                    # code.interact(local=dict(globals(), **locals()))
+                    image_out = cv.addWeighted(src1=mask2,
+                                            alpha=sample_mask_alpha,
+                                            src2=image_out,
+                                            beta=1-sample_mask_alpha,
+                                            gamma=0)
 
                 # plt.imshow(image_out2)
                 # plt.show()
@@ -1124,7 +1144,7 @@ class WeedModel:
             if image_name is None:
                 image_name = self._model_name + '_image'
             # start_time = time.time()
-            pred = self.get_predictions_image(image, conf_thresh, iou_thresh)
+            pred = self.get_predictions_image(image, conf_thresh, iou_thresh, annotation_type)
             # end_time = time.time()
             # time_infer = end_time - start_time
             # print(f'time to infer: {time_infer}')
@@ -1161,7 +1181,8 @@ class WeedModel:
                       imshow=False,
                       imsave=False,
                       wait_time=1000,
-                      image_name_suffix=None):
+                      image_name_suffix=None,
+                      annotation_type='poly'):
         """ do inference on entire dataset """
         with torch.no_grad():
             self._model.to(self._device)
@@ -1184,8 +1205,15 @@ class WeedModel:
 
                 pred = self.get_predictions_image(image,
                                                 conf_thresh,
-                                                iou_thresh)
-                image_out = self.show(image, sample=sample, predictions=pred)
+                                                iou_thresh,
+                                                annotation_type)
+
+                if annotation_type == 'poly':
+                    image_out = self.show_mask(image,
+                                                sample=sample,
+                                                predictions=pred)
+                else:
+                    image_out = self.show(image, sample=sample, predictions=pred)
 
                 if imsave:
                     if image_name_suffix is None:
@@ -1215,7 +1243,8 @@ class WeedModel:
                     MAX_FRAMES=1000,
                     vidshow=True,
                     conf_thresh=0.5,
-                    iou_thresh=0.5):
+                    iou_thresh=0.5,
+                    annotation_type='poly'):
         """ video inference from a webcam defined by capture (see opencv video
         capture object) """
 
@@ -1275,7 +1304,7 @@ class WeedModel:
                 frame.to(self._device)
 
                 # model inference
-                pred = self.get_predictions_image(frame, conf_thresh, iou_thresh)
+                pred = self.get_predictions_image(frame, conf_thresh, iou_thresh, annotation_type)
                 frame_out = self.show(frame, predictions=pred)
 
                 # write image to video
@@ -1527,7 +1556,7 @@ class WeedModel:
 
             # get predictions
             pred = predictions[idx]
-            pred = self.threshold_predictions(pred, DECISION_CONF_THRESH)
+            pred = self.threshold_predictions(pred, DECISION_CONF_THRESH, annotation_type='box')
 
             outcomes = self.compute_outcome_image(pred,
                                                   sample,
@@ -1758,7 +1787,8 @@ class WeedModel:
                     save_folder,
                     imshow=False,
                     imsave=False,
-                    PLOT=False):
+                    PLOT=False,
+                    annotation_type='poly'):
         """ get complete/smoothed pr curve for entire dataset """
         # infer on 0-decision threshold iterate over diff thresholds extend_pr
         # compute_ap save output
@@ -1771,7 +1801,8 @@ class WeedModel:
                                         save_subfolder=os.path.join('prcurve', 'detections'),
                                         imshow=imshow,
                                         imsave=imsave,
-                                        image_name_suffix='_prcurve_0')
+                                        image_name_suffix='_prcurve_0',
+                                        annotation_type=annotation_type)
 
 
 

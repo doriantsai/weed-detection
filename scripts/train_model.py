@@ -18,7 +18,8 @@ Tussock = WM()
 # dataset_name = 'Tussock_v3_neg_test'
 # dataset_name = 'Tussock_v2'
 # dataset_name = 'Tussock_v3_augment'
-dataset_name = 'Tussock_v0_mini'
+# dataset_name = 'Tussock_v0_mini'
+dataset_name = 'Tussock_v4_poly286'
 dataset_file = os.path.join('dataset_objects', dataset_name, dataset_name + '.pkl')
 
 # call WM.train
