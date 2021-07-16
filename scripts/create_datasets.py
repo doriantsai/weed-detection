@@ -10,15 +10,17 @@ import weed_detection.WeedModel as WeedModel
 
 # NOTE: copied/pasted output from PPT.split_iamge_data()
 # dataset_name = 'Tussock_v3_augment'
-dataset_name = 'Tussock_v0_mini'
-# dataset_name = 'Tussock_v3_neg_train_test'
+# dataset_name = 'Tussock_v0_mini'
+dataset_name = 'Tussock_v3_neg_train_test'
+# dataset_name = 'Tussock_v4_poly286'
+
 root_dir = os.path.join('/home',
                         'dorian',
                         'Data',
                         'AOS_TussockDataset',
                         dataset_name)
 img_folders = [os.path.join(root_dir, 'Images','Train'),
-               os.path.join(root_dir, 'Images', 'Test'),
+               os.path.join(root_dir, 'Images', 'Test_ShortGrass'),
                os.path.join(root_dir, 'Images', 'Validation')]
 
 mask_dir = os.path.join(root_dir, 'Masks')
@@ -33,19 +35,19 @@ all_mask_dir = os.path.join(mask_dir, 'All')
 #             os.path.join(root_dir, 'Annotations', 'annotations_tussock_21032526_G507_val.json')]
 
 ann_files = [os.path.join(root_dir, 'Annotations', 'annotations_tussock_21032526_G507_train.json'),
-            os.path.join(root_dir, 'Annotations', 'annotations_tussock_21032526_G507_test.json'),
+            os.path.join(root_dir, 'Annotations', 'annotations_tussock_21032526_G507_test_shortgrass.json'),
             os.path.join(root_dir, 'Annotations', 'annotations_tussock_21032526_G507_val.json')]
 
 # set hyper parameters of dataset
 batch_size = 10
 num_workers = 10
-learning_rate = 0.005
-momentum = 0.9
+learning_rate = 0.005 # 0.002
+momentum = 0.9 # 0.8
 weight_decay = 0.0001
 num_epochs = 50
 step_size = round(num_epochs / 2)
 shuffle = True
-rescale_size = int(256)
+rescale_size = int(1024)
 
 # make a hyperparameter dictionary
 hp={}
@@ -68,11 +70,12 @@ hp_test['shuffle'] = False
 # init object
 Tussock = WeedModel()
 # save all datasets/dataloaders in a .pkl file
+dataset_name_save = dataset_name + '_shortgrass'
 dataset_path = Tussock.create_train_test_val_datasets(img_folders,
                                                       ann_files,
                                                       hp,
-                                                      dataset_name,
-                                                      annotation_type='poly',
+                                                      dataset_name_save,
+                                                      annotation_type='box',
                                                       mask_folders=mask_folders)
 
 # TODO open pkl file and confirm that datasets match image length, but some are

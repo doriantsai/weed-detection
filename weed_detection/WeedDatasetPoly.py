@@ -91,6 +91,8 @@ class WeedDatasetPoly(object):
         # NOTE unsure if this will work as intended
         masks = mask == obj_ids[:, None, None]
 
+
+
         # get bounding boxes for each object
         nobj = len(obj_ids)
 
@@ -134,6 +136,7 @@ class WeedDatasetPoly(object):
             boxes = torch.as_tensor(boxes, dtype=torch.float64)
 
         masks = torch.as_tensor(masks, dtype=torch.uint8)
+
 
         # compute area
         if nobj == 0:
@@ -181,11 +184,6 @@ class WeedDatasetPoly(object):
         # TODO assert for valid input
         # tforms must be callable and operate on an image
         self.transforms = tforms
-
-
-
-
-
 
 
 

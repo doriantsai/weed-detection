@@ -34,7 +34,8 @@ Tussock = WM()
 
 # load model
 # model_name = 'tussock_test_2021-05-16_16_13'
-model_name = 'Tussock_v0_mini_2021-06-14_13_25'
+# model_name = 'Tussock_v0_mini_2021-06-14_13_25'
+model_name = 'Tussock_v4_poly286_2021-07-14_10_24'
 save_model_path = os.path.join('output',
                                model_name,
                                model_name + '.pth')
@@ -42,6 +43,7 @@ Tussock.load_model(save_model_path)
 Tussock.set_model_name(model_name)
 Tussock.set_model_path(save_model_path)
 Tussock.set_model_folder(model_name)
+Tussock.set_snapshot(15)
 
 
 
@@ -75,7 +77,7 @@ for i in range(bs):
                                           sample=sample,
                                           imshow=False,
                                           imsave=True,
-                                          conf_thresh=0.16)
+                                          conf_thresh=0.2)
     print('{}: {}'.format(i, image_id))
     print('   pred = {}'.format(pred))
     end_time = time.time()

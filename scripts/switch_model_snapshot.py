@@ -14,17 +14,20 @@ from weed_detection.WeedModel import WeedModel as WM
 # call object/function
 
 Tussock = WM()
-model_name = 'tussock_test_2021-05-16_16_13'
+# model_name = 'tussock_test_2021-05-16_16_13'
+model_name = 'Tussock_v4_poly286_2021-07-14_10_24'
 save_model_path = os.path.join('output',
                                model_name,
                                model_name + '.pth')
 Tussock.load_model(save_model_path)
 Tussock.set_model_name(model_name)
+Tussock.set_model_folder(model_name)
 Tussock.set_model_path(save_model_path)
-Tussock.set_model_epoch(100)
+# Tussock.set_model_epoch(100)
 
 print('old model path = {}'.format(Tussock.get_model_path()))
-epoch = 60
+# epoch = 60
+epoch = 15
 Tussock.set_snapshot(epoch)
 print('new model path = {}'.format(Tussock.get_model_path()))
 print(Tussock.get_model_epoch())
