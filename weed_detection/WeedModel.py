@@ -882,6 +882,37 @@ class WeedModel:
                                   interpolation=cv.INTER_CUBIC)
         return image_out
 
+    def binarize_confidence_mask(self, img_gray, threshold):
+        """ given confidence mask, apply threshold to turn mask into binary image, return binary image and contour"""
+        # input mask ranging from 0 to 1, assume mask is a tensor? operation is trivial if numpy array
+        # lets first assume a numpy array
+        if type(img_gray) is np.ndarray:
+
+            # do binary conversion
+            # binmask = mask > threshold
+            import code
+            code.interact(local=dict(globals(), **locals()))
+            ret, mask_bin = cv.threshold(img_gray,
+                                        threshold,
+                                        maxval=1.0,
+                                        type=cv.THRESH_BINARY)
+
+            # TODO morph
+            # do morphological operations on mask to smooth it out?
+            # minor erosion then dilation by the same amount
+
+            # find bounding polygon of binary image
+            # convert images to cv_8u
+            contours, hierarchy = cv.findContours(mask_bin.astype(np.uint8), cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
+
+            # TODO this iterates, so need to stack these somehow (probably as list?)
+            # not sure about stacking the images
+        else:
+            print('mask type not ndarray')
+
+        return mask_bin, contours, hierarchy
+
+
     def show_mask(self,
                     image,
                     sample=None,
