@@ -3,9 +3,6 @@
 # manyweeds.py
 # script to show how many weed images are necessary
 
-
-#! /usr/bin/env python
-
 # conversion to script from early notebook exploration
 
 from __future__ import print_function, division
@@ -40,13 +37,13 @@ torch.manual_seed(42)
 
 ########### classes #############
 CLASSES = (0, 1, 2, 3, 4, 5, 6, 7)
-CLASS_NAMES = ('Chinee apple', 
-                'Lantana', 
-                'Parkinsonia', 
+CLASS_NAMES = ('Chinee apple',
+                'Lantana',
+                'Parkinsonia',
                 'Parthenium',
-                'Prickly acacia', 
-                'Rubber vine', 
-                'Siam weed', 
+                'Prickly acacia',
+                'Rubber vine',
+                'Siam weed',
                 'Snake weed')
 CLASS_DICT = {i: CLASS_NAMES[i] for i in range(0, len(CLASSES))}
 
@@ -103,7 +100,7 @@ class Rescale(object):
                 new_h, new_w = self.output_size, self.output_size * w / h
         else:
             new_h, new_w = self.output_size
-        
+
         new_h, new_w = int(new_h), int(new_w)
 
         # do the transform
@@ -123,7 +120,7 @@ class RandomCrop(object):
         else:
             assert len(output_size) == 2
             self.output_size = output_size
-        
+
     def __call__(self, sample):
         # unpack the dictionary
         # get h,w
@@ -143,7 +140,7 @@ class RandomCrop(object):
 
 class ToTensor(object):
     """ convert ndarray to sample in Tensors """
-    
+
     def __call__(self, sample):
         image, label = sample['image'], sample['label']
 
@@ -187,7 +184,7 @@ def show_weeds_batch(sample_batched):
 
     grid = utils.make_grid(images_batch)
     plt.imshow(grid.numpy().transpose((1, 2, 0)))
-    
+
     # print(weed_names_batch)
     # annotate with weed names:
     for i in range(bs):
@@ -240,7 +237,7 @@ def plot_classes_preds(net, images, labels):
         nimgwidth = 4
     else:
         nimgwidth = nimgs
-    
+
     # plot the images in the batch, along with predicted and true labels
     fig = plt.figure(figsize=(12, 4))
     for idx in np.arange(nimgwidth):
@@ -273,17 +270,17 @@ def plot_classes_preds(net, images, labels):
 #             plt.annotate(CLASS_DICT[labels[i]], xy=(x, y), color=(1, 0, 0))
 #         if predictions:
 #             plt.annotate(CLASS_DICT[predictions[i]], xy = (x, y * 2), color=(0, 1, 0))
-    
+
 #     plt.title('batch from dataloader')
 
 
-def train_model(model, 
-                train_dl, 
-                valid_dl, 
-                loss_fn, 
-                optimizer, 
-                acc_fn, 
-                num_epochs=1, 
+def train_model(model,
+                train_dl,
+                valid_dl,
+                loss_fn,
+                optimizer,
+                acc_fn,
+                num_epochs=1,
                 save_path='manyweeds_train.pth',
                 train_size=None,
                 val_size=None,
@@ -297,7 +294,7 @@ def train_model(model,
 
     if train_size is None:
         train_size = len(train_dl) * train_dl.batch_size  # a very rough approximation, but should hit the right ballpark
-    
+
     if val_size is None:
         val_size = len(valid_dl) * valid_dl.batch_size
 
@@ -310,7 +307,7 @@ def train_model(model,
 
     # report progress to Tensorboard (use 'tensorboard --logdir=runs' in terminal)
     if expname is None:
-        now = str(datetime.datetime.now())        
+        now = str(datetime.datetime.now())
         expname = now[0:10] + '_' + now[11:13] + '-' + now[14:16] + '-Run'
     writer = SummaryWriter(os.path.join('runs', expname))
 
@@ -326,7 +323,7 @@ def train_model(model,
         # first we are in training phase, then we are in validation phase
         # for phase in ['train', 'validate']:
         for phase in ['train']:
-            
+
             # not sure why this doesn't work!
             # if (not (epoch % 50 == 49)) and (phase == 'validate'):
             #     # only do the validation every 50 epochs to save on compute
@@ -341,22 +338,22 @@ def train_model(model,
                 # model.train(False)
                 model.eval()
                 dataloader = valid_dl
-        
+
             running_loss = 0.0
             running_acc = 0.0
 
             for step, sample_batch in enumerate(dataloader):
                 # note: output from dataloader is all converted to tensors, I believe
                 imgs, lbls = sample_batch['image'].float(), sample_batch['label']
-            
+
                 # We move our tensor to the GPU if available
                 if torch.cuda.is_available():
                     imgs = imgs.to(device)
                     lbls = lbls.to(device)
 
-                # the backward pass frees the graph memory, so there is no 
+                # the backward pass frees the graph memory, so there is no
                 # need for torch.no_grad in this training pass
-            
+
                 if phase == 'train':
                     # zero the parameter gradients
                     optimizer.zero_grad()
@@ -381,7 +378,7 @@ def train_model(model,
 
             epoch_loss = running_loss / len(dataloader.dataset)
             # epoch_acc = running_acc / len(dataloader.dataset)
-        
+
 
             # print('{} Loss: {:.4f} Acc: {}'.format(phase, epoch_loss, epoch_acc))
             print('{} Loss: {:.4f}'.format(phase, epoch_loss))
@@ -399,17 +396,17 @@ def train_model(model,
 
         if (epoch % acc_step_size) == (acc_step_size - 1):
             # run an accuracy/evaluate model every 50 epochs:
-            
+
             model.eval()
             dataloader = valid_dl
             running_loss_val = 0.0
             running_acc = 0.0
-            
+
 
             for step, sample_batch in enumerate(dataloader):
                 # note: output from dataloader is all converted to tensors, I believe
                 imgs, lbls = sample_batch['image'].float(), sample_batch['label']
-            
+
                 # We move our tensor to the GPU if available
                 if torch.cuda.is_available():
                     imgs = imgs.to(device)
@@ -420,7 +417,7 @@ def train_model(model,
                     outputs = model(imgs)
                     loss = loss_fn(outputs, lbls.long())
 
-                # stats 
+                # stats
                 acc = acc_fn(outputs, lbls)
                 running_acc += acc * dataloader.batch_size
                 running_loss_val += loss * dataloader.batch_size
@@ -434,7 +431,7 @@ def train_model(model,
             sample_batch = next(iter(dataloader))
 
             # import code
-            # code.interact(local=dict(globals(), **locals())) 
+            # code.interact(local=dict(globals(), **locals()))
 
             imgs, lbls = sample_batch['image'].float(), sample_batch['label']
             if torch.cuda.is_available():
@@ -445,9 +442,9 @@ def train_model(model,
 
 
     time_elapsed = time.time() - start
-    print('Training complete in {:.0f}m {:.0f}s'.format(time_elapsed // 60, time_elapsed % 60))    
-    
-    
+    print('Training complete in {:.0f}m {:.0f}s'.format(time_elapsed // 60, time_elapsed % 60))
+
+
     writer.close()
 
     print('saving model')
@@ -462,7 +459,7 @@ def acc_metric(outputs, labels):
     # print(device)
     if torch.cuda.is_available():
         labels.to(device)
-    
+
     _, predicted = torch.max(outputs, 1)
 
     return (predicted == labels).float().mean()
@@ -481,13 +478,13 @@ if __name__ == "__main__":
     # save results
     # test on whole dataset
     # print final things
-    
+
 
     # folder settings
     model_folder = './models'
     images_folder = './nonnegative_images'
     labels_folder = './labels'
-    save_path = './saved_model/testtraining/deepweeds_resnet50_train0.pth'
+    # save_path = './saved_model/testtraining/deepweeds_resnet50_train0.pth'
 
     # read labels
     labels_file = os.path.join(labels_folder, 'nonnegative_labels.csv')
@@ -535,7 +532,7 @@ if __name__ == "__main__":
                                     root_dir=images_folder,
                                     transform=tforms)
     nimg = len(full_dataset)
-    print('full_dataset length =', nimg)     
+    print('full_dataset length =', nimg)
 
     # edit the dataset - remove the negative class:
     # go through the csv file, make a new csv file with no labels from the negative class
@@ -545,16 +542,16 @@ if __name__ == "__main__":
 
     # use random_split to break up train/val/test sets
     # then further use random_split to break train into smaller and smaller sets
-    
+
 
     # first, take the largest training size, and split it into training and testing:
     # choose ratio of 80/20 % for training/testing
-    
+
     ntrain = round(nimg * train_test_split)
 
     train_dataset, test_dataset = torch.utils.data.random_split(full_dataset, [ntrain, nimg - ntrain])
-    
-    
+
+
 
     # now we split up the original train_dataset into subdatasets
     # each needs their training and validation datasets
@@ -565,9 +562,9 @@ if __name__ == "__main__":
     val_dataloader_list = []
     for i, ts in enumerate(train_sizes):
         # first, we need to split the original train_dataset into train_sizes[i]
-        tsd = torch.utils.data.random_split(train_dataset, 
+        tsd = torch.utils.data.random_split(train_dataset,
                                             [train_sizes[i], len(train_dataset) - train_sizes[i]])[0]
- 
+
         nt = round(train_sizes[i] * train_val_split)
         nv = train_sizes[i] - nt
         print(len(train_dataset))
@@ -580,7 +577,7 @@ if __name__ == "__main__":
         val_dataset_list.append(vd)
 
         # make dataloaders for each dataset
-        tdl = DataLoader(td, 
+        tdl = DataLoader(td,
                          batch_size=batch_size,
                          shuffle=True,
                          num_workers=num_workers)
@@ -596,7 +593,7 @@ if __name__ == "__main__":
     test_loader = DataLoader(test_dataset,
                             batch_size=batch_size,
                             shuffle=shuffle,
-                            num_workers=num_workers)  
+                            num_workers=num_workers)
     print('test_dataset length =', len(test_dataset))
 
     # code to iterate through dataset samples
@@ -607,7 +604,7 @@ if __name__ == "__main__":
     #     print(type(img))
     #     print(type(lbl))
     #     print()
-        
+
     #     if i == 3:
     #         break
 
@@ -633,7 +630,7 @@ if __name__ == "__main__":
     # short_model= nn.Sequential(*(list(original_model.children())[:-1]))
     # print(short_model)
     # classifier = nn.Sequential(OrderedDict([('fc1', nn.Linear(n_inputs, 8))]))
-    
+
     train_loss_sizes = []
     val_loss_sizes = []
     save_paths = []
@@ -657,30 +654,31 @@ if __name__ == "__main__":
             # generate save_path/name for each one
             # save_path = './saved_model/testtraining/deepweeds_resnet50_train0.pth'
             save_folder = os.path.join('saved_model','training' + str(folder_num))
-            if not os.path.isdir(save_folder):
-                os.mkdir(save_folder)
+            # if not os.path.isdir(save_folder):
+            #     os.mkdir(save_folder)
+            os.makedirs(save_folder, exist_ok=True)
             save_path = os.path.join(save_folder, 'dw_r50_s' + str(round(training_step_size/len(CLASSES))) + '_i' + str(j) + '.pth')
 
             print(save_path)
 
             # generate run name (for tensorboard)
-            now = str(datetime.datetime.now())        
+            now = str(datetime.datetime.now())
             expname = now[0:10] + '_' + now[11:13] + '-' + now[14:16] + '-' + expsuffix
             # NOTE: model saved at end of train_model using save_path
-            train_loss_i, val_loss_i = train_model(model, 
-                                                   train_dataloader_list[i], 
-                                                   val_dataloader_list[i], 
-                                                   criterion, 
-                                                   optimizer, 
-                                                   acc_metric, 
+            train_loss_i, val_loss_i = train_model(model,
+                                                   train_dataloader_list[i],
+                                                   val_dataloader_list[i],
+                                                   criterion,
+                                                   optimizer,
+                                                   acc_metric,
                                                    train_size=len(train_dataset_list[i]),
                                                    val_size=len(val_dataset_list[i]),
-                                                   num_epochs=num_epochs, 
+                                                   num_epochs=num_epochs,
                                                    save_path=save_path,
                                                    expname=expname,
                                                    acc_step_size=acc_step_size)
 
-            
+
             # evaluate model using the test set:
             model.eval()
 
@@ -700,7 +698,7 @@ if __name__ == "__main__":
             # img_grid = torchvision.utils.make_grid(images)
             # write to tensorboard
             # show_image_grid(images, labels, predicted)
-            
+
             # test entire network:
             correct = 0
             total = 0
@@ -709,7 +707,7 @@ if __name__ == "__main__":
             device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
             # print(device)
             # if torch.cuda.is_available():
-            #     model.to(device) 
+            #     model.to(device)
             # assume that model.to(device) already on the GPU from training
 
             with torch.no_grad():
@@ -731,13 +729,13 @@ if __name__ == "__main__":
             save_paths.append(save_path)
             model_acc_times.append(model_acc)
 
-            
+
             # del model
 
             # import code
-            # code.interact(local=dict(globals(), **locals()))    
+            # code.interact(local=dict(globals(), **locals()))
 
-        
+
         train_loss_sizes.append(train_loss_times)
         val_loss_sizes.append(val_loss_times)
         model_acc_sizes.append(model_acc_times)
@@ -748,7 +746,7 @@ if __name__ == "__main__":
         pickle.dump(train_loss_sizes, f)
         pickle.dump(val_loss_sizes, f)
         pickle.dump(model_acc_sizes, f)
-    
+
 
     # load model, assuming it has been saved in save_path
     # TODO put an "if it exists statement"
@@ -763,5 +761,5 @@ if __name__ == "__main__":
 
 
     import code
-    code.interact(local=dict(globals(), **locals())) 
+    code.interact(local=dict(globals(), **locals()))
 
