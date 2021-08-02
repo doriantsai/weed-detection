@@ -1,13 +1,11 @@
 #! /usr/bin/env python
 
-# manyweeds.py
+# development.py
 # script to show how many weed images are necessary
 
 # conversion to script from early notebook exploration
 
-from __future__ import print_function, division
 import os
-import sys
 import pandas as pd
 from skimage import io, transform
 
@@ -100,6 +98,7 @@ class Rescale(object):
                 new_h, new_w = self.output_size, self.output_size * w / h
         else:
             new_h, new_w = self.output_size
+
         new_h, new_w = int(new_h), int(new_w)
 
         # do the transform
@@ -119,6 +118,7 @@ class RandomCrop(object):
         else:
             assert len(output_size) == 2
             self.output_size = output_size
+
     def __call__(self, sample):
         # unpack the dictionary
         # get h,w
@@ -138,6 +138,7 @@ class RandomCrop(object):
 
 class ToTensor(object):
     """ convert ndarray to sample in Tensors """
+
     def __call__(self, sample):
         image, label = sample['image'], sample['label']
 
@@ -181,6 +182,7 @@ def show_weeds_batch(sample_batched):
 
     grid = utils.make_grid(images_batch)
     plt.imshow(grid.numpy().transpose((1, 2, 0)))
+
     # print(weed_names_batch)
     # annotate with weed names:
     for i in range(bs):
@@ -233,6 +235,7 @@ def plot_classes_preds(net, images, labels):
         nimgwidth = 4
     else:
         nimgwidth = nimgs
+
     # plot the images in the batch, along with predicted and true labels
     fig = plt.figure(figsize=(12, 4))
     for idx in np.arange(nimgwidth):
@@ -276,7 +279,7 @@ def train_model(model,
                 optimizer,
                 acc_fn,
                 num_epochs=1,
-                save_path='manyweeds_train.pth',
+                save_path='dev_train.pth',
                 train_size=None,
                 val_size=None,
                 expname=None,
@@ -289,6 +292,7 @@ def train_model(model,
 
     if train_size is None:
         train_size = len(train_dl) * train_dl.batch_size  # a very rough approximation, but should hit the right ballpark
+
     if val_size is None:
         val_size = len(valid_dl) * valid_dl.batch_size
 
@@ -317,6 +321,7 @@ def train_model(model,
         # first we are in training phase, then we are in validation phase
         # for phase in ['train', 'validate']:
         for phase in ['train']:
+
             # not sure why this doesn't work!
             # if (not (epoch % 50 == 49)) and (phase == 'validate'):
             #     # only do the validation every 50 epochs to save on compute
@@ -331,12 +336,14 @@ def train_model(model,
                 # model.train(False)
                 model.eval()
                 dataloader = valid_dl
+
             running_loss = 0.0
             running_acc = 0.0
 
             for step, sample_batch in enumerate(dataloader):
                 # note: output from dataloader is all converted to tensors, I believe
                 imgs, lbls = sample_batch['image'].float(), sample_batch['label']
+
                 # We move our tensor to the GPU if available
                 if torch.cuda.is_available():
                     imgs = imgs.to(device)
@@ -370,6 +377,7 @@ def train_model(model,
             epoch_loss = running_loss / len(dataloader.dataset)
             # epoch_acc = running_acc / len(dataloader.dataset)
 
+
             # print('{} Loss: {:.4f} Acc: {}'.format(phase, epoch_loss, epoch_acc))
             print('{} Loss: {:.4f}'.format(phase, epoch_loss))
             nImgPerClass = round((train_size + val_size) / len(CLASS_NAMES))
@@ -386,14 +394,17 @@ def train_model(model,
 
         if (epoch % acc_step_size) == (acc_step_size - 1):
             # run an accuracy/evaluate model every 50 epochs:
+
             model.eval()
             dataloader = valid_dl
             running_loss_val = 0.0
             running_acc = 0.0
 
+
             for step, sample_batch in enumerate(dataloader):
                 # note: output from dataloader is all converted to tensors, I believe
                 imgs, lbls = sample_batch['image'].float(), sample_batch['label']
+
                 # We move our tensor to the GPU if available
                 if torch.cuda.is_available():
                     imgs = imgs.to(device)
@@ -446,6 +457,7 @@ def acc_metric(outputs, labels):
     # print(device)
     if torch.cuda.is_available():
         labels.to(device)
+
     _, predicted = torch.max(outputs, 1)
 
     return (predicted == labels).float().mean()
@@ -465,6 +477,7 @@ if __name__ == "__main__":
     # test on whole dataset
     # print final things
 
+
     # folder settings
     model_folder = './models'
     images_folder = './nonnegative_images'
@@ -472,14 +485,14 @@ if __name__ == "__main__":
     # save_path = './saved_model/testtraining/deepweeds_resnet50_train0.pth'
 
     # read labels
-    labels_file = os.path.join(labels_folder, 'nonnegative_labels.csv')
+    labels_file = os.path.join(labels_folder, 'development_labels.csv')
     # labels = pd.read_csv(labels_file)
 
     # classes
     # see global?
 
     # hyperparameters
-    num_epochs = 500
+    num_epochs = 200
     learning_rate = 0.001
     momentum = 0.9
     batch_size = 10
@@ -589,6 +602,7 @@ if __name__ == "__main__":
     #     print(type(img))
     #     print(type(lbl))
     #     print()
+
     #     if i == 3:
     #         break
 
@@ -614,6 +628,7 @@ if __name__ == "__main__":
     # short_model= nn.Sequential(*(list(original_model.children())[:-1]))
     # print(short_model)
     # classifier = nn.Sequential(OrderedDict([('fc1', nn.Linear(n_inputs, 8))]))
+
     train_loss_sizes = []
     val_loss_sizes = []
     save_paths = []
@@ -640,7 +655,7 @@ if __name__ == "__main__":
             # if not os.path.isdir(save_folder):
             #     os.mkdir(save_folder)
             os.makedirs(save_folder, exist_ok=True)
-            save_path = os.path.join(save_folder, 'dw_r50_s' + str(round(training_step_size/len(CLASSES))) + '_i' + str(j) + '.pth')
+            save_path = os.path.join(save_folder, 'dev_r50_s' + str(round(training_step_size/len(CLASSES))) + '_i' + str(j) + '.pth')
 
             print(save_path)
 
@@ -661,6 +676,7 @@ if __name__ == "__main__":
                                                    expname=expname,
                                                    acc_step_size=acc_step_size)
 
+
             # evaluate model using the test set:
             model.eval()
 
@@ -680,6 +696,7 @@ if __name__ == "__main__":
             # img_grid = torchvision.utils.make_grid(images)
             # write to tensorboard
             # show_image_grid(images, labels, predicted)
+
             # test entire network:
             correct = 0
             total = 0
@@ -722,11 +739,12 @@ if __name__ == "__main__":
         model_acc_sizes.append(model_acc_times)
 
     # save train_loss_sizes and val_loss_sizes just in case:
-    save_tv_path = os.path.join('.', 'saved_model', 'training' + str(folder_num), 'dw_train_val_losses' + str(folder_num) + '.pkl')
+    save_tv_path = os.path.join('.', 'saved_model', 'training' + str(folder_num), 'dev_train_val_losses' + str(folder_num) + '.pkl')
     with open(save_tv_path, 'wb') as f:
         pickle.dump(train_loss_sizes, f)
         pickle.dump(val_loss_sizes, f)
         pickle.dump(model_acc_sizes, f)
+
 
     # load model, assuming it has been saved in save_path
     # TODO put an "if it exists statement"
