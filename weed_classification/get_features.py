@@ -23,6 +23,9 @@ from PIL import Image
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils, models
 
+from classifier_deepweeds import DeepWeedsDataset as DWD
+from classifier_deepweeds import Rescale, RandomCrop, ToTensor
+
 from typing import Dict, Iterable, Callable
 
 # from https://medium.com/the-dl/how-to-use-pytorch-hooks-5041d777f904
@@ -46,9 +49,9 @@ class VerboseExecution(nn.Module):
         return self.model(x)
 
 ## example code to run/print layer shapes of resnet50
-verbose_resnet = VerboseExecution(resnet50())
-dummy_input = torch.ones(10, 3, 224, 224)
-_ = verbose_resnet(dummy_input)
+# verbose_resnet = VerboseExecution(resnet50())
+# dummy_input = torch.ones(10, 3, 224, 224)
+# _ = verbose_resnet(dummy_input)
 
 # wrapper that extracts features
 
@@ -72,11 +75,79 @@ class FeatureExtractor(nn.Module):
         _ = self.model(x)
         return self._features
 
+########### classes #############
+CLASSES = (0, 1, 2, 3, 4, 5, 6, 7)
+CLASS_NAMES = ('Chinee apple',
+                'Lantana',
+                'Parkinsonia',
+                'Parthenium',
+                'Prickly acacia',
+                'Rubber vine',
+                'Siam weed',
+                'Snake weed')
+CLASS_DICT = {i: CLASS_NAMES[i] for i in range(0, len(CLASSES))}
+
+device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+
+# load model
+model_location = os.path.join('saved_model', 'training1')
+model_name = 'dw_r50_s200_i0.pth'
+model_path = os.path.join(model_location, model_name)
+
+model = models.resnet50(pretrained=False)
+model.fc = nn.Linear(in_features=2048, out_features=len(CLASSES), bias=True)
+model.load_state_dict(torch.load(model_path))
+model.to(device)
+model.eval()
+
+# verbose_resnet = VerboseExecution(model())
+
+img_dir = 'nonnegative_images'
+img_list = os.listdir(img_dir)
+lbl_dir = 'labels'
+labels_file = os.path.join(lbl_dir, 'nonnegative_labels.csv')
+
+# i = 0
+# img_name = img_list[i]
+# img_path = os.path.join(img_dir, img_name)
+
+tforms = transforms.Compose([Rescale(256), RandomCrop(224), ToTensor()])
+dataset = DWD(labels_file, img_dir, tforms)
+nimg = len(dataset)
+print('dataset length =', nimg)
+
+# just test model inference on a single image
+with torch.no_grad():
+    for i in range(len(dataset)):
+        sample = dataset[i]
+        img, lbl = sample['image'], sample['label']
+
+        img.to(device)
+        img = img.unsqueeze(0)
+        img = img.float().cuda()
+        # import code
+        # code.interact(local=dict(globals(), **locals()))
+        # _ = verbose_resnet(img)
+        output  = model(img)
+        _, pred = torch.max(output, 1)
+        print(f'{i}: label = {lbl}, {CLASSES[lbl]}')
+        # print('Predicted: ', ' '.join('%5s' % CLASSES[pred[j]] for j in range(nimg)))
+        p = pred.item()
+        print(f'{i}: pred = {p}, {CLASSES[p]}')
+
+        # _ = verbose_resnet(img)
+
+        # import code
+        # code.interact(local=dict(globals(), **locals()))
+        if i == 2:
+            break
 
 ## example code to run/print feature of resenet50 layer4 and avgpool
-resnet_features = FeatureExtractor(resnet50(), layers=["layer4", "avgpool"])
-features = resnet_features(dummy_input)
-print({name: output.shape for name, output in features.items()})
+# avgpool is where the features are
+resnet_features = FeatureExtractor(model, layers=["avgpool"])
+
+features = resnet_features(img)
+# print({name: output.shape for name, output in features.items()})
 
 import code
 code.interact(local=dict(globals(), **locals()))
