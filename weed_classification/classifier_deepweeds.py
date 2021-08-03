@@ -71,7 +71,7 @@ class DeepWeedsDataset(Dataset):
         label = self.weed_frame.iloc[idx, 1]
 
         # make sample into a dictionary
-        sample = {'image': image, 'label': label}
+        sample = {'image': image, 'label': label, 'image_id': idx}
 
         # apply transform
         if self.transform:
@@ -89,7 +89,7 @@ class Rescale(object):
 
     def __call__(self, sample):
         # open up the dict
-        image, label = sample['image'], sample['label']
+        image, label, id = sample['image'], sample['label'], sample['image_id']
 
         # handle the aspect ratio
         h, w = image.shape[:2]
@@ -106,7 +106,7 @@ class Rescale(object):
         img = transform.resize(image, (new_h, new_w))
 
         # return as a dictionary, as before
-        return {'image': img, 'label': label}
+        return {'image': img, 'label': label, 'image_id': id}
 
 
 class RandomCrop(object):
@@ -125,7 +125,7 @@ class RandomCrop(object):
         # new h,w from output size
         # randomly crop from top/left
         # return image in sample
-        image, label = sample['image'], sample['label']
+        image, label, id = sample['image'], sample['label'], sample['image_id']
 
         h, w = image.shape[:2]
         new_h, new_w = self.output_size
@@ -133,16 +133,16 @@ class RandomCrop(object):
         top, left = np.random.randint(0, h - new_h), np.random.randint(0, w - new_w)
         image = image[top:top + new_h, left:left + new_w]
 
-        return {'image': image, 'label': label}
+        return {'image': image, 'label': label, 'image_id': id}
 
 
 class ToTensor(object):
     """ convert ndarray to sample in Tensors """
     def __call__(self, sample):
-        image, label = sample['image'], sample['label']
+        image, label, id = sample['image'], sample['label'], sample['image_id']
 
         image = image.transpose((2, 0, 1))
-        return {'image': torch.from_numpy(image), 'label': label}
+        return {'image': torch.from_numpy(image), 'label': label, 'image_id': id}
 
 
 # TODO define own model class, play around with various parameters for CNN

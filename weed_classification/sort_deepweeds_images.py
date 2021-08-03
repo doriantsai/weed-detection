@@ -167,8 +167,10 @@ dp.to_csv(os.path.join(lbl_dir, dep_labels_file), index=False)
 
 # further split deployment into individual days:
 # uidx_deploy
-for u in range(uidx_deploy, len(unique_dates)):
-    dep_name = 'deployment_day' + str(u) + '_img' + str(len(idx_per_date[u])) + '.csv'
+for u in range(0, len(unique_dates)):
+# for u in range(uidx_deploy, len(unique_dates)):
+    # dep_name = 'deployment_day' + str(u) + '_img' + str(len(idx_per_date[u])) + '.csv'
+    dep_name = 'nonneg_labels_day' + '{0:02d}'.format(u) + '_img' + '{0:03d}'.format(len(idx_per_date[u])) + '.csv'
     dep_list = [img_list[d] for d in idx_per_date[u]]
     dep_label = []
     for d in dep_list:

@@ -28,6 +28,16 @@ from classifier_deepweeds import Rescale, RandomCrop, ToTensor
 
 from typing import Dict, Iterable, Callable
 
+# fix random seeds, so that results are reproducable:
+# https://learnopencv.com/t-sne-for-feature-visualization/
+import random
+seed = 42
+random.seed(seed)
+torch.manual_seed(seed)
+np.random.seed(seed)
+
+from sklearn.manifold import TSNE
+
 # from https://medium.com/the-dl/how-to-use-pytorch-hooks-5041d777f904
 
 # class FeatureExtractor()
@@ -116,11 +126,18 @@ dataset = DWD(labels_file, img_dir, tforms)
 nimg = len(dataset)
 print('dataset length =', nimg)
 
-# just test model inference on a single image
+## example code to run/print feature of resenet50 layer4 and avgpool
+# avgpool is where the features are
+resnet_features = FeatureExtractor(model, layers=["avgpool"])
+
+# run feature code over entire dataset
+features = []
+img_ids = []
+lbls = []
 with torch.no_grad():
     for i in range(len(dataset)):
         sample = dataset[i]
-        img, lbl = sample['image'], sample['label']
+        img, lbl, id = sample['image'], sample['label'], sample['image_id']
 
         img.to(device)
         img = img.unsqueeze(0)
@@ -130,23 +147,31 @@ with torch.no_grad():
         # _ = verbose_resnet(img)
         output  = model(img)
         _, pred = torch.max(output, 1)
-        print(f'{i}: label = {lbl}, {CLASSES[lbl]}')
+        # print(f'{i}: label = {lbl}, {CLASSES[lbl]}')
         # print('Predicted: ', ' '.join('%5s' % CLASSES[pred[j]] for j in range(nimg)))
         p = pred.item()
-        print(f'{i}: pred = {p}, {CLASSES[p]}')
+        # print(f'{i}: pred = {p}, {CLASSES[p]}')
 
         # _ = verbose_resnet(img)
 
         # import code
         # code.interact(local=dict(globals(), **locals()))
-        if i == 2:
+
+        avgpool = resnet_features(img)
+        f = avgpool['avgpool'].cpu().numpy()
+        f = np.squeeze(f)
+        features.append(f)
+
+        img_ids.append(id)
+        lbls.append(lbl)
+        if i == 5:
             break
 
-## example code to run/print feature of resenet50 layer4 and avgpool
-# avgpool is where the features are
-resnet_features = FeatureExtractor(model, layers=["avgpool"])
+# convert list to 2D array
+features = np.array(features)
 
-features = resnet_features(img)
+tsne = TSNE(n_components=2).fit_transform(features)
+
 # print({name: output.shape for name, output in features.items()})
 
 import code
