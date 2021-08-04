@@ -9,6 +9,7 @@ Attempt to get featurees out of deep weeds classifier model using register hooks
 # feature extractor
 # run model forward pass
 
+# from show_class_distribution import CLASS_COLOURS
 import torch
 import os
 import numpy as np
@@ -85,6 +86,20 @@ class FeatureExtractor(nn.Module):
         _ = self.model(x)
         return self._features
 
+
+def scale_to_range(x):
+    # compute distribution range
+    value_range = (np.max(x) - np.min(x))
+    
+    # move distribution start zero
+    starts_zero = x - np.min(x)
+
+    # scale to 1
+    return starts_zero / value_range
+
+
+
+
 ########### classes #############
 CLASSES = (0, 1, 2, 3, 4, 5, 6, 7)
 CLASS_NAMES = ('Chinee apple',
@@ -96,6 +111,24 @@ CLASS_NAMES = ('Chinee apple',
                 'Siam weed',
                 'Snake weed')
 CLASS_DICT = {i: CLASS_NAMES[i] for i in range(0, len(CLASSES))}
+# set colours for histogram based on ones used in paper
+    # RGB
+pink = np.r_[255, 105,180]/255
+blue = np.r_[0, 0, 255]/255
+green = np.r_[0, 255, 0]/255
+yellow = np.r_[255, 255, 0]/255
+cyan = np.r_[0, 255, 255]/255
+red = np.r_[255, 0, 0]/255
+purple = np.r_[128, 0, 128]/255
+orange = np.r_[255, 127, 80]/255
+CLASS_COLOURS = [pink,
+                blue,
+                green,
+                yellow,
+                cyan,
+                red,
+                purple,
+                orange]
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
@@ -112,6 +145,7 @@ model.eval()
 
 # verbose_resnet = VerboseExecution(model())
 
+# for now, run it on everything
 img_dir = 'nonnegative_images'
 img_list = os.listdir(img_dir)
 lbl_dir = 'labels'
@@ -131,6 +165,8 @@ print('dataset length =', nimg)
 resnet_features = FeatureExtractor(model, layers=["avgpool"])
 
 # run feature code over entire dataset
+print('getting features from network')
+
 features = []
 img_ids = []
 lbls = []
@@ -164,15 +200,96 @@ with torch.no_grad():
 
         img_ids.append(id)
         lbls.append(lbl)
-        if i == 5:
-            break
+
+        if i % 1000 == 0:
+            print(f'feature {i}')
+        # if i == 5:
+        #     break
 
 # convert list to 2D array
 features = np.array(features)
 
-tsne = TSNE(n_components=2).fit_transform(features)
+# get tsne
+n_components = 2
+tsne = TSNE(n_components=n_components).fit_transform(features)
 
 # print({name: output.shape for name, output in features.items()})
+
+if n_components == 2:
+    TWO_DIM = True
+    THREE_DIM = False
+elif n_components == 3:
+    TWO_DIM = False
+    THREE_DIM = True
+else:
+    print('error: more n_components not yet implemented')
+
+if TWO_DIM:
+    # extract x, y coords representing image position on tsne plot
+    tx = tsne[:, 0]
+    ty = tsne[:, 1]
+
+    # tx = scale_to_range(tx)
+    # ty = scale_to_range(ty)
+
+    # plot for every class, adding separate scatter plot
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+
+    for cls in CLASSES:
+        # find samples in current class
+        idx = [i for i, l in enumerate(lbls) if l == cls]
+
+        # extract coordinates of points for this class only
+        current_tx = np.take(tx, idx)
+        current_ty = np.take(ty, idx)
+
+        # convert class color to matplotlib format
+        colour = CLASS_COLOURS[cls]
+
+        # add scatter plot
+        ax.scatter(current_tx, current_ty, c=colour, label=CLASS_NAMES[cls])
+
+    # build legend
+    ax.legend(loc='best')
+
+    # show
+    plt.show()
+
+elif THREE_DIM:
+    # extract x, y coords representing image position on tsne plot
+    tx = tsne[:, 0]
+    ty = tsne[:, 1]
+    tz = tsne[:, 2]
+
+    tx = scale_to_range(tx)
+    ty = scale_to_range(ty)
+    tz = scale_to_range(tz)
+
+    # plot for every class, adding separate scatter plot
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+
+    for cls in CLASSES:
+        # find samples in current class
+        idx = [i for i, l in enumerate(lbls) if l == cls]
+
+        # extract coordinates of points for this class only
+        current_tx = np.take(tx, idx)
+        current_ty = np.take(ty, idx)
+        current_tz = np.take(tz, idx)
+
+        # convert class color to matplotlib format
+        colour = CLASS_COLOURS[cls]
+
+        # add scatter plot
+        ax.scatter(current_tx, current_ty, current_tz, c=colour, label=CLASS_NAMES[cls])
+
+    # build legend
+    ax.legend(loc='best')
+
+    # show
+    plt.show()
 
 import code
 code.interact(local=dict(globals(), **locals()))

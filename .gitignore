@@ -1,5 +1,7 @@
 # tensorboard stuff
-serratted-tussock-detector/runs/
+weed_detection/runs/
+weed_classification/images
+weed_classification/nonnegative_images
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
