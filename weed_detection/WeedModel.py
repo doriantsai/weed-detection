@@ -890,14 +890,14 @@ class WeedModel:
 
             # do binary conversion
             # binmask = mask > threshold
-            import code
-            code.interact(local=dict(globals(), **locals()))
+            # import code
+            # code.interact(local=dict(globals(), **locals()))
             ret, mask_bin = cv.threshold(img_gray,
                                         threshold,
                                         maxval=1.0,
                                         type=cv.THRESH_BINARY)
 
-            # TODO morph
+            # TODO morph?
             # do morphological operations on mask to smooth it out?
             # minor erosion then dilation by the same amount
 
@@ -905,12 +905,26 @@ class WeedModel:
             # convert images to cv_8u
             contours, hierarchy = cv.findContours(mask_bin.astype(np.uint8), cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
 
+            # TODO might have to take the largest/longest contour or one with the largest area
+            # so far seems to be  mostly the first one, so we're ok?
             # TODO this iterates, so need to stack these somehow (probably as list?)
             # not sure about stacking the images
+
+            ctr = contours[0]  # NOTE should only be one contour from the confidence mask
+            all_x, all_y = [], []
+            for c in ctr:
+                all_x.append(c[0][0])
+                all_y.append(c[0][1])
+            polygon = {'name': 'polygon', 'all_points_x': all_x, 'all_points_y': all_y}
+
         else:
             print('mask type not ndarray')
+            mask_bin = []
+            contours = []
+            hierarchy = []
+            polygon = []
 
-        return mask_bin, contours, hierarchy
+        return mask_bin, contours, hierarchy, polygon
 
 
     def show_mask(self,
@@ -1183,24 +1197,24 @@ class WeedModel:
 
             if imsave or imshow:
                 if annotation_type == 'poly':
-                    image_out = self.show_mask(image,
+                    image = self.show_mask(image,
                                                 sample=sample,
                                                 predictions=pred)
                 else:
-                    image_out = self.show(image,
+                    image = self.show(image,
                                           sample=sample,
                                           predictions=pred)
             if imsave:
                 save_folder = os.path.join('output', self._model_folder)
                 os.makedirs(save_folder, exist_ok=True)
                 save_image_name = os.path.join(save_folder, image_name + '.png')
-                image_out_bgr = cv.cvtColor(image_out, cv.COLOR_RGB2BGR)
+                image_out_bgr = cv.cvtColor(image, cv.COLOR_RGB2BGR)
                 cv.imwrite(save_image_name, image_out_bgr)
 
             if imshow:
-                self.cv_imshow(image_out, win_name=str(image_name))
+                self.cv_imshow(image, win_name=str(image_name))
 
-        return image_out, pred
+        return image, pred
 
 
     def infer_dataset(self,

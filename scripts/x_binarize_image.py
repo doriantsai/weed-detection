@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 # call inference functions
 
 # load dataset objects
-dataset_name = 'Tussock_v0_mini'
+dataset_name = 'Tussock_v4_poly286'
 dataset_file = os.path.join('dataset_objects',
                             dataset_name,
                             dataset_name + '.pkl')
@@ -89,19 +89,22 @@ for i in range(bs):
     print('cycle time: {} sec'.format(sec))
 
     masks = pred['masks']
+    polygons = []
     if len(masks) > 0:
         for mask in masks:
             mask = np.transpose(mask, (1,2,0))
             thresh = 0.5
-            mask_bin, contours, hierarchy = Tussock.binarize_confidence_mask(mask, thresh)
+            mask_bin, contours, hierarchy, polygon = Tussock.binarize_confidence_mask(mask, thresh)
 
             plt.imshow(mask)
             plt.title('confidence mask')
-            plt.show()
+            # plt.show()
+            plt.close()
 
             plt.imshow(mask_bin)
             plt.title('binary mask')
-            plt.show()
+            # plt.show()
+            plt.close()
 
             # plot contours
             drawing = np.zeros((mask_bin.shape[0], mask_bin.shape[1], 3), dtype=np.uint8)
@@ -110,8 +113,21 @@ for i in range(bs):
                 cv.drawContours(drawing, contours, j, colour, 2, cv.LINE_8, hierarchy, 0)
             plt.imshow(drawing)
             plt.title('contours')
-            plt.show()
+            # plt.show()
+            plt.close()
 
 
-import code
-code.interact(local=dict(globals(), **locals()))
+
+            
+            polygons.append(polygon)
+
+            import code
+            code.interact(local=dict(globals(), **locals()))
+
+    # TODO convert contours into polygon (x, y points), save them to the json file
+
+
+    print('done x_binarize_image.py')
+
+    
+    
