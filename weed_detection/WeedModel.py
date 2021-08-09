@@ -20,12 +20,15 @@ import numpy as np
 import cv2 as cv
 import matplotlib.pyplot as plt
 
+
 # TODO replace tensorboard with weightsandbiases
 from torch.utils.tensorboard import SummaryWriter
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 from torchvision.models.detection.mask_rcnn import MaskRCNNPredictor
 from torchvision.transforms import functional as tv_transform
 from scipy.interpolate import interp1d
+from shapely.geometry import Polygon
+
 
 from weed_detection.engine_st import train_one_epoch
 # from weed_detection.WeedDataset import *
@@ -882,7 +885,12 @@ class WeedModel:
                                   interpolation=cv.INTER_CUBIC)
         return image_out
 
-    def binarize_confidence_mask(self, img_gray, threshold):
+    def binarize_confidence_mask(self, 
+                                 img_gray, 
+                                 threshold,
+                                 ksize = None,
+                                 MAX_KERNEL_SIZE = 11, 
+                                 MIN_KERNEL_SIZE = 3):
         """ given confidence mask, apply threshold to turn mask into binary image, return binary image and contour"""
         # input mask ranging from 0 to 1, assume mask is a tensor? operation is trivial if numpy array
         # lets first assume a numpy array
@@ -896,25 +904,45 @@ class WeedModel:
                                         threshold,
                                         maxval=1.0,
                                         type=cv.THRESH_BINARY)
-
-            # TODO morph?
+            
             # do morphological operations on mask to smooth it out?
+            # open followed by close
+            h, w = mask_bin.shape
+            imsize = min(h, w)
+            if ksize is None:
+                ksize = np.floor(0.01 * imsize)  # kernel size, some vague function of minimum image size
+            
+                if ksize % 2 == 0:
+                    ksize += 1  # if even, make it odd
+                if ksize > MAX_KERNEL_SIZE:
+                    ksize = MAX_KERNEL_SIZE
+                if ksize < MIN_KERNEL_SIZE:
+                    ksize = MIN_KERNEL_SIZE
+            ksize = int(ksize)
+            kernel = np.ones((ksize, ksize), np.uint8)
+            mask_open = cv.morphologyEx(mask_bin.astype(np.uint8), cv.MORPH_OPEN, kernel)
+            mask_close = cv.morphologyEx(mask_open, cv.MORPH_CLOSE, kernel)
+
             # minor erosion then dilation by the same amount
 
             # find bounding polygon of binary image
             # convert images to cv_8u
-            contours, hierarchy = cv.findContours(mask_bin.astype(np.uint8), cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
+            contours, hierarchy = cv.findContours(mask_close, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
 
+            # import code
+            # code.interact(local=dict(globals(), **locals()))
             # TODO might have to take the largest/longest contour or one with the largest area
             # so far seems to be  mostly the first one, so we're ok?
             # TODO this iterates, so need to stack these somehow (probably as list?)
             # not sure about stacking the images
 
+            contours.sort(key=len, reverse=True) # make sure we sort the contour list in case there are multiple, and we take the largest/longest contour
             ctr = contours[0]  # NOTE should only be one contour from the confidence mask
+            ctrs_sqz = np.squeeze(ctr)
             all_x, all_y = [], []
-            for c in ctr:
-                all_x.append(c[0][0])
-                all_y.append(c[0][1])
+            for c in ctrs_sqz:
+                all_x.append(c[0])
+                all_y.append(c[1])
             polygon = {'name': 'polygon', 'all_points_x': all_x, 'all_points_y': all_y}
 
         else:
@@ -922,9 +950,53 @@ class WeedModel:
             mask_bin = []
             contours = []
             hierarchy = []
+            ctrs_sqz = []
             polygon = []
 
-        return mask_bin, contours, hierarchy, polygon
+        return mask_bin, contours, hierarchy, ctrs_sqz, polygon
+
+
+    def simplify_polygon(self, polygon_in, tolerance=None, preserve_topology=False):
+        """ simplify polygon, 2D ndarray in, 2D array out """
+
+        polygon = Polygon(polygon_in)
+        if tolerance is None:
+            scale_rate = 0.01
+            tolerance = int(np.floor(scale_rate * len(polygon_in)) + 1)  # scale the tolerance wrt number of points in polygon
+            if tolerance > 10:
+                tolerance = 10 # tolerance bounded to 10
+        polygon_out = polygon.simplify(tolerance=tolerance, preserve_topology=preserve_topology)
+        polygon_out_coords = np.array(polygon_out.exterior.coords)
+        return polygon_out_coords
+
+
+    def polygon_area(self, polygon_in):
+        """ compute area of polygon using Shapely"""
+        poly = Polygon(polygon_in)
+        return poly.area # units of pixels
+
+
+    def polygon_centroid(self, polygon_in):
+        """ compute centroid of polygon using Shapely polygon """
+        # input must be a [Nx2] 2D array
+        poly = Polygon(polygon_in)
+        cen = poly.centroid
+        cx = cen.coords[0][0]
+        cy = cen.coords[0][1]
+        return (cx, cy)
+
+
+    def box_centroid(self, box_in):
+        """ compute box centroid """
+        # box input as x, y, w, h
+        xmin = box_in[0]
+        ymin = box_in[1]
+        w = box_in[2]
+        h = box_in[3]
+
+        cx = xmin + w / 2.0
+        cy = ymin + h / 2.0
+        return ((cx, cy))
 
 
     def show_mask(self,
@@ -938,7 +1010,8 @@ class WeedModel:
                     transpose_image_channels=True,
                     transpose_color_channels=False,
                     resize_image=False,
-                    resize_height=(256)):
+                    resize_height=(256),
+                    mask_threshold = 0.5):
         """ show image, sample/groundtruth, model predictions, outcomes
         (TP/FP/etc) """
         # TODO rename "show" to something like "create_plot" or "markup", as we
@@ -952,10 +1025,10 @@ class WeedModel:
         font_scale = 1 # TODO font scale should be function of image size
         font_thick = 1
         sample_mask_color = [0, 0, 255] # RGB
-        sample_mask_alpha = 0.25
+        # sample_mask_alpha = 0.25
 
         pred_mask_color = [255, 0, 0] # RGB
-        pred_mask_alpha = 0.25
+        # pred_mask_alpha = 0.25
 
         if transpose_color_channels:
             # image tensor comes in as [color channels, length, width] format
@@ -994,23 +1067,43 @@ class WeedModel:
                 for i in range(len(masks)):
                     mask = masks[i]
                     mask = mask.cpu().numpy()
+                    # mask = np.transpose(mask, (1,2,0))
+                    # NOTE binarize confidence mask is meant to take in a nonbinary image and make it binary
+                    # in this case... we probably don't need this full functionality, also opening/closing 
+                    # shouldn't, but might affect the original gt mask?
+                    mask_bin, ctr, hier, ctr_sqz, poly = self.binarize_confidence_mask(mask, mask_threshold)
+                    # note: poly here is just for dictionary output, ctr is the 2D numpy array we want!
+
+                    ## CONTOUR CODE - CURRENT
+                    # polycoord = self.simplify_polygon(ctr)
+                    
+                    image_out = cv.drawContours(image_out, 
+                                                ctr, 
+                                                0, # show the biggest contour
+                                                color=sample_color,
+                                                thickness=gt_box_thick,
+                                                lineType=cv.LINE_8,
+                                                hierarchy=hier,
+                                                maxLevel=0)
+
+                    ## ADDWEIGHTED CODE - DEPRACATED
                     # import code
                     # code.interact(local=dict(globals(), **locals()))
                     # mask = np.transpose(mask, (1, 2, 0))
                     # image_overlay = image_out.copy()
                     # make mask a coloured image, as opposed to a binary thing
-                    mask2 = cv.cvtColor(mask, cv.COLOR_GRAY2BGR)
+                    # mask2 = cv.cvtColor(mask, cv.COLOR_GRAY2BGR)
 
-                    mask2[:,:,0] = mask2[:,:,0] * sample_mask_color[0] # BGR
-                    mask2[:,:,1] = mask2[:,:,1] * sample_mask_color[1] # BGR
-                    mask2[:,:,2] = mask2[:,:,2] * sample_mask_color[2] # BGR
+                    # mask2[:,:,0] = mask2[:,:,0] * sample_mask_color[0] # BGR
+                    # mask2[:,:,1] = mask2[:,:,1] * sample_mask_color[1] # BGR
+                    # mask2[:,:,2] = mask2[:,:,2] * sample_mask_color[2] # BGR
                     # import code
                     # code.interact(local=dict(globals(), **locals()))
-                    image_out = cv.addWeighted(src1=mask2,
-                                            alpha=sample_mask_alpha,
-                                            src2=image_out,
-                                            beta=1-sample_mask_alpha,
-                                            gamma=0)
+                    # image_out = cv.addWeighted(src1=mask2,
+                    #                         alpha=sample_mask_alpha,
+                    #                         src2=image_out,
+                    #                         beta=1-sample_mask_alpha,
+                    #                         gamma=0)
 
                 # plt.imshow(image_out2)
                 # plt.show()
@@ -1047,19 +1140,34 @@ class WeedModel:
                     mask = masks[i]
                     mask = np.transpose(mask, (1, 2, 0))
 
-                    mask2 = cv.cvtColor(mask, cv.COLOR_GRAY2BGR)
-                    mask2[:,:,0] = mask2[:,:,0] * pred_mask_color[0] # BGR
-                    mask2[:,:,1] = mask2[:,:,1] * pred_mask_color[1] # BGR
-                    mask2[:,:,2] = mask2[:,:,2] * pred_mask_color[2] # BGR
-                    mask2 = mask2.astype(np.uint8)
+                    mask_bin, ctr, hier, ctr_qz, poly = self.binarize_confidence_mask(mask, mask_threshold)
+                    # note: poly here is just for dictionary output, ctr is the 2D numpy array we want!
 
-                    # import code
-                    # code.interact(local=dict(globals(), **locals()))
-                    image_out = cv.addWeighted(src1=mask2,
-                                                alpha=pred_mask_alpha,
-                                                src2=image_out,
-                                                beta=1-pred_mask_alpha,
-                                                gamma=0)
+                    ## CONTOUR CODE - CURRENT
+                    # polycoord = self.simplify_polygon(ctr)
+                    
+                    image_out = cv.drawContours(image_out, 
+                                                ctr, 
+                                                0, 
+                                                color=pred_mask_color,
+                                                thickness=dt_box_thick,
+                                                lineType=cv.LINE_8,
+                                                hierarchy=hier,
+                                                maxLevel=0)
+
+                    # mask2 = cv.cvtColor(mask, cv.COLOR_GRAY2BGR)
+                    # mask2[:,:,0] = mask2[:,:,0] * pred_mask_color[0] # BGR
+                    # mask2[:,:,1] = mask2[:,:,1] * pred_mask_color[1] # BGR
+                    # mask2[:,:,2] = mask2[:,:,2] * pred_mask_color[2] # BGR
+                    # mask2 = mask2.astype(np.uint8)
+
+                    # # import code
+                    # # code.interact(local=dict(globals(), **locals()))
+                    # image_out = cv.addWeighted(src1=mask2,
+                    #                             alpha=pred_mask_alpha,
+                    #                             src2=image_out,
+                    #                             beta=1-pred_mask_alpha,
+                    #                             gamma=0)
                     # import code
                     # code.interact(local=dict(globals(), **locals()))
 
@@ -1080,7 +1188,7 @@ class WeedModel:
                         iou_str = format(iou[i], '.2f') # max 2 decimal places
                         cv.putText(image_out,
                                    'iou: {}'.format(iou_str),
-                                   (int(bb[0] + 10), int(bb[1] + 60)),
+                                   (int(bb[0] + 10), int(bb[1] + 60)), # TODO should place text on mask contour
                                    fontFace=cv.FONT_HERSHEY_COMPLEX,
                                    fontScale=font_scale,
                                    color=iou_color,

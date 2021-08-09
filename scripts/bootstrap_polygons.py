@@ -14,10 +14,15 @@ from weed_detection.WeedDatasetPoly import Rescale
 from torchvision.transforms import functional as tvtransfunc
 from PIL import Image
 import torch
+import matplotlib.pyplot as plt
 
 from weed_detection.PreProcessingToolbox import PreProcessingToolbox as PPT
 from weed_detection.WeedDatasetPoly import WeedDatasetPoly as WDP
 from weed_detection.WeedModel import WeedModel as WM
+
+from shapely.geometry import Polygon
+# from skimage import measure
+
 
 def unscale_polygon(polygon, output_size, input_size):
     """ unscale polygon """
@@ -61,12 +66,12 @@ def unscale_polygon(polygon, output_size, input_size):
 # dataset name:
 dataset_name = 'Tussock_v4_poly286'
 dataset_path = os.path.join('/home', 'dorian', 'Data', 'AOS_TussockDataset', dataset_name)
-img_dir = os.path.join(dataset_path, 'Images', 'All_Unlabelled_v2')
+img_dir = os.path.join(dataset_path, 'Images', 'PolySubset')
 ann_dir = os.path.join(dataset_path, 'Annotations')
 
 # this is the file we want to do the bootstrapping on!
 # all annotations (positive images only):
-ann_all = 'annotations_tussock_21032526_G507_all.json'
+ann_all = 'annotations_tussock_21032526_G507_polysubset.json'
 ann_all_path = os.path.join(ann_dir, ann_all)
 
 # current annotations file with polygons:
@@ -74,7 +79,7 @@ ann_poly = 'via_project_07Jul2021_08h00m_240_test_allpoly.json'
 ann_poly_path = os.path.join(ann_dir, ann_poly)
 
 # annotation out file with all the predictions:
-ann_poly_out = 'via_project_07Jul2021_08h00m_240_test_bootstrap.json'
+ann_poly_out = 'via_project_07Jul2021_08h00m_240_polysubset_bootstrap.json'
 ann_poly_out_path = os.path.join(ann_dir, ann_poly_out)
 
 
@@ -89,7 +94,8 @@ ann_all_list = list(ann_all_dict.values())
 print(f'num images in ann_poly_list: {len(ann_poly_list)}')
 print('should be 286')
 print(f'num images in ann_all_list: {len(ann_all_list)}')
-print('should be 570')
+# print('should be 570')
+print('should be 30')
 
 # take these lists of dictionaries, and just get list of file names?
 img_names_poly = [s['filename'] for s in ann_poly_list]
@@ -97,10 +103,12 @@ img_names_all = [s['filename'] for s in ann_all_list]
 
 # find set of images in ann_all_list not already in ann_poly_list
 img_names_rem = np.setdiff1d(img_names_all, img_names_poly)
+# find the set of images that are common/intersect, later, must add these back into the final anno file
+img_names_com = np.intersect1d(img_names_all, img_names_poly)
 # rem = list(set(all) - set(part)) # note: unordered
 print(f'num images in img_names_rem {len(img_names_rem)}')
-print(f'should be 570 - 286 = {570-286}')
-
+# print(f'should be 570 - 286 = {570-286}')
+# print(f'should be about {10}')
 
 
 # first, check all filenames are contained within the names of all images
@@ -130,6 +138,7 @@ conf_thresh = 0.5
 
 original_size = [2056, 2464] # pixels, h, w
 
+POLYGON_MIN_AREA = 100 # min area for polygon to be considered an annotation
 
 # polygons = []
 for i, img_name in enumerate(img_names_rem):
@@ -149,7 +158,12 @@ for i, img_name in enumerate(img_names_rem):
     # print(f'     pred = {pred}')
 
     masks = pred['masks']
-    polygons_per_img = []
+    # polygons_per_img = []
+
+    # import code
+    # code.interact(local=dict(globals(), **locals()))
+    print(f'   n masks: {len(masks)}')
+
 
     # find index of img_name in img_names_all
     idx = img_names_all.index(img_name)
@@ -157,29 +171,58 @@ for i, img_name in enumerate(img_names_rem):
         for j, mask in enumerate(masks):
             mask = np.transpose(mask, (1,2,0))
             thresh = 0.5
-            mask_bin, ctr, hier, poly = boot_model.binarize_confidence_mask(mask, thresh)
+            mask_bin, ctr, hier, ctr_sqz, poly = boot_model.binarize_confidence_mask(mask, thresh)
 
-            # TODO need to unscale images, create function unscale_polygon(img_orig, img_resc, pred_resc), return pred_out
             # TODO consider Shapeply
             # https://shapely.readthedocs.io/en/stable/manual.html
             # poly = Polygon(contour)
             # poly = poly.simplify(1.0, preserve_topology=False)
+            # if i > 4:
+            #     import code
+            #     code.interact(local=dict(globals(), **locals()))
 
+            
+            p_coord = boot_model.simplify_polygon(ctr_sqz)
+            p_area = boot_model.polygon_area(p_coord)
+            print(f' i={i}, j={j}: polygon area = {p_area}')
+
+            if p_area < POLYGON_MIN_AREA:
+                print(f' i={i}, j={j}: polygon removed, {p_area} < {POLYGON_MIN_AREA}')
+                continue
+
+            # print()
+            # p = Polygon(ctr)
+            # p = p.simplify(tolerance=10.0, preserve_topology=False)
+            # p_coord = np.array(p.exterior.coords)
+            p_simp = {}
+            p_simp['name'] = 'polygon'
+            p_simp['all_points_x'] = [p_coord[k, 0] for k in range(len(p_coord))]
+            p_simp['all_points_y'] = [p_coord[k, 1] for k in range(len(p_coord))]
+            
+            # print('in with mask bin')
+
+            # import code
+            # code.interact(local=dict(globals(), **locals()))
 
             # unscale polygon to original image size
-            poly_uns = unscale_polygon(poly, original_size, rescale_size)
+            # poly_uns = unscale_polygon(poly, original_size, rescale_size)
+            p_simp = unscale_polygon(p_simp, original_size, rescale_size)
             
             # need to add the polygon region/annotation 
-            poly_region = {'shape_attributes': poly_uns, 'region_attributes': {}}
+            # poly_region = {'shape_attributes': poly_uns, 'region_attributes': {}}
+            p_simp_reg = {'shape_attributes': p_simp, 'region_attributes': {}}
             # find out how many regions there already are
-            nreg = len(ann_all_list[idx]['regions'])
+            # nreg = len(ann_all_list[idx]['regions'])
             # create dictionary with key "nreg", signifying the region number
             # don't have to "add one", because increments from 0
-            add_poly_region = {str(nreg): poly_region} 
+            # add_poly_region = {str(nreg): poly_region} 
 
-            ann_all_list[idx]['regions'].update(add_poly_region)
 
-            polygons_per_img.append(poly)
+            # ann_all_list[idx]['regions'].update(add_poly_region)
+            # ann_all_list[idx]['regions'].append(poly_region)
+            ann_all_list[idx]['regions'].append(p_simp_reg)
+
+            # polygons_per_img.append(poly)
 
     # polygons.append(polygons_per_img)
     # put x_binarize_image.py into a function, call it here on the predicted mask
@@ -199,50 +242,33 @@ for i, img_name in enumerate(img_names_rem):
 # save annotation/remake dictionary
 # get all keys, values from dict into lists (need to recreate dict later on)
 # TODO could replace this for-loop with a list comprehension
-keys = []
+keys_all = []
 values = []
 for k in ann_all_dict:
-    keys.append(k)
-    values.append(ann_all_dict[k])
+    keys_all.append(k)
+    # values.append(ann_all_dict[k])
+
 
 ann_out = {}
-for i, k in enumerate(keys):
-    ann_out = {**ann_out, k: ann_all_list[i]}
+for i, k in enumerate(keys_all):
+    # keys take the form of filename + filesize, thus we have to recreate the key
+    # or we can just use filenames
+    img_name_cur = ann_all_dict[k]['filename']
 
-import code
-code.interact(local=dict(globals(), **locals()))
+    # import code
+    # code.interact(local=dict(globals(), **locals()))
 
+    if img_name_cur in img_names_rem:
+        ann_out = {**ann_out, k: ann_all_list[i]}
+    else: 
+        # (keys must be in original poly list, img_names_com:)
+        ann_out = {**ann_out, k: ann_poly_dict[k]}
 
 
 # ann_poly_out = 'via_project_07Jul2021_08h00m_240_test_bootstrap.json'
 # ann_poly_out_path = os.path.join(ann_dir, ann_poly_out)
 with open(ann_poly_out_path, 'w') as af:
     json.dump(ann_out, af, indent=4)
-
-
-
-
-# TODO need to unscale images, create function unscale_polygon(img_orig, img_resc, pred_resc), return pred_out
-# TODO convert unscaled polygon to mask, based on some threshold
-# NOTE: probably more efficient to scale polygon and then just convert polygon to mask at appropriate size
-# but for now, we'll just resize the output mask and threshold it
-# def scale_polygon(poly, current_size, output_size):
-#     # current_size should be height, width tuple
-#     # h, w = image.size[:2]
-#     h, w = current_size
-#     if isinstance(output_size, int):
-#         if h > w: 
-#             new_h, new_w = output_size * h / w, output_size
-#         else:
-#             new_h, new_w = output_size, output_size * w / h
-#     else:
-#         new_h, new_w = output_size
-    
-#     new_h, new_w = int(new_h), int(new_w)
-
-#     # scale polygon
-#     p_x = poly[:, 0]
-#     p_y = poly[:, 1]
 
 
 import code
