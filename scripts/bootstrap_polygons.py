@@ -66,12 +66,14 @@ def unscale_polygon(polygon, output_size, input_size):
 # dataset name:
 dataset_name = 'Tussock_v4_poly286'
 dataset_path = os.path.join('/home', 'dorian', 'Data', 'AOS_TussockDataset', dataset_name)
-img_dir = os.path.join(dataset_path, 'Images', 'PolySubset')
+# img_dir = os.path.join(dataset_path, 'Images', 'PolySubset')
+img_dir = os.path.join(dataset_path, 'Images','All_Unlabelled_v2')
 ann_dir = os.path.join(dataset_path, 'Annotations')
 
 # this is the file we want to do the bootstrapping on!
 # all annotations (positive images only):
-ann_all = 'annotations_tussock_21032526_G507_polysubset.json'
+# ann_all = 'annotations_tussock_21032526_G507_polysubset.json'
+ann_all = 'annotations_tussock_21032526_G507_all_regions_list.json'
 ann_all_path = os.path.join(ann_dir, ann_all)
 
 # current annotations file with polygons:
@@ -79,7 +81,8 @@ ann_poly = 'via_project_07Jul2021_08h00m_240_test_allpoly.json'
 ann_poly_path = os.path.join(ann_dir, ann_poly)
 
 # annotation out file with all the predictions:
-ann_poly_out = 'via_project_07Jul2021_08h00m_240_polysubset_bootstrap.json'
+# ann_poly_out = 'via_project_07Jul2021_08h00m_240_polysubset_bootstrap.json'
+ann_poly_out = 'annotations_tussock_21032526_G507_all_regions_list_bootstrap.json'
 ann_poly_out_path = os.path.join(ann_dir, ann_poly_out)
 
 
@@ -94,8 +97,8 @@ ann_all_list = list(ann_all_dict.values())
 print(f'num images in ann_poly_list: {len(ann_poly_list)}')
 print('should be 286')
 print(f'num images in ann_all_list: {len(ann_all_list)}')
-# print('should be 570')
-print('should be 30')
+print('should be 570')
+# print('should be 30')
 
 # take these lists of dictionaries, and just get list of file names?
 img_names_poly = [s['filename'] for s in ann_poly_list]
