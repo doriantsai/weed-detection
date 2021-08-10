@@ -607,7 +607,8 @@ class WeedModel:
                               image,
                               conf_thresh,
                               nms_iou_thresh,
-                              annotation_type='poly'):
+                              annotation_type='poly',
+                              mask_threshold=0.5):
         """ take in model, single image, thresholds, return bbox predictions for
         scores > threshold """
 
@@ -630,26 +631,48 @@ class WeedModel:
         keep = torchvision.ops.nms(pred[0]['boxes'], pred[0]['scores'], nms_iou_thresh)
 
         pred_class = [i for i in list(pred[0]['labels'][keep].cpu().numpy())]
+        # bbox in form: [xmin, ymin, xmax, ymax]?
         pred_boxes = [[bb[0], bb[1], bb[2], bb[3]] for bb in list(pred[0]['boxes'][keep].detach().cpu().numpy())]
         # scores are ordered from highest to lowest
         pred_score = list(pred[0]['scores'][keep].detach().cpu().numpy())
         if annotation_type == 'poly':
             pred_masks = list(pred[0]['masks'][keep].detach().cpu().numpy())
+            # binarize mask, then redo boxes for new masks
+            pred_bin_masks = []
+            pred_bin_boxes = []
+            if len(pred_masks) > 0:
+                for mask in pred_masks:
+                    # import code
+                    # code.interact(local=dict(globals(), **locals()))
+                    mask = np.transpose(mask, (1,2,0))
+                    bin_mask, ctr, hier, ctr_sqz, poly  = self.binarize_confidence_mask(mask, threshold=mask_threshold)
+                    # get bounding box for bin_mask
+                    pred_bin_masks.append(bin_mask)
+                    xmin = min(ctr_sqz[:, 0])
+                    ymin = min(ctr_sqz[:, 1])
+                    xmax = max(ctr_sqz[:, 0])
+                    ymax = max(ctr_sqz[:, 1])
+                    bin_bbox = [xmin, ymin, xmax, ymax]
+                    pred_bin_boxes.append(bin_bbox)
 
+        # import code
+        # code.interact(local=dict(globals(), **locals()))
 
         # package
         pred_final = {}
         pred_final['boxes'] = pred_boxes
         pred_final['classes'] = pred_class
         pred_final['scores'] = pred_score
+    
         if annotation_type == 'poly':
             pred_final['masks'] = pred_masks
+            pred_final['bin_masks'] = pred_bin_masks
+            pred_final['bin_boxes'] = pred_bin_boxes
 
         # apply confidence threshold
         pred_final = self.threshold_predictions(pred_final, conf_thresh, annotation_type)
 
-        # import code
-        # code.interact(local=dict(globals(), **locals()))
+
         return pred_final
 
 
@@ -661,6 +684,8 @@ class WeedModel:
         pred_score = pred['scores']
         if annotation_type == 'poly':
             pred_masks = pred['masks']
+            pred_bin_masks = pred['bin_masks']
+            pred_bin_boxes = pred['bin_boxes']
 
         if len(pred_score) > 0:
             if max(pred_score) < thresh: # none of pred_score > thresh, then return empty
@@ -670,6 +695,8 @@ class WeedModel:
                 pred_score = []
                 if annotation_type == 'poly':
                     pred_masks = []
+                    pred_bin_masks = []
+                    pred_bin_boxes = []
             else:
                 pred_thresh = [pred_score.index(x) for x in pred_score if x > thresh][-1]
                 pred_boxes = pred_boxes[:pred_thresh+1]
@@ -677,6 +704,8 @@ class WeedModel:
                 pred_score = pred_score[:pred_thresh+1]
                 if annotation_type == 'poly':
                     pred_masks = pred_masks[:pred_thresh+1]
+                    pred_bin_boxes = pred_bin_boxes[:pred_thresh+1]
+                    pred_bin_masks = pred_bin_masks[:pred_thresh+1]
         else:
             pred_thresh = []
             pred_boxes = []
@@ -684,13 +713,18 @@ class WeedModel:
             pred_score = []
             if annotation_type == 'poly':
                 pred_masks = []
+                pred_bin_masks = []
+                pred_bin_boxes = []
 
         predictions = {}
         predictions['boxes'] = pred_boxes
         predictions['classes'] = pred_class
         predictions['scores'] = pred_score
+
         if annotation_type == 'poly':
             predictions['masks'] = pred_masks
+            predictions['bin_masks'] = pred_bin_masks
+            predictions['bin_boxes'] = pred_bin_boxes
 
         return predictions
 
@@ -1112,9 +1146,10 @@ class WeedModel:
         # ----------------------------------- #
         # second, plot predictions
         if predictions is not None:
-            boxes_pd = predictions['boxes']
+            # boxes_pd = predictions['boxes']
+            boxes_pd = predictions['bin_boxes']
             scores = predictions['scores']
-            masks = predictions['masks']
+            masks = predictions['bin_masks']
 
             if len(boxes_pd) > 0:
                 for i in range(len(boxes_pd)):
@@ -1138,7 +1173,7 @@ class WeedModel:
             if len(masks) > 0:
                 for i in range(len(masks)):
                     mask = masks[i]
-                    mask = np.transpose(mask, (1, 2, 0))
+                    # mask = np.transpose(mask, (1, 2, 0))
 
                     mask_bin, ctr, hier, ctr_qz, poly = self.binarize_confidence_mask(mask, mask_threshold)
                     # note: poly here is just for dictionary output, ctr is the 2D numpy array we want!
@@ -1171,9 +1206,6 @@ class WeedModel:
                     # import code
                     # code.interact(local=dict(globals(), **locals()))
 
-                    # masks already a numpy array, float32
-                    # TODO just show mask
-                    # THEN show overlay of predicted mask (red)
         # ----------------------------------- #
         # third, add iou info (within the predicitons if statement)
             if outcomes is not None:

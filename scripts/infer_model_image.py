@@ -144,5 +144,6 @@ for i in range(bs):
     sec = end_time - start_time
     print('cycle time: {} sec'.format(sec))
 
+print('infer_model_image.py end')
 import code
 code.interact(local=dict(globals(), **locals()))
