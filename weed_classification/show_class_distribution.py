@@ -48,7 +48,7 @@ lbl_dir = 'labels'
 # lbl_file = 'deployment_labels.csv'
 # lbl_file = 'nonnegative_labels.csv'
 # lbl_filepath = os.path.join(lbl_dir, lbl_file)
-
+# lbl_file = 'labels.csv' # includes negative images
 
 # glob all label files with "nonneg_"
 lbl_files = glob.glob('labels/nonneg_*.csv', recursive=False)
@@ -74,7 +74,7 @@ for lbl in lbl_files:
 
 
     # convert to numpy arrays for histogram?
-    idx = np.arange(len(lbl_list))
+    # idx = np.arange(len(lbl_list))
     lbls = np.array(lbl_list)
     nclasses = len(CLASSES)
 
