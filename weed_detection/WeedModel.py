@@ -633,6 +633,13 @@ class WeedModel:
         pred_class = [i for i in list(pred[0]['labels'][keep].cpu().numpy())]
         # bbox in form: [xmin, ymin, xmax, ymax]?
         pred_boxes = [[bb[0], bb[1], bb[2], bb[3]] for bb in list(pred[0]['boxes'][keep].detach().cpu().numpy())]
+        # TODO get centre of bounding boxes
+        pred_box_centroids = []
+        if len(pred_boxes) > 0:
+            for box in pred_boxes:
+                cen = self.box_centroid(box)
+                pred_box_centroids.append(cen)
+        
         # scores are ordered from highest to lowest
         pred_score = list(pred[0]['scores'][keep].detach().cpu().numpy())
         if annotation_type == 'poly':
@@ -640,6 +647,8 @@ class WeedModel:
             # binarize mask, then redo boxes for new masks
             pred_bin_masks = []
             pred_bin_boxes = []
+            pred_box_centroids = []
+            pred_poly_centroids = []
             if len(pred_masks) > 0:
                 for mask in pred_masks:
                     # import code
@@ -655,12 +664,17 @@ class WeedModel:
                     bin_bbox = [xmin, ymin, xmax, ymax]
                     pred_bin_boxes.append(bin_bbox)
 
+                    pred_box_centroids.append(self.box_centroid(bin_bbox))  # should overwrite original box centroids
+                    cen_poly = self.polygon_centroid(ctr_sqz)
+                    pred_poly_centroids.append(cen_poly)
+
         # import code
         # code.interact(local=dict(globals(), **locals()))
 
         # package
         pred_final = {}
         pred_final['boxes'] = pred_boxes
+        pred_final['box_centroids'] = pred_box_centroids
         pred_final['classes'] = pred_class
         pred_final['scores'] = pred_score
     
@@ -668,6 +682,7 @@ class WeedModel:
             pred_final['masks'] = pred_masks
             pred_final['bin_masks'] = pred_bin_masks
             pred_final['bin_boxes'] = pred_bin_boxes
+            pred_final['poly_centroids'] = pred_poly_centroids
 
         # apply confidence threshold
         pred_final = self.threshold_predictions(pred_final, conf_thresh, annotation_type)
@@ -682,10 +697,13 @@ class WeedModel:
         pred_boxes = pred['boxes']
         pred_class = pred['classes']
         pred_score = pred['scores']
+        pred_box_centroids = pred['box_centroids']
         if annotation_type == 'poly':
             pred_masks = pred['masks']
             pred_bin_masks = pred['bin_masks']
             pred_bin_boxes = pred['bin_boxes']
+            pred_poly_centroids = pred['poly_centroids']
+        
 
         if len(pred_score) > 0:
             if max(pred_score) < thresh: # none of pred_score > thresh, then return empty
@@ -693,38 +711,46 @@ class WeedModel:
                 pred_boxes = []
                 pred_class = []
                 pred_score = []
+                pred_box_centroids = []
                 if annotation_type == 'poly':
                     pred_masks = []
                     pred_bin_masks = []
                     pred_bin_boxes = []
+                    pred_poly_centroids = []
             else:
                 pred_thresh = [pred_score.index(x) for x in pred_score if x > thresh][-1]
                 pred_boxes = pred_boxes[:pred_thresh+1]
                 pred_class = pred_class[:pred_thresh+1]
                 pred_score = pred_score[:pred_thresh+1]
+                pred_box_centroids = pred_box_centroids[:pred_thresh+1]
                 if annotation_type == 'poly':
                     pred_masks = pred_masks[:pred_thresh+1]
                     pred_bin_boxes = pred_bin_boxes[:pred_thresh+1]
                     pred_bin_masks = pred_bin_masks[:pred_thresh+1]
+                    pred_poly_centroids = pred_poly_centroids[:pred_thresh+1]
         else:
             pred_thresh = []
             pred_boxes = []
             pred_class = []
             pred_score = []
+            pred_box_centroids = []
             if annotation_type == 'poly':
                 pred_masks = []
                 pred_bin_masks = []
                 pred_bin_boxes = []
+                pred_poly_centroids = []
 
         predictions = {}
         predictions['boxes'] = pred_boxes
         predictions['classes'] = pred_class
         predictions['scores'] = pred_score
+        predictions['box_centroids'] = pred_box_centroids
 
         if annotation_type == 'poly':
             predictions['masks'] = pred_masks
             predictions['bin_masks'] = pred_bin_masks
             predictions['bin_boxes'] = pred_bin_boxes
+            predictions['poly_centroids'] = pred_poly_centroids
 
         return predictions
 
@@ -1022,15 +1048,16 @@ class WeedModel:
 
     def box_centroid(self, box_in):
         """ compute box centroid """
-        # box input as x, y, w, h
+        # box input as x0, y0, x1, y2
+        # bbox in form: [xmin, ymin, xmax, ymax]?
         xmin = box_in[0]
         ymin = box_in[1]
-        w = box_in[2]
-        h = box_in[3]
+        w = box_in[2] - box_in[0]
+        h = box_in[3] - box_in[1]
 
         cx = xmin + w / 2.0
         cy = ymin + h / 2.0
-        return ((cx, cy))
+        return ([cx, cy])
 
 
     def show_mask(self,
@@ -1150,6 +1177,8 @@ class WeedModel:
             boxes_pd = predictions['bin_boxes']
             scores = predictions['scores']
             masks = predictions['bin_masks']
+            boxes_cen = predictions['box_centroids']
+            poly_cen = predictions['poly_centroids']
 
             if len(boxes_pd) > 0:
                 for i in range(len(boxes_pd)):
@@ -1205,6 +1234,22 @@ class WeedModel:
                     #                             gamma=0)
                     # import code
                     # code.interact(local=dict(globals(), **locals()))
+
+            if len(poly_cen) > 0:
+                for pc in poly_cen:
+                    # plot polygon centroid
+                    # get image size, make circle a function of image size
+                    h, w, _ = image_out.shape
+                    imsize = min((h, w))
+                    ptsize = int(imsize / 75)
+                    xc = int(pc[0])
+                    yc = int(pc[1])
+                    image_out = cv.circle(image_out, 
+                                          center=(xc, yc), 
+                                          radius=ptsize,
+                                          color=pred_mask_color,
+                                          thickness=dt_box_thick,
+                                          lineType=cv.LINE_8)
 
         # ----------------------------------- #
         # third, add iou info (within the predicitons if statement)
