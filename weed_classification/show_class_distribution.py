@@ -30,7 +30,7 @@ green = np.r_[0, 255, 0]/255
 yellow = np.r_[255, 255, 0]/255
 cyan = np.r_[0, 255, 255]/255
 red = np.r_[255, 0, 0]/255
-purple = np.r_[255, 0, 255]/255
+purple = np.r_[135, 0, 135]/255
 orange = np.r_[255, 127, 80]/255
 CLASS_COLOURS = [pink,
                 blue,
@@ -51,7 +51,8 @@ lbl_dir = 'labels'
 # lbl_file = 'labels.csv' # includes negative images
 
 # glob all label files with "nonneg_"
-lbl_files = glob.glob('labels/nonneg_*.csv', recursive=False)
+# lbl_files = glob.glob('labels/nonneg_*.csv', recursive=False)
+lbl_files = glob.glob('labels/development_labels_trim.csv', recursive=False)
 lbl_files.sort()
 
 # remove labels/ str from lbl_files:
@@ -79,7 +80,9 @@ for lbl in lbl_files:
     nclasses = len(CLASSES)
 
     fig, ax = plt.subplots(1, 1, tight_layout=True)
-    N, bins, patches = ax.hist(lbls, bins=CLASSES)
+    binboundary = np.arange(0, 9)
+    N, bins, patches = ax.hist(lbls, bins=binboundary)
+
 
     for i, thispatch in enumerate(patches):
         thispatch.set_facecolor(CLASS_COLOURS[i])
@@ -94,7 +97,7 @@ for lbl in lbl_files:
     save_img_name = lbl[:-4] + '_class_histogram.png'
     save_img_path = os.path.join(save_folder, save_img_name)
     plt.savefig(save_img_path)
-    
+
     plt.close(fig)
 
     print(f'done saving figure: {save_img_path}')

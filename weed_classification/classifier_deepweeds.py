@@ -472,7 +472,10 @@ if __name__ == "__main__":
     # save_path = './saved_model/testtraining/deepweeds_resnet50_train0.pth'
 
     # read labels
-    labels_file = os.path.join(labels_folder, 'nonnegative_labels.csv')
+    # labels_file = os.path.join(labels_folder, 'nonnegative_labels.csv')
+    lbls_file = 'development_labels_trim.csv'
+    labels_file = os.path.join(labels_folder, lbls_file)
+
     # labels = pd.read_csv(labels_file)
 
     # classes
@@ -494,7 +497,7 @@ if __name__ == "__main__":
     train_test_split = 0.8
 
     # max images = 8403 * 0.8 / 8 = 840.3
-    train_sizes = [200 * len(CLASSES)] # ntrain]  # last number should be ntrain
+    train_sizes = [500 * len(CLASSES)] # ntrain]  # last number should be ntrain
     print('train size = {}'.format(train_sizes))
 
     ntrain_times = 1
@@ -580,6 +583,18 @@ if __name__ == "__main__":
                             shuffle=shuffle,
                             num_workers=num_workers)
     print('test_dataset length =', len(test_dataset))
+
+    # save datasets and dataloader objects for future use:
+    save_dataset_objects = os.path.join('dataset_objects', lbls_file[:-4])
+    os.makedirs(save_dataset_objects, exist_ok=True)
+    save_dataset_path = os.path.join(save_dataset_objects, lbls_file[:-4] + '.pkl')
+    with open(save_dataset_path, 'wb') as f:
+        pickle.dump(td, f)
+        pickle.dump(vd, f)
+        pickle.dump(test_dataset, f)
+        pickle.dump(tdl, f)
+        pickle.dump(vdl, f)
+        pickle.dump(test_loader, f)
 
     # code to iterate through dataset samples
     # for i in range(len(train_dataset)):

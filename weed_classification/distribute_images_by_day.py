@@ -30,7 +30,7 @@ def process_label_set(label_files, set_indices, lbl_dir='labels'):
 
     set_lbl_paths = [os.path.join(lbl_dir, d) for d in set_lbl_days]
 
-    # for each set, combine day labels 
+    # for each set, combine day labels
     set_dataframe = pd.concat(map(pd.read_csv, set_lbl_paths), ignore_index=True)
 
     # for each set, load dataframe, extract img_list, lbl_list
@@ -61,7 +61,7 @@ green = np.r_[0, 255, 0]/255
 yellow = np.r_[255, 255, 0]/255
 cyan = np.r_[0, 255, 255]/255
 red = np.r_[255, 0, 0]/255
-purple = np.r_[255, 0, 255]/255
+purple = np.r_[135, 0, 135]/255
 orange = np.r_[255, 127, 80]/255
 CLASS_COLOURS = [pink,
                 blue,
@@ -86,13 +86,13 @@ for i, lbl in enumerate(lbl_files):
 
 # specify which lbl files go into which set
 # TODO  ensure there is no overlap
-dev_days = [2, 3, 5, 6, 7, 9, 10, 12, 13, 15,
-            24, 25, 28, 29, 31, 
+dev_days = [2, 3, 4, 5, 6, 7, 9, 10, 11, 12, 13, 15, 19,
+            21, 24, 25, 27, 28, 29, 31,
             32, 33, 34, 35, 37, 38, 41, 42]
 
-dep_days = [1, 8, 14, 16, 17, 18, 20, 22, 23, 26, 30, 36, 39, 40, 44, 45]
+dep_days = [0, 1, 8, 14, 16, 17, 18, 20, 22, 23, 26, 30, 36, 39, 40, 43, 44, 45]
 
-# NOTE removed days: 0, 4, 11, 19, 21,  43, 27
+# NOTE removed days:
 
 
 # dep_lbl_days = [lbl_files[i] for i in dep_days]
@@ -120,8 +120,9 @@ dep_arr, dep_df = process_label_set(lbl_files, dep_days)
 
 # for each set, show histogram in side-by-side mode?
 fig, (ax1, ax2) = plt.subplots(1, 2, tight_layout=True)
-N1, bins1, patches1 = ax1.hist(dev_arr, bins=CLASSES)
-N2, bins2, patches2 = ax2.hist(dep_arr, bins=CLASSES)
+binboundary = np.arange(0, 9)
+N1, bins1, patches1 = ax1.hist(dev_arr, bins=binboundary)
+N2, bins2, patches2 = ax2.hist(dep_arr, bins=binboundary)
 
 for i, thispatch in enumerate(patches1):
     thispatch.set_facecolor(CLASS_COLOURS[i])
