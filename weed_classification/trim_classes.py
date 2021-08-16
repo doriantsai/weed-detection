@@ -15,7 +15,6 @@ import numpy as np
 import random
 
 ########### classes #############
-CLASSES = (0, 1, 2, 3, 4, 5, 6, 7)
 CLASS_NAMES = ('Chinee apple',
                 'Lantana',
                 'Parkinsonia',
@@ -23,7 +22,9 @@ CLASS_NAMES = ('Chinee apple',
                 'Prickly acacia',
                 'Rubber vine',
                 'Siam weed',
-                'Snake weed')
+                'Snake weed',
+                'Negative')
+CLASSES = np.arange(0, len(CLASS_NAMES))
 CLASS_DICT = {i: CLASS_NAMES[i] for i in range(0, len(CLASSES))}
 
 # set colours for histogram based on ones used in paper
@@ -34,8 +35,9 @@ green = np.r_[0, 255, 0]/255
 yellow = np.r_[255, 255, 0]/255
 cyan = np.r_[0, 255, 255]/255
 red = np.r_[255, 0, 0]/255
-purple = np.r_[255, 0, 255]/255
+purple = np.r_[135, 0, 135]/255
 orange = np.r_[255, 127, 80]/255
+grey = np.r_[100, 100, 100]/255
 CLASS_COLOURS = [pink,
                 blue,
                 green,
@@ -43,7 +45,9 @@ CLASS_COLOURS = [pink,
                 cyan,
                 red,
                 purple,
-                orange]
+                orange,
+                grey]
+
 
 lbl_dir = 'labels'
 lbl_file = 'development_labels.csv'
@@ -85,23 +89,28 @@ for c in CLASSES:
 
 # specify class to trim/amount to remove
 # class_trim = 7
-target_class_nimages = min(nlbls_per_class) # reduce current image count by this number
-
+target_class_nimages = min(nlbls_per_class[:-1]) # reduce current image count by this number, excluding the negative cases
+print(f'target class nimages = {target_class_nimages}')
 # for each class, randomly remove diff in classes
 lbls_trim_by_class = []
 idxs_trim_by_class = []
 
-for i, c in enumerate(CLASSES):
-    nelements_delete = nlbls_per_class[i] - target_class_nimages
-    print(f'{i}: nelements delete = {nelements_delete}')
-    to_delete = set(random.sample(range(len(lbls_by_class[i])), nelements_delete))
-    lbls_trim_by_class = [x for k, x in enumerate(lbls_by_class[i]) if not k in to_delete]
-    print(f'trimmed labels len: {len(lbls_trim_by_class)}')
+for i, c in enumerate(CLASSES): # here, we do not trim the negative class cases
+    if i == CLASSES[-1]:
+        # if negative class, append all of negative images
+        idxs_trim_by_class.append(idxs_per_class[i])
+    else:
+        nelements_delete = nlbls_per_class[i] - target_class_nimages
+        print(f'{i}: nelements delete = {nelements_delete}')
+        to_delete = set(random.sample(range(len(lbls_by_class[i])), nelements_delete))
+        lbls_trim_by_class = [x for k, x in enumerate(lbls_by_class[i]) if not k in to_delete]
+        print(f'trimmed labels len: {len(lbls_trim_by_class)}')
 
-    idx_trim_class = [x for k, x in enumerate(idxs_per_class[i]) if not k in to_delete]
-    print(f'trimmed idx len: {len(idx_trim_class)}')
-    idxs_trim_by_class.append(idx_trim_class)
+        idx_trim_class = [x for k, x in enumerate(idxs_per_class[i]) if not k in to_delete]
+        print(f'trimmed idx len: {len(idx_trim_class)}')
+        idxs_trim_by_class.append(idx_trim_class)
 
+    
 
 
 

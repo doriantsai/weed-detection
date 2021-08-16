@@ -90,6 +90,8 @@ if __name__ == "__main__":
 
     os.mkdir(positive_dataset_folder)
 
+    neg_label = []
+    neg_name = []
     for i in range(len(fulldataset)):
         sample = fulldataset[i]
         img, lbl, name = sample['image'], sample['label'], sample['image_name']
@@ -104,6 +106,9 @@ if __name__ == "__main__":
             # save label to list
             label.append(lbl)
             img_name.append(name)
+        else:
+            neg_label.append(lbl)
+            neg_name.append(name)
 
     print('finished iterating through dataset')
     print('initial number of images: {}'.format(len(fulldataset)))
@@ -116,6 +121,12 @@ if __name__ == "__main__":
     outfile = pd.DataFrame({'Filename': img_name, 'Label': label})
     outfile.to_csv(positive_csv_file, index=False)
 
+    negative_csv_file = os.path.join(labels_folder, 'negative_labels.csv')
+    neg_df = pd.DataFrame({'Filename': neg_name, 'Label': neg_label})
+    neg_df.to_csv(negative_csv_file, index=False)
+
     print('creating nonnegative dataset complete')
     # import code
-    # code.interact(local=dict(globals(), **locals()))   
+    # code.interact(local=dict(globals(), **locals())) 
+    # 
+      

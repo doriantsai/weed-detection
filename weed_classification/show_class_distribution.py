@@ -11,7 +11,7 @@ import glob
 
 
 ########### classes #############
-CLASSES = (0, 1, 2, 3, 4, 5, 6, 7)
+
 CLASS_NAMES = ('Chinee apple',
                 'Lantana',
                 'Parkinsonia',
@@ -19,7 +19,9 @@ CLASS_NAMES = ('Chinee apple',
                 'Prickly acacia',
                 'Rubber vine',
                 'Siam weed',
-                'Snake weed')
+                'Snake weed',
+                'Negative')
+CLASSES = np.arange(0, len(CLASS_NAMES))
 CLASS_DICT = {i: CLASS_NAMES[i] for i in range(0, len(CLASSES))}
 
 # set colours for histogram based on ones used in paper
@@ -32,6 +34,7 @@ cyan = np.r_[0, 255, 255]/255
 red = np.r_[255, 0, 0]/255
 purple = np.r_[135, 0, 135]/255
 orange = np.r_[255, 127, 80]/255
+grey = np.r_[100, 100, 100]/255
 CLASS_COLOURS = [pink,
                 blue,
                 green,
@@ -39,7 +42,8 @@ CLASS_COLOURS = [pink,
                 cyan,
                 red,
                 purple,
-                orange]
+                orange,
+                grey]
 
 # location of labels:
 lbl_dir = 'labels'
@@ -52,7 +56,10 @@ lbl_dir = 'labels'
 
 # glob all label files with "nonneg_"
 # lbl_files = glob.glob('labels/nonneg_*.csv', recursive=False)
+# lbl_files = glob.glob('labels/nonnegative_labels.csv', recursive=False)
 lbl_files = glob.glob('labels/development_labels_trim.csv', recursive=False)
+# lbl_files = glob.glob('labels/labels.csv', recursive=False)
+# lbl_files = glob.glob('labels/labels_day*.csv', recursive=False)
 lbl_files.sort()
 
 # remove labels/ str from lbl_files:
@@ -80,7 +87,7 @@ for lbl in lbl_files:
     nclasses = len(CLASSES)
 
     fig, ax = plt.subplots(1, 1, tight_layout=True)
-    binboundary = np.arange(0, 9)
+    binboundary = np.arange(0, len(CLASSES)+1)
     N, bins, patches = ax.hist(lbls, bins=binboundary)
 
 

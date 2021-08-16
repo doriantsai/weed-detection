@@ -125,19 +125,20 @@ Tussock.set_snapshot(20)
 
 # run model inference on single image batch
 images, samples = next(iter(dataloader))
-bs = 1 # hp_test['batch_size']
+bs = 10 # hp_test['batch_size']
 for i in range(bs):
     # import code
     # code.interact(local=dict(globals(), **locals()))
     image = images[i]
     sample = samples[i]
-    image_id = sample['image_id']
+    image_id = sample['image_id'].item()
     start_time = time.time()
     image_out, pred = Tussock.infer_image(image,
                                           sample=sample,
                                           imshow=True,
                                           imsave=True,
-                                          conf_thresh=0.2)
+                                          conf_thresh=0.2,
+                                          image_name = str(image_id))
     print('{}: {}'.format(i, image_id))
     print('   pred = {}'.format(pred))
     end_time = time.time()

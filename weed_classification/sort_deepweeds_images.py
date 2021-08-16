@@ -17,7 +17,8 @@ from dateutil import parser
 import numpy as np
 import pandas as pd
 
-img_dir = 'nonnegative_images'
+# img_dir = 'nonnegative_images'
+img_dir = 'images'
 img_list = os.listdir(img_dir)
 img_list.sort()
 
@@ -121,12 +122,12 @@ dep_img_list = [img_list[d] for d in dep_idx_list]
 
 # read label from filename:
 lbl_dir = 'labels'
-labels_file = os.path.join(lbl_dir, 'nonnegative_labels.csv')
+labels_file = os.path.join(lbl_dir, 'labels.csv')
 # TODO fixme, name[16] is not the label. Label must be found in the labels file
 # read in labels file
 # find all image names in labels file
 data_frame = pd.read_csv(labels_file)
-lbl_img_list = list(data_frame.iloc[:,0])
+lbl_img_list = list(data_frame.iloc[:, 0])
 lbl_lbl_list = list(data_frame.iloc[:, 1])
 
 # find all image names that match the dev_img_list/dep_img_list
@@ -155,8 +156,8 @@ dep_dict = {'Filename': dep_img_list, 'Label': dep_label}
 # read labels
 
 
-dev_labels_file = 'development_labels.csv'
-dep_labels_file = 'deployment_labels.csv'
+dev_labels_file = 'sort_development_labels.csv'
+dep_labels_file = 'sort_deployment_labels.csv'
 
 # labels_file = os.path.join(labels_folder, 'nonnegative_labels.csv')
 # labels = pd.read_csv(labels_file)
@@ -170,7 +171,7 @@ dp.to_csv(os.path.join(lbl_dir, dep_labels_file), index=False)
 for u in range(0, len(unique_dates)):
 # for u in range(uidx_deploy, len(unique_dates)):
     # dep_name = 'deployment_day' + str(u) + '_img' + str(len(idx_per_date[u])) + '.csv'
-    dep_name = 'nonneg_labels_day' + '{0:02d}'.format(u) + '_img' + '{0:03d}'.format(len(idx_per_date[u])) + '.csv'
+    dep_name = 'labels_day' + '{0:02d}'.format(u) + '_img' + '{0:03d}'.format(len(idx_per_date[u])) + '.csv'
     dep_list = [img_list[d] for d in idx_per_date[u]]
     dep_label = []
     for d in dep_list:
