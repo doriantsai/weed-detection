@@ -36,7 +36,7 @@ torch.manual_seed(42)
 
 
 ########### classes #############
-CLASSES = (0, 1, 2, 3, 4, 5, 6, 7)
+CLASSES = (0, 1, 2, 3, 4, 5, 6, 7, 8)
 CLASS_NAMES = ('Chinee apple',
                 'Lantana',
                 'Parkinsonia',
@@ -44,7 +44,8 @@ CLASS_NAMES = ('Chinee apple',
                 'Prickly acacia',
                 'Rubber vine',
                 'Siam weed',
-                'Snake weed')
+                'Snake weed',
+                'Negative')
 CLASS_DICT = {i: CLASS_NAMES[i] for i in range(0, len(CLASSES))}
 
 
@@ -467,7 +468,7 @@ if __name__ == "__main__":
 
     # folder settings
     model_folder = './models'
-    images_folder = './nonnegative_images'
+    images_folder = './images'
     labels_folder = './labels'
     # save_path = './saved_model/testtraining/deepweeds_resnet50_train0.pth'
 
@@ -583,7 +584,8 @@ if __name__ == "__main__":
                             shuffle=shuffle,
                             num_workers=num_workers)
     print('test_dataset length =', len(test_dataset))
-
+    print(f'validation dataset length = {len(vd)}')
+    print(f'traininh dataset length = {len(td)}')
     # save datasets and dataloader objects for future use:
     save_dataset_objects = os.path.join('dataset_objects', lbls_file[:-4])
     os.makedirs(save_dataset_objects, exist_ok=True)
@@ -651,7 +653,7 @@ if __name__ == "__main__":
 
             # generate save_path/name for each one
             # save_path = './saved_model/testtraining/deepweeds_resnet50_train0.pth'
-            save_folder = os.path.join('saved_model','training' + str(folder_num))
+            save_folder = os.path.join('saved_model','development_training' + str(folder_num))
             # if not os.path.isdir(save_folder):
             #     os.mkdir(save_folder)
             os.makedirs(save_folder, exist_ok=True)
