@@ -64,7 +64,7 @@ for i, a in enumerate(ann):
                 # TODO if occluded is not there/spray default is not defined, update dictionary
                 ann[i]['regions'][j]['region_attributes'].update(spray_default)
                 # print(ann[i]['regions'][j]['region_attributes'])
-                
+
 # convert ann from list back to dict
 ann_out = {}
 for i, k in enumerate(keys):
@@ -73,6 +73,7 @@ for i, k in enumerate(keys):
 # for ai in ann:
 #     ann_out = {**ann_out, **ai}
 
+# pauses python script at this point, allowing user to check data interactively through terminal
 import code
 code.interact(local=dict(globals(), **locals()))
 
