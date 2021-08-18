@@ -27,9 +27,13 @@ classifier = svm.LinearSVC(random_state=random_state)
 classifier.fit(X_train, y_train)
 y_score = classifier.decision_function(X_test)
 
+import code
+code.interact(local=dict(globals(), **locals()))
+
+
 from sklearn.metrics import average_precision_score
 average_precision = average_precision_score(y_test, y_score)
-# includes some negatives 
+# includes some negatives
 print('Average precision-recall score: {0:0.2f}'.format(
       average_precision))
 
