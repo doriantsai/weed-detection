@@ -67,8 +67,11 @@ for i, thispatch in enumerate(patches):
     thispatch.set_facecolor(CLASS_COLOURS[i])
 plt.xlabel('classes')
 plt.ylabel('image count')
-plt.title('class distribution: ' + lbl_file)
+plt.title('class distribution before trim: ' + lbl_file)
 # plt.show()
+
+
+
 
 # find all lbls that are == class_trim
 lbls_by_class = []

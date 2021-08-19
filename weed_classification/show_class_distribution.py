@@ -82,9 +82,7 @@ for lbl in lbl_files:
 
 
     # convert to numpy arrays for histogram?
-    # idx = np.arange(len(lbl_list))
     lbls = np.array(lbl_list)
-    nclasses = len(CLASSES)
 
     fig, ax = plt.subplots(1, 1, tight_layout=True)
     binboundary = np.arange(0, len(CLASSES)+1)

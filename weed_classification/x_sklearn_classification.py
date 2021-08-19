@@ -4,13 +4,16 @@ from sklearn import svm, datasets
 from sklearn.model_selection import train_test_split
 import numpy as np
 
+from sklearn.metrics import average_precision_score
+from sklearn.metrics import precision_recall_curve
+from sklearn.metrics import plot_precision_recall_curve
+import matplotlib.pyplot as plt
+from sklearn.preprocessing import label_binarize
+
 iris = datasets.load_iris()
 X = iris.data
 y = iris.target
 X_raw = X
-
-import code
-code.interact(local=dict(globals(), **locals()))
 
 # Add noisy features
 random_state = np.random.RandomState(0)
@@ -27,29 +30,30 @@ classifier = svm.LinearSVC(random_state=random_state)
 classifier.fit(X_train, y_train)
 y_score = classifier.decision_function(X_test)
 
-import code
-code.interact(local=dict(globals(), **locals()))
 
-
-from sklearn.metrics import average_precision_score
 average_precision = average_precision_score(y_test, y_score)
 # includes some negatives
 print('Average precision-recall score: {0:0.2f}'.format(
       average_precision))
 
-from sklearn.metrics import precision_recall_curve
-from sklearn.metrics import plot_precision_recall_curve
-import matplotlib.pyplot as plt
 
 disp = plot_precision_recall_curve(classifier, X_test, y_test)
 disp.ax_.set_title('2-class Precision-Recall curve: '
                    'AP={0:0.2f}'.format(average_precision))
 
-from sklearn.preprocessing import label_binarize
+
+
+
+
+
 
 # Use label_binarize to be multi-label like settings
 Y = label_binarize(y, classes=[0, 1, 2])
 n_classes = Y.shape[1]
+
+import code
+code.interact(local=dict(globals(), **locals()))
+
 
 # Split into training and test
 X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=.5,
@@ -63,8 +67,9 @@ classifier = OneVsRestClassifier(svm.LinearSVC(random_state=random_state))
 classifier.fit(X_train, Y_train)
 y_score = classifier.decision_function(X_test)
 
-# from sklearn.metrics import precision_recall_curve
-from sklearn.metrics import average_precision_score
+import code
+code.interact(local=dict(globals(), **locals()))
+
 
 # For each class
 precision = dict()
@@ -131,7 +136,7 @@ plt.title('Extension of Precision-Recall curve to multi-class')
 plt.legend(lines, labels, loc=(0, -.38), prop=dict(size=14))
 
 
-# plt.show()
+plt.show()
 
 
 import code

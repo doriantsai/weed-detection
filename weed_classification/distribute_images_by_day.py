@@ -229,8 +229,8 @@ plt.close(fig)
 # TODO save dev, dep as new label sets
 dev_labels_file = 'development_labels.csv'
 dep_labels_file = 'deployment_labels.csv'
-dev_df.to_csv(os.path.join(lbl_dir, dev_labels_file), index=False)
-dep_df.to_csv(os.path.join(lbl_dir, dep_labels_file), index=False)
+dev_df_ex.to_csv(os.path.join(lbl_dir, dev_labels_file), index=False)
+dep_df_ex.to_csv(os.path.join(lbl_dir, dep_labels_file), index=False)
 
 
 import code
