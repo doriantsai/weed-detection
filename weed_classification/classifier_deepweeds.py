@@ -495,7 +495,7 @@ if __name__ == "__main__":
     # assuming an even class distribution, if we want training size of X/class, then we need
     # X*8 images
     print('classes: {}'.format(len(CLASSES)))
-    train_test_split = 0.95
+    train_test_split = 0.9
 
     # max images = 8403 * 0.8 / 8 = 840.3
     train_sizes = [500 * len(CLASSES)] # ntrain]  # last number should be ntrain
@@ -544,7 +544,7 @@ if __name__ == "__main__":
 
     # now we split up the original train_dataset into subdatasets
     # each needs their training and validation datasets
-    train_val_split = 0.6
+    train_val_split = 0.7
     train_dataset_list = []
     val_dataset_list = []
     train_dataloader_list = []
