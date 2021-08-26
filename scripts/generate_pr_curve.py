@@ -15,8 +15,8 @@ from weed_detection.WeedModel import WeedModel as WM
 # model_folder = 'Tussock_v3_neg_train_test'
 # dataset_name = 'Tussock_v3_neg_train_test'
 
-model_name = 'Tussock_v4_poly_2021-08-26_21_17'
-model_folder = 'Tussock_v4_poly_2021-08-26_21_17'
+model_name = 'Tussock_v4_poly_2021-08-26_15_57'
+model_folder = 'Tussock_v4_poly_2021-08-26_15_57'
 dataset_name = 'Tussock_v4_poly'
 
 # init WM object
