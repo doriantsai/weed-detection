@@ -794,7 +794,7 @@ class PreProcessingToolbox:
 
             # save mask
             mask_name = image_ids[i] + "_mask.png"
-            print(mask_name)
+            # print(mask_name)
             mask_filepath = os.path.join(mask_dir_out, mask_name)
             cv.imwrite(mask_filepath, mask)
 

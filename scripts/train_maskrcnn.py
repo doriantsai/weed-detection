@@ -15,6 +15,10 @@ import json
 from weed_detection.PreProcessingToolbox import PreProcessingToolbox
 from weed_detection.WeedModel import WeedModel
 
+
+SPLIT_DATA = False
+CREATE_MASKS = False
+
 # folder/file locations/paths
 dataset_name = 'Tussock_v4_poly'
 
@@ -41,23 +45,26 @@ ann_out_file = ProTool.sync_annotations(img_dir, ann_path, ann_out_path)
 
 # ============================================================
 print('creating masks')
-# make masks
 mask_dir = os.path.join(root_dir, 'Masks')
 mask_dir_all = os.path.join(mask_dir, 'All')
-ProTool.create_masks_from_poly(img_dir, ann_out_file, mask_dir_all)
+if CREATE_MASKS:
+    # make masks
+    
+    ProTool.create_masks_from_poly(img_dir, ann_out_file, mask_dir_all)
 
-# check how many images there are
-img_list = os.listdir(img_dir)
+    # check how many images there are
+    img_list = os.listdir(img_dir)
 
-# check how many masks there are:
-mask_list = os.listdir(mask_dir_all)
+    # check how many masks there are:
+    mask_list = os.listdir(mask_dir_all)
 
-print(f'number of images: {len(img_list)}')
-print(f'number of masks: {len(mask_list)}')
+    print(f'number of images: {len(img_list)}')
+    print(f'number of masks: {len(mask_list)}')
 
 # ============================================================
 # split image data
 print('splitting image data')
+
 ann_all_file = 'annotations_tussock_21032526_G507_all1.json'
 
 # annotation files Master (contains all images - we don't touch this file, just
@@ -70,16 +77,24 @@ ann_test_file = 'annotations_tussock_21032526_G507_test.json'
 ann_val_file = 'annotations_tussock_21032526_G507_val.json'
 
 
+if SPLIT_DATA:
+    img_folders, ann_files = ProTool.split_image_data(root_dir,
+                                                        img_dir,
+                                                        ann_master_file,
+                                                        ann_all_file,
+                                                        ann_train_file,
+                                                        ann_val_file,
+                                                        ann_test_file)
+else:
+    train_folder = os.path.join(root_dir, 'Images', 'Train')
+    test_folder = os.path.join(root_dir, 'Images','Test')
+    val_folder = os.path.join(root_dir, 'Images', 'Validation')
+    img_folders = [train_folder, test_folder, val_folder]
 
-
-img_folders, ann_files = ProTool.split_image_data(root_dir,
-                                                    img_dir,
-                                                    ann_master_file,
-                                                    ann_all_file,
-                                                    ann_train_file,
-                                                    ann_val_file,
-                                                    ann_test_file)
-
+    annotations_train = os.path.join(ann_dir, ann_train_file)
+    annotations_val = os.path.join(ann_dir, ann_val_file)
+    annotations_test = os.path.join(ann_dir, ann_test_file)
+    ann_files = [annotations_train, annotations_test, annotations_val]
 
 # ============================================================
 
@@ -92,8 +107,8 @@ mask_folders = [os.path.join(mask_dir, 'Train'),
 # all_mask_dir = os.path.join(mask_dir, 'All')
 
 # set hyper parameters of dataset
-batch_size = 10
-num_workers = 10
+batch_size = 2
+num_workers = 2
 learning_rate = 0.005 # 0.002
 momentum = 0.9 # 0.8
 weight_decay = 0.0001
@@ -129,6 +144,17 @@ dataset_path = Tussock.create_train_test_val_datasets(img_folders,
                                                       dataset_name_save,
                                                       annotation_type='poly',
                                                       mask_folders=mask_folders)
+
+# import code
+# code.interact(local=dict(globals(), **locals()))
+
+# test forward pass
+dso = Tussock.load_dataset_objects(dataset_path)
+dataset = dso['ds_train']
+dataloader = dso['dl_train']
+
+img, sam = dataset[0]
+# images, samples = next(iter(dataloader))
 
 # ============================================================
 # train model

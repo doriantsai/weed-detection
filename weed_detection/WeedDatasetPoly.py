@@ -79,23 +79,39 @@ class WeedDatasetPoly(object):
         mask = Image.open(mask_name)
         # # convert PIL image to np array
         mask = np.array(mask)
-
-        # instances are encoded as different colors
-        obj_ids = np.unique(mask)
-        # first id is the background, so remove it
-        obj_ids = obj_ids[1:]
-
+        # print('get item')
         # import code
         # code.interact(local=dict(globals(), **locals()))
-        # split the color-encoded mask into a set of binary masks
-        # NOTE unsure if this will work as intended
-        masks = mask == obj_ids[:, None, None]
+        # if we have a normal mask of 0's and 1's
+        if mask.max() > 0:
+            # instances are encoded as different colors
+            obj_ids = np.unique(mask)
+            # first id is the background, so remove it
+            obj_ids = obj_ids[1:]
+
+            # split the color-encoded mask into a set of binary masks
+            # NOTE unsure if this will work as intended
+            masks = mask == obj_ids[:, None, None]
+            
+            nobj = len(obj_ids)
+            
+            
+        else:
+            # for a negative image, mask is all zeros, or just empty
+            # masks = np.expand_dims(mask == 1, axis=1)
+            
+            nobj = 0
+        
+     
+        
+        if nobj > 0:
+            masks = torch.as_tensor(masks, dtype=torch.uint8)
+        else:
+            masks = torch.zeros((0, image.size[0], image.size[1]), dtype=torch.uint8)
 
 
-
+        
         # get bounding boxes for each object
-        nobj = len(obj_ids)
-
         # number of bboxes
         # nobj = len(self.annotations[idx]['regions'])
 
@@ -135,8 +151,7 @@ class WeedDatasetPoly(object):
         else:
             boxes = torch.as_tensor(boxes, dtype=torch.float64)
 
-        masks = torch.as_tensor(masks, dtype=torch.uint8)
-
+        
 
         # compute area
         if nobj == 0:
@@ -257,10 +272,13 @@ class Rescale(object):
 
             # apply resize to mask as well
             mask = sample["masks"]
-            m = T.Resize((new_w, new_h))(mask)  # HACK FIXME
+            # print('we are here at the mask resizing')
             # import code
             # code.interact(local=dict(globals(), **locals()))
-            sample['masks'] = m
+
+            if len(mask) > 0: 
+                m = T.Resize((new_w, new_h))(mask)  # HACK FIXME
+                sample['masks'] = m
 
             xChange = float(new_w) / float(w)
             yChange = float(new_h) / float(h)
@@ -316,8 +334,9 @@ class RandomHorizontalFlip(object):
             # code.interact(local=dict(globals(), **locals()))
 
             # mask = mask.transpose(method=Image.FLIP_LEFT_RIGHT)
-            mask = torch.flip(mask, [2])
-            sample['masks'] = mask
+            if len(mask) > 0:
+                mask = torch.flip(mask, [2])
+                sample['masks'] = mask
 
         return image, sample
 
@@ -347,8 +366,9 @@ class RandomVerticalFlip(object):
             # flip mask
             mask = sample['masks']
             # mask = mask.transpose(method=Image.FLIP_TOP_BOTTOM)
-            mask = torch.flip(mask, [1])
-            sample['masks'] = mask
+            if len(mask) > 0:
+                mask = torch.flip(mask, [1])
+                sample['masks'] = mask
 
         return image, sample
 

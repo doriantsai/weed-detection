@@ -7,7 +7,7 @@ script to generate masks from images with polygon annotations
 import os
 import json
 from weed_detection.PreProcessingToolbox import PreProcessingToolbox
-
+import matplotlib.pyplot as plt
 
 # folder locations + database name
 db_name = 'Tussock_v4_poly'
@@ -17,7 +17,7 @@ root_dir = os.path.join('/home', 'dorian', 'Data', 'AOS_TussockDataset',
 img_dir_in = os.path.join(root_dir, 'Images', 'All')
 # ann_file_name = 'via_project_07Jul2021_08h00m_240_test_allpoly.json'
 # ann_file_name = 'via_project_07Jul2021_08h00m_240_polysubset_bootstrap.json'
-ann_file_name = '20210819-MFS-01-bootprogress-570-occlusion24_json.json'
+ann_file_name = 'annotations_tussock_21032526_G507_master1.json'
 ann_file_path = os.path.join(root_dir, 'Annotations', ann_file_name)
 img_dir_out = os.path.join(root_dir, 'Masks', 'All')
 
@@ -38,3 +38,11 @@ print(f'number of masks: {len(mask_list)}')
 
 print('done generating masks from polygons')
 
+# test/show a mask
+i = 400
+mask = plt.imread(os.path.join(img_dir_out, mask_list[i]))
+plt.imshow(mask)
+plt.show()
+
+import code
+code.interact(local=dict(globals(), **locals()))
