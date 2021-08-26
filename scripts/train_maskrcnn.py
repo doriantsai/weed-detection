@@ -42,14 +42,15 @@ ann_out_file = ProTool.sync_annotations(img_dir, ann_path, ann_out_path)
 # ============================================================
 print('creating masks')
 # make masks
-mask_dir = os.path.join(root_dir, 'Masks', 'All')
+mask_dir = os.path.join(root_dir, 'Masks')
 ProTool.create_masks_from_poly(img_dir, ann_out_file, mask_dir)
 
 # check how many images there are
 img_list = os.listdir(img_dir)
 
 # check how many masks there are:
-mask_list = os.listdir(mask_dir)
+mask_dir_all = os.join(mask_dir, 'All')
+mask_list = os.listdir(mask_dir_all)
 
 print(f'number of images: {len(img_list)}')
 print(f'number of masks: {len(mask_list)}')
@@ -88,7 +89,7 @@ print('creating datasets')
 mask_folders = [os.path.join(mask_dir, 'Train'),
                os.path.join(mask_dir, 'Test'),
                os.path.join(mask_dir, 'Validation')]
-all_mask_dir = os.path.join(mask_dir, 'All')
+# all_mask_dir = os.path.join(mask_dir, 'All')
 
 # set hyper parameters of dataset
 batch_size = 10
