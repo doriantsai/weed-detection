@@ -11,9 +11,13 @@ from weed_detection.WeedModel import WeedModel as WM
 # load model
 # call prcurve function
 
-model_name = 'Tussock_v3_neg_train_test'
-model_folder = 'Tussock_v3_neg_train_test'
-dataset_name = 'Tussock_v3_neg_train_test'
+# model_name = 'Tussock_v3_neg_train_test'
+# model_folder = 'Tussock_v3_neg_train_test'
+# dataset_name = 'Tussock_v3_neg_train_test'
+
+model_name = 'Tussock_v4_poly_2021-08-26_21_17'
+model_folder = 'Tussock_v4_poly_2021-08-26_21_17'
+dataset_name = 'Tussock_v4_poly'
 
 # init WM object
 Tussock = WM(model_name=model_name,

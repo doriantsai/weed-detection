@@ -107,8 +107,8 @@ mask_folders = [os.path.join(mask_dir, 'Train'),
 # all_mask_dir = os.path.join(mask_dir, 'All')
 
 # set hyper parameters of dataset
-batch_size = 2
-num_workers = 2
+batch_size = 10
+num_workers = 10
 learning_rate = 0.005 # 0.002
 momentum = 0.9 # 0.8
 weight_decay = 0.0001
