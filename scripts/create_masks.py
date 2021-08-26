@@ -17,7 +17,7 @@ root_dir = os.path.join('/home', 'dorian', 'Data', 'AOS_TussockDataset',
 img_dir_in = os.path.join(root_dir, 'Images', 'All')
 # ann_file_name = 'via_project_07Jul2021_08h00m_240_test_allpoly.json'
 # ann_file_name = 'via_project_07Jul2021_08h00m_240_polysubset_bootstrap.json'
-ann_file_name = 'annotations_tussock_21032526_G507_allpoly.json'
+ann_file_name = '20210819-MFS-01-bootprogress-570-occlusion24_json.json'
 ann_file_path = os.path.join(root_dir, 'Annotations', ann_file_name)
 img_dir_out = os.path.join(root_dir, 'Masks', 'All')
 
