@@ -37,7 +37,7 @@ ann_path = os.path.join(ann_dir, ann_file)
 img_dir = os.path.join(root_dir, 'Images', 'All')
 
 # ============================================================
-# sync annotation file with images 
+# sync annotation file with images
 ann_file_out = 'annotations_tussock_21032526_G507_all1.json'
 ann_out_path = os.path.join(ann_dir, ann_file_out)
 ProTool = PreProcessingToolbox()
@@ -49,7 +49,7 @@ mask_dir = os.path.join(root_dir, 'Masks')
 mask_dir_all = os.path.join(mask_dir, 'All')
 if CREATE_MASKS:
     # make masks
-    
+
     ProTool.create_masks_from_poly(img_dir, ann_out_file, mask_dir_all)
 
     # check how many images there are
@@ -112,10 +112,10 @@ num_workers = 10
 learning_rate = 0.005 # 0.002
 momentum = 0.9 # 0.8
 weight_decay = 0.0001
-num_epochs = 100
+num_epochs = 50
 step_size = round(num_epochs / 2)
 shuffle = True
-rescale_size = int(1024)
+rescale_size = int(256)
 
 # make a hyperparameter dictionary
 hp={}
@@ -159,9 +159,28 @@ img, sam = dataset[0]
 # ============================================================
 # train model
 model, model_save_path = Tussock.train(model_name = dataset_name,
-                                       dataset_path=dataset_path)
+                                       dataset_path=dataset_path, model_name_suffix=False)
 print('finished training model: {0}'.format(model_save_path))
 
+# ============================================================
+# generate pr curve
+model_name = dataset_name
+Tussock_MaskRCNN = WeedModel(model_name = dataset_name)
+Tussock_MaskRCNN.load_model(model_save_path)
+Tussock_MaskRCNN.set_model_path(model_save_path)
+
+import numpy as np
+conf_thresh = np.linspace(0.99, 0.01, num=51, endpoint=True)
+iou_thresh = 0.5
+save_prcurve_folder = os.path.join('output', model_name, 'purcurve')
+res = Tussock_MaskRCNN.get_prcurve(dso['ds_test'],
+                                   confidence_thresh=conf_thresh,
+                                   nms_iou_thresh=iou_thresh,
+                                   decision_iou_thresh=iou_thresh,
+                                   save_folder=save_prcurve_folder,
+                                   imsave=True,
+                                   annotation_type='poly')
+print(res)
 
 import code
 code.interact(local=dict(globals(), **locals()))

@@ -16,7 +16,7 @@ Tussock = WM()
 # load dataset objects
 # dataset_name = 'Tussock_v0_mini'
 # dataset_name = 'Tussock_v3_neg_train_test'
-dataset_name = 'Tussock_v4_poly286'
+dataset_name = 'Tussock_v4_poly'
 
 dataset_file = os.path.join('dataset_objects',
                             dataset_name,
@@ -28,7 +28,8 @@ dso = Tussock.load_dataset_objects(dataset_file)
 # load model
 # model_name = 'tussock_test_2021-05-16_16_13'
 # model_name = 'Tussock_v0_mini_2021-06-09_09_19'
-model_name = 'Tussock_v4_poly286_2021-07-15_11_08'
+# model_name = 'Tussock_v4_poly286_2021-07-15_11_08'
+model_name = 'Tussock_v4_poly_2021-08-26_15_57'
 
 # model_name = dataset_name
 save_model_path = os.path.join('output',
@@ -43,7 +44,7 @@ Tussock.set_snapshot(20)
 # run model inference on entire dataset
 pred = Tussock.infer_dataset(dso['ds_test'],
                              imsave=True,
-                             save_subfolder='infer_dataset_test15')
+                             save_subfolder='infer_dataset_test20')
     # image_out, pred = Tussock.infer_image(image,
     #                                       sample=sample,
     #                                       imshow=True,

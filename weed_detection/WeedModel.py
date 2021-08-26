@@ -639,7 +639,7 @@ class WeedModel:
             for box in pred_boxes:
                 cen = self.box_centroid(box)
                 pred_box_centroids.append(cen)
-        
+
         # scores are ordered from highest to lowest
         pred_score = list(pred[0]['scores'][keep].detach().cpu().numpy())
         if annotation_type == 'poly':
@@ -677,7 +677,7 @@ class WeedModel:
         pred_final['box_centroids'] = pred_box_centroids
         pred_final['classes'] = pred_class
         pred_final['scores'] = pred_score
-    
+
         if annotation_type == 'poly':
             pred_final['masks'] = pred_masks
             pred_final['bin_masks'] = pred_bin_masks
@@ -703,7 +703,7 @@ class WeedModel:
             pred_bin_masks = pred['bin_masks']
             pred_bin_boxes = pred['bin_boxes']
             pred_poly_centroids = pred['poly_centroids']
-        
+
 
         if len(pred_score) > 0:
             if max(pred_score) < thresh: # none of pred_score > thresh, then return empty
@@ -945,11 +945,11 @@ class WeedModel:
                                   interpolation=cv.INTER_CUBIC)
         return image_out
 
-    def binarize_confidence_mask(self, 
-                                 img_gray, 
+    def binarize_confidence_mask(self,
+                                 img_gray,
                                  threshold,
                                  ksize = None,
-                                 MAX_KERNEL_SIZE = 11, 
+                                 MAX_KERNEL_SIZE = 11,
                                  MIN_KERNEL_SIZE = 3):
         """ given confidence mask, apply threshold to turn mask into binary image, return binary image and contour"""
         # input mask ranging from 0 to 1, assume mask is a tensor? operation is trivial if numpy array
@@ -964,14 +964,14 @@ class WeedModel:
                                         threshold,
                                         maxval=1.0,
                                         type=cv.THRESH_BINARY)
-            
+
             # do morphological operations on mask to smooth it out?
             # open followed by close
             h, w = mask_bin.shape
             imsize = min(h, w)
             if ksize is None:
                 ksize = np.floor(0.01 * imsize)  # kernel size, some vague function of minimum image size
-            
+
                 if ksize % 2 == 0:
                     ksize += 1  # if even, make it odd
                 if ksize > MAX_KERNEL_SIZE:
@@ -1122,6 +1122,23 @@ class WeedModel:
                                             (int(bb[2]), int(bb[3])),
                                             color=sample_color,
                                             thickness=gt_box_thick)
+            points_gt = sample['point']
+            if len(points_gt) > 0:
+                for p in points_gt:
+                    # plot polygon centroid for sample
+                    # get image size, make circle a function of image size
+                    h, w, _ = image_out.shape
+                    imsize = min((h, w))
+                    ptsize = int(imsize / 75)
+                    xc = int(p[0])
+                    yc = int(p[1])
+                    image_out = cv.circle(image_out,
+                                          center=(xc, yc),
+                                          radius=ptsize,
+                                          color=sample_color,
+                                          thickness=dt_box_thick,
+                                          lineType=cv.LINE_8)
+
             masks = sample['masks']
             if len(masks) > 0:  # probably not necessary - "if there is a mask"
                 # mask = mask[(2, 0, 1), :, :] # mask is binary
@@ -1130,16 +1147,16 @@ class WeedModel:
                     mask = mask.cpu().numpy()
                     # mask = np.transpose(mask, (1,2,0))
                     # NOTE binarize confidence mask is meant to take in a nonbinary image and make it binary
-                    # in this case... we probably don't need this full functionality, also opening/closing 
+                    # in this case... we probably don't need this full functionality, also opening/closing
                     # shouldn't, but might affect the original gt mask?
                     mask_bin, ctr, hier, ctr_sqz, poly = self.binarize_confidence_mask(mask, mask_threshold)
                     # note: poly here is just for dictionary output, ctr is the 2D numpy array we want!
 
                     ## CONTOUR CODE - CURRENT
                     # polycoord = self.simplify_polygon(ctr)
-                    
-                    image_out = cv.drawContours(image_out, 
-                                                ctr, 
+
+                    image_out = cv.drawContours(image_out,
+                                                ctr,
                                                 0, # show the biggest contour
                                                 color=sample_color,
                                                 thickness=gt_box_thick,
@@ -1209,10 +1226,10 @@ class WeedModel:
 
                     ## CONTOUR CODE - CURRENT
                     # polycoord = self.simplify_polygon(ctr)
-                    
-                    image_out = cv.drawContours(image_out, 
-                                                ctr, 
-                                                0, 
+
+                    image_out = cv.drawContours(image_out,
+                                                ctr,
+                                                0,
                                                 color=pred_mask_color,
                                                 thickness=dt_box_thick,
                                                 lineType=cv.LINE_8,
@@ -1244,8 +1261,8 @@ class WeedModel:
                     ptsize = int(imsize / 75)
                     xc = int(pc[0])
                     yc = int(pc[1])
-                    image_out = cv.circle(image_out, 
-                                          center=(xc, yc), 
+                    image_out = cv.circle(image_out,
+                                          center=(xc, yc),
                                           radius=ptsize,
                                           color=pred_mask_color,
                                           thickness=dt_box_thick,

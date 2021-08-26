@@ -10,7 +10,7 @@ from weed_detection.PreProcessingToolbox import PreProcessingToolbox
 from weed_detection.WeedModel import WeedModel
 from weed_detection.WeedDatasetPoly import Compose, Rescale, ToTensor
 
-CREATE_MASKS = True
+CREATE_MASKS = False
 
 # folder/file locations/paths
 dataset_name = 'Tussock_v4_poly'
@@ -27,7 +27,7 @@ ann_file = '20210819-MFS-01-bootprogress-570-occlusion24_json.json'
 ann_path = os.path.join(ann_dir, ann_file)
 
 
-img_dir = os.path.join(root_dir, 'Images', 'All_Positive')
+img_dir = os.path.join(root_dir, 'Images', 'All')
 
 ann_file_out = 'test_masks.json'
 ann_out_path = os.path.join(ann_dir, ann_file_out)
@@ -36,10 +36,10 @@ ann_out_file = ProTool.sync_annotations(img_dir, ann_path, ann_out_path)
 
 # create masks folder
 mask_dir = os.path.join(root_dir, 'Masks')
-mask_dir_all = os.path.join(mask_dir, 'All_Positive')
+mask_dir_all = os.path.join(mask_dir, 'All')
 if CREATE_MASKS:
     # make masks
-    
+
     ProTool.create_masks_from_poly(img_dir, ann_out_file, mask_dir_all)
 
     # check how many images there are
@@ -86,8 +86,8 @@ ds, dl = Tussock.create_dataset_dataloader(root_dir=root_dir,
                                           mask_dir=mask_dir_all)
 
 # try dataset, get_item
-i = 0
-ds[0]
+i = 100
+ds[i]
 
 import code
 code.interact(local=dict(globals(), **locals()))

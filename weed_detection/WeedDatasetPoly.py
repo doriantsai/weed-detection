@@ -92,25 +92,25 @@ class WeedDatasetPoly(object):
             # split the color-encoded mask into a set of binary masks
             # NOTE unsure if this will work as intended
             masks = mask == obj_ids[:, None, None]
-            
+
             nobj = len(obj_ids)
-            
-            
+
+
         else:
             # for a negative image, mask is all zeros, or just empty
             # masks = np.expand_dims(mask == 1, axis=1)
-            
+
             nobj = 0
-        
-     
-        
+
+
+
         if nobj > 0:
             masks = torch.as_tensor(masks, dtype=torch.uint8)
         else:
             masks = torch.zeros((0, image.size[0], image.size[1]), dtype=torch.uint8)
 
 
-        
+
         # get bounding boxes for each object
         # number of bboxes
         # nobj = len(self.annotations[idx]['regions'])
@@ -151,7 +151,37 @@ class WeedDatasetPoly(object):
         else:
             boxes = torch.as_tensor(boxes, dtype=torch.float64)
 
-        
+        # TODO read in points!
+        points = []
+        if nobj > 0:
+
+            reg = self.annotations[idx]['regions']
+            points = []
+            for i, r in enumerate(reg):
+                if isinstance(self.annotations[idx]['regions'], dict):
+                    j = str(i)
+                else:  # regions is a list type
+                    j = i
+                name = r['shape_attributes']['name']
+                if name == 'point':
+                    cx = self.annotations[idx]['regions'][j]['shape_attributes']['cx']
+                    cy = self.annotations[idx]['regions'][j]['shape_attributes']['cy']
+                    points.append([cx, cy])
+            # for i in range(nobj):
+            #     # find which regions has shape_attributes name == point
+
+            #     # import code
+                # code.interact(local=dict(globals(), **locals()))
+
+                # points.append()
+            if not len(points) == nobj:
+                print('WARNING: npoints not == nobj')
+                print(f'idx = {idx}, img_name = {img_name}')
+                # TODO need to do a python script that checks for this ahead of time
+
+            points = torch.as_tensor(points, dtype=torch.float64)
+        else:
+            points = torch.zeros((0, 2), dtype=torch.float64)
 
         # compute area
         if nobj == 0:
@@ -177,6 +207,7 @@ class WeedDatasetPoly(object):
         sample['area'] = area
         sample['iscrowd'] = iscrowd
         sample['masks'] = masks
+        sample['points'] = points
 
         # apply transforms to image and sample
         if self.transforms:
@@ -238,6 +269,10 @@ class ToTensor(object):
             masks = torch.from_numpy(masks)
         sample['masks'] = masks
 
+        points = sample['points']
+        if not torch.is_tensor(points):
+            points = torch.from_numpy(points)
+        sample['points'] = points
 
         return image, sample
 
@@ -276,7 +311,7 @@ class Rescale(object):
             # import code
             # code.interact(local=dict(globals(), **locals()))
 
-            if len(mask) > 0: 
+            if len(mask) > 0:
                 m = T.Resize((new_w, new_h))(mask)  # HACK FIXME
                 sample['masks'] = m
 
@@ -290,6 +325,12 @@ class Rescale(object):
                 bbox[:, 2] = bbox[:, 2] * yChange
                 bbox[:, 3] = bbox[:, 3] * xChange
                 sample["boxes"] = np.float64(bbox)
+
+            points = sample['points']
+            if len(points) > 0:
+                points[:, 0] = points[:, 0] * yChange
+                points[:, 1] = points[:, 1] * xChange
+                sample['points'] = np.float64(points)
 
             return img, sample
         else:
@@ -338,6 +379,11 @@ class RandomHorizontalFlip(object):
                 mask = torch.flip(mask, [2])
                 sample['masks'] = mask
 
+            points = sample['points']
+            if len(points) > 0:
+                points[:, 0] = w - points[:, 0]
+                sample['points'] = points
+
         return image, sample
 
 
@@ -369,6 +415,12 @@ class RandomVerticalFlip(object):
             if len(mask) > 0:
                 mask = torch.flip(mask, [1])
                 sample['masks'] = mask
+
+            # flip points
+            points = sample['points']
+            if len(points) > 0:
+                points[:, 1] = h - points[:, 1]
+                sample['points'] = points
 
         return image, sample
 
