@@ -11,8 +11,8 @@ import weed_detection.WeedModel as WeedModel
 # NOTE: copied/pasted output from PPT.split_iamge_data()
 # dataset_name = 'Tussock_v3_augment'
 # dataset_name = 'Tussock_v0_mini'
-dataset_name = 'Tussock_v3_neg_train_test'
-# dataset_name = 'Tussock_v4_poly286'
+# dataset_name = 'Tussock_v3_neg_train_test'
+dataset_name = 'Tussock_v4_poly'
 
 root_dir = os.path.join('/home',
                         'dorian',
@@ -20,7 +20,7 @@ root_dir = os.path.join('/home',
                         'AOS_TussockDataset',
                         dataset_name)
 img_folders = [os.path.join(root_dir, 'Images','Train'),
-               os.path.join(root_dir, 'Images', 'Test_ShortGrass'),
+               os.path.join(root_dir, 'Images', 'Test'),
                os.path.join(root_dir, 'Images', 'Validation')]
 
 mask_dir = os.path.join(root_dir, 'Masks')
@@ -30,13 +30,13 @@ mask_folders = [os.path.join(mask_dir, 'Train'),
 all_mask_dir = os.path.join(mask_dir, 'All')
 
 
-# ann_files = [os.path.join(root_dir, 'Annotations', 'annotations_train_augmented_combined.json'),
-#             os.path.join(root_dir, 'Annotations', 'annotations_tussock_21032526_G507_test.json'),
-#             os.path.join(root_dir, 'Annotations', 'annotations_tussock_21032526_G507_val.json')]
-
 ann_files = [os.path.join(root_dir, 'Annotations', 'annotations_tussock_21032526_G507_train.json'),
-            os.path.join(root_dir, 'Annotations', 'annotations_tussock_21032526_G507_test_shortgrass.json'),
+            os.path.join(root_dir, 'Annotations', 'annotations_tussock_21032526_G507_test.json'),
             os.path.join(root_dir, 'Annotations', 'annotations_tussock_21032526_G507_val.json')]
+
+# ann_files = [os.path.join(root_dir, 'Annotations', 'annotations_tussock_21032526_G507_train.json'),
+#             os.path.join(root_dir, 'Annotations', 'annotations_tussock_21032526_G507_test_shortgrass.json'),
+#             os.path.join(root_dir, 'Annotations', 'annotations_tussock_21032526_G507_val.json')]
 
 # set hyper parameters of dataset
 batch_size = 10
@@ -70,12 +70,13 @@ hp_test['shuffle'] = False
 # init object
 Tussock = WeedModel()
 # save all datasets/dataloaders in a .pkl file
-dataset_name_save = dataset_name + '_shortgrass'
+# dataset_name_save = dataset_name + '_shortgrass'
+dataset_name_save = dataset_name
 dataset_path = Tussock.create_train_test_val_datasets(img_folders,
                                                       ann_files,
                                                       hp,
                                                       dataset_name_save,
-                                                      annotation_type='box',
+                                                      annotation_type='poly',
                                                       mask_folders=mask_folders)
 
 # TODO open pkl file and confirm that datasets match image length, but some are

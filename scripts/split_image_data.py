@@ -10,7 +10,7 @@ from weed_detection.PreProcessingToolbox import PreProcessingToolbox
 # set folder locations init PT object PT.split_image_data
 
 # dataset_name = 'Tussock_v2'
-dataset_name = 'Tussock_v4_poly286'
+dataset_name = 'Tussock_v4_poly'
 
 # folder locations and file names
 root_dir = os.path.join('/home',
@@ -24,12 +24,14 @@ all_folder = os.path.join(root_dir, 'Images', 'All')
 # corresponding annotations file to Images/All
 # ann_all_file = 'annotations_tussock_21032526_G507_all.json'
 # ann_all_file = 'via_project_29Apr2021_17h43m_json_bbox_poly_pt.json'
-ann_all_file = 'via_project_07Jul2021_08h00m_240_test_allpoly.json'
+# ann_all_file = 'via_project_07Jul2021_08h00m_240_test_allpoly.json'
+ann_all_file = 'annotations_tussock_21032526_G507_allpoly.json'
 
 # annotation files Master (contains all images - we don't touch this file, just
 # use it as a reference/check)
 # ann_master_file = 'annotations_tussock_21032526_G507_master.json'
-ann_master_file = 'via_project_07Jul2021_08h00m_240_test_allpoly.json'
+# ann_master_file = 'via_project_07Jul2021_08h00m_240_test_allpoly.json'
+ann_master_file = 'annotations_tussock_21032526_G507_allpoly.json'  # we are using master file as allpoly, because it contains all images
 
 # annotation files out
 ann_train_file = 'annotations_tussock_21032526_G507_train.json'

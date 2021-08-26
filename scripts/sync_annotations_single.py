@@ -8,7 +8,7 @@ import os
 import json
 from weed_detection.PreProcessingToolbox import PreProcessingToolbox
 
-dataset_name = 'Tussock_v4_poly286'
+dataset_name = 'Tussock_v4_poly'
 
 # folder locations and file names
 root_dir = os.path.join('/home',
@@ -29,11 +29,12 @@ ann_dir = os.path.join(root_dir, 'Annotations')
 ann_master_path = os.path.join(ann_dir, ann_master_file)
 
 # annotation files out
-ann_file_out = 'annotations_tussock_21032526_G507_polysubset.json'
+# ann_file_out = 'annotations_tussock_21032526_G507_polysubset.json'
+ann_file_out = 'annotations_tussock_21032526_G507_allpoly.json'
 ann_path_out = os.path.join(ann_dir, ann_file_out)
 
 # folder containing all images to be used for testing/training/validation
-img_folder = os.path.join(root_dir, 'Images', 'PolySubset')
+img_folder = os.path.join(root_dir, 'Images', 'All')
 
 # use preprocessing toolbox
 ProTool = PreProcessingToolbox()

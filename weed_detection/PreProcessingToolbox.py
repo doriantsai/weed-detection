@@ -401,6 +401,7 @@ class PreProcessingToolbox:
 
         # ensure annotations file matches all images in all_folder
         # a requirement for doing random_split
+        print('syncing annotations file with master file')
         self.sync_annotations(all_folder, ann_master, ann_all)
 
         # create dummy weed dataset object to do random split
@@ -445,6 +446,7 @@ class PreProcessingToolbox:
         # now, actually copy images from All folder to respective image folders
         # dataset = ds_train
         # save_folder = train_folder
+        print('copying images from all to train/test/val...')
         self.copy_images(ds_train, all_folder, train_folder)
         self.copy_images(ds_val, all_folder, val_folder)
         self.copy_images(ds_test, all_folder, test_folder)
@@ -456,6 +458,7 @@ class PreProcessingToolbox:
         annotations_test = os.path.join(ann_dir, ann_test_file)
 
         # function calls for each folder
+        print('syncing json files with image folders...')
         self.sync_annotations(train_folder, ann_all, annotations_train)
         self.sync_annotations(val_folder, ann_all, annotations_val)
         self.sync_annotations(test_folder, ann_all, annotations_test)
@@ -463,6 +466,7 @@ class PreProcessingToolbox:
 
         # copy masks to corresponding folders as well!
         if annotation_type == 'poly':
+            print('copying image masks')
             self.copy_images(ds_train, mask_folder, mask_train_folder, mask=True)
             self.copy_images(ds_val, mask_folder, mask_val_folder, mask=True)
             self.copy_images(ds_test, mask_folder, mask_test_folder, mask=True)
@@ -761,6 +765,9 @@ class PreProcessingToolbox:
             mask_dir_out = os.path.join('masks')
         os.makedirs(mask_dir_out, exist_ok=True)
 
+        # import code
+        # code.interact(local=dict(globals(), **locals()))
+
         # for each image/iteration in annotations, generate mask and save image
         # each mask's values are incremented
         # NOTE we expect no more than 256 masks in a single image
@@ -838,8 +845,7 @@ class PreProcessingToolbox:
                 if SHOW:
                     plt.show()
 
-        import code
-        code.interact(local=dict(globals(), **locals()))
+        
 
 
 
