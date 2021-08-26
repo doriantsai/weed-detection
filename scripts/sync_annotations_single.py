@@ -20,7 +20,7 @@ root_dir = os.path.join('/home',
 
 
 # corresponding annotations file to Images/All
-ann_all_file = 'annotations_tussock_21032526_G507_all.json'
+ann_all_file = '20210819-MFS-01-bootprogress-570-occlusion24_json.json'
 
 # annotation files Master (contains all images - we don't touch this file, just
 # use it as a reference/check)
