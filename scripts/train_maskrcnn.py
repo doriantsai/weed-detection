@@ -112,10 +112,10 @@ num_workers = 10
 learning_rate = 0.005 # 0.002
 momentum = 0.9 # 0.8
 weight_decay = 0.0001
-num_epochs = 50
+num_epochs = 25
 step_size = round(num_epochs / 2)
 shuffle = True
-rescale_size = int(256)
+rescale_size = int(1024)
 
 # make a hyperparameter dictionary
 hp={}
@@ -159,7 +159,7 @@ img, sam = dataset[0]
 # ============================================================
 # train model
 model, model_save_path = Tussock.train(model_name = dataset_name,
-                                       dataset_path=dataset_path, model_name_suffix=False)
+                                       dataset_path=dataset_path, model_name_suffix=True)
 print('finished training model: {0}'.format(model_save_path))
 
 # ============================================================
@@ -170,7 +170,7 @@ Tussock_MaskRCNN.load_model(model_save_path)
 Tussock_MaskRCNN.set_model_path(model_save_path)
 
 import numpy as np
-conf_thresh = np.linspace(0.99, 0.01, num=51, endpoint=True)
+conf_thresh = np.linspace(0.99, 0.01, num=25, endpoint=True)
 iou_thresh = 0.5
 save_prcurve_folder = os.path.join('output', model_name, 'purcurve')
 res = Tussock_MaskRCNN.get_prcurve(dso['ds_test'],

@@ -1122,22 +1122,22 @@ class WeedModel:
                                             (int(bb[2]), int(bb[3])),
                                             color=sample_color,
                                             thickness=gt_box_thick)
-            points_gt = sample['point']
-            if len(points_gt) > 0:
-                for p in points_gt:
-                    # plot polygon centroid for sample
-                    # get image size, make circle a function of image size
-                    h, w, _ = image_out.shape
-                    imsize = min((h, w))
-                    ptsize = int(imsize / 75)
-                    xc = int(p[0])
-                    yc = int(p[1])
-                    image_out = cv.circle(image_out,
-                                          center=(xc, yc),
-                                          radius=ptsize,
-                                          color=sample_color,
-                                          thickness=dt_box_thick,
-                                          lineType=cv.LINE_8)
+            # points_gt = sample['point']
+            # if len(points_gt) > 0:
+            #     for p in points_gt:
+            #         # plot polygon centroid for sample
+            #         # get image size, make circle a function of image size
+            #         h, w, _ = image_out.shape
+            #         imsize = min((h, w))
+            #         ptsize = int(imsize / 75)
+            #         xc = int(p[0])
+            #         yc = int(p[1])
+            #         image_out = cv.circle(image_out,
+            #                               center=(xc, yc),
+            #                               radius=ptsize,
+            #                               color=sample_color,
+            #                               thickness=dt_box_thick,
+            #                               lineType=cv.LINE_8)
 
             masks = sample['masks']
             if len(masks) > 0:  # probably not necessary - "if there is a mask"
