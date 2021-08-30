@@ -94,23 +94,28 @@ class PreProcessingToolbox:
         """
 
         # TODO check valid input
-        ann = []
+        ann_list = []
         if ann_dir is None:
             ann_dir = '.'
         #     # absolute filepath for ann_files
         #     for i in range(len(ann_files)):
         #         ann.append(json.load(open(ann_files[i])))
-        # else:
+        # elif ann_dir = False:
+            # absolute pathing
 
-        for i in range(len(ann_files)):
+        for ann in ann_files:
 
-            ann_open = os.path.join(ann_dir, ann_files[i])
+            if ann_dir is False:
+                # absolute pathing
+                ann_open = ann
+            else:
+                ann_open = os.path.join(ann_dir, ann)
             # try:
             # print(i)
             # print(ann_open)
             # import code
             # code.interact(local=dict(globals(), **locals()))
-            ann.append(json.load(open(ann_open)))
+            ann_list.append(json.load(open(ann_open)))
             # except:
             #     print(f'ERROR: failed to open {ann_open}')
             #     break
@@ -118,7 +123,7 @@ class PreProcessingToolbox:
         # for now, assume unique key-value pairs, but should probably check length
         ann_all = {}
         n_img_all = []
-        for ann_i in ann:
+        for ann_i in ann_list:
             ann_all = {**ann_all, **ann_i}
             n_img_all.append(len(ann_i))
 
@@ -127,8 +132,12 @@ class PreProcessingToolbox:
         # TODO do check
         # len(ann_all) vs sum(len(ann_i))
 
-        with open(os.path.join(ann_dir, ann_out), 'w') as ann_file:
-            json.dump(ann_all, ann_file, indent=4)
+        if ann_dir is False:
+            with open(ann_out, 'w') as ann_file:
+                json.dump(ann_all, ann_file, indent=4)
+        else:
+            with open(os.path.join(ann_dir, ann_out), 'w') as ann_file:
+                json.dump(ann_all, ann_file, indent=4)
 
         n_all = len(ann_all)
         if n_img_sum == n_all:
@@ -160,6 +169,9 @@ class PreProcessingToolbox:
 
         # compile list of indices of the intersection
         indices = [ind_dict[x] for x in inter]
+
+        # import code
+        # code.interact(local=dict(globals(), **locals()))
 
         # for each index, we take the sample from ann_master and make a new dict
         ann_dict = {}
@@ -845,7 +857,7 @@ class PreProcessingToolbox:
                 if SHOW:
                     plt.show()
 
-        
+
 
 
 

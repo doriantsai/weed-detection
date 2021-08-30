@@ -2,6 +2,13 @@
 
 """
 sync annotations file for single image folder
+img_folder = folder of images that we want a matching annotations file
+ann_all_file = annotations file that should have all the annotations for all the images
+--> has all the latest annotations
+ann_master_file = annotations file that does have all the annotations for all images in database
+--> only applies annotations that are not covered in ann_all_file (eg, negative images)
+NOTE: ann_all_file can be considered redundant with ann_master_file
+ann_file_out = output annotations corresponding to images in img_folder
 """
 
 import os
