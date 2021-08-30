@@ -34,7 +34,7 @@ class WeedDataset(object):
         """
 
         # TODO annotations should have root_dir/Annotations/json_file
-        annotations = json.load(open(os.path.join(root_dir, 'Annotations', json_file)))
+        annotations = json.load(open(os.path.join(root_dir, 'metadata', json_file)))
         self.annotations = list(annotations.values())
         self.root_dir = root_dir
         self.transforms = transforms
@@ -43,7 +43,7 @@ class WeedDataset(object):
         if img_dir is not None:
             self.img_dir = img_dir
         else:
-            self.img_dir = os.path.join(self.root_dir, 'Images')
+            self.img_dir = os.path.join(self.root_dir, 'images')
 
         # if mask_dir is not None:
         #     self.mask_dir = mask_dir

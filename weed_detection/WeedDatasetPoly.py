@@ -39,7 +39,7 @@ class WeedDatasetPoly(object):
         """
 
         # TODO annotations should have root_dir/Annotations/json_file
-        annotations = json.load(open(os.path.join(root_dir, 'Annotations', json_file)))
+        annotations = json.load(open(os.path.join(root_dir, 'metadata', json_file)))
         self.annotations = list(annotations.values())
         self.root_dir = root_dir
         self.transforms = transforms
@@ -48,12 +48,12 @@ class WeedDatasetPoly(object):
         if img_dir is not None:
             self.img_dir = img_dir
         else:
-            self.img_dir = os.path.join(self.root_dir, 'Images', 'All')
+            self.img_dir = os.path.join(self.root_dir, 'images')
 
         if mask_dir is not None:
             self.mask_dir = mask_dir
         else:
-            self.mask_dir = os.path.join(self.root_dir, 'Masks', 'All')
+            self.mask_dir = os.path.join(self.root_dir, 'masks')
 
         # load all image files, sorting them to ensure aligned (dictionaries are unsorted)
         self.imgs = list(sorted(os.listdir(self.img_dir)))

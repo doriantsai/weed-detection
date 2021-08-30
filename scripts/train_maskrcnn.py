@@ -16,11 +16,11 @@ from weed_detection.PreProcessingToolbox import PreProcessingToolbox
 from weed_detection.WeedModel import WeedModel
 
 
-SPLIT_DATA = False
-CREATE_MASKS = False
+SPLIT_DATA = True
+CREATE_MASKS = True
 
 # folder/file locations/paths
-dataset_name = 'Tussock_v4_poly'
+dataset_name = '2021-03-25_MFS_Tussock'
 
 # folder locations and file names
 root_dir = os.path.join('/home',
@@ -28,35 +28,34 @@ root_dir = os.path.join('/home',
                         'Data',
                         'AOS_TussockDataset',
                         dataset_name)
-ann_dir = os.path.join(root_dir, 'Annotations')
 
-ann_file = 'annotations_tussock_21032526_G507_master1.json'
+ann_dir = os.path.join(root_dir, 'metadata')
+ann_file = '2021-03-25_MFS_Tussock_balanced.json'
 ann_path = os.path.join(ann_dir, ann_file)
 
-
-img_dir = os.path.join(root_dir, 'Images', 'All')
+img_dir = os.path.join(root_dir, 'images_balanced')
 
 # ============================================================
 # sync annotation file with images
-ann_file_out = 'annotations_tussock_21032526_G507_all1.json'
-ann_out_path = os.path.join(ann_dir, ann_file_out)
+# ann_file_out = 'annotations_tussock_21032526_G507_all1.json'
+# ann_out_path = os.path.join(ann_dir, ann_file_out)
 ProTool = PreProcessingToolbox()
-ann_out_file = ProTool.sync_annotations(img_dir, ann_path, ann_out_path)
+# ann_out_file = ProTool.sync_annotations(img_dir, ann_path, ann_out_path)
 
 # ============================================================
 print('creating masks')
-mask_dir = os.path.join(root_dir, 'Masks')
-mask_dir_all = os.path.join(mask_dir, 'All')
+mask_dir = os.path.join(root_dir, 'masks_balanced')
+# mask_dir_all = os.path.join(mask_dir, 'All')
 if CREATE_MASKS:
     # make masks
 
-    ProTool.create_masks_from_poly(img_dir, ann_out_file, mask_dir_all)
+    ProTool.create_masks_from_poly(img_dir, ann_path, mask_dir)
 
     # check how many images there are
     img_list = os.listdir(img_dir)
 
     # check how many masks there are:
-    mask_list = os.listdir(mask_dir_all)
+    mask_list = os.listdir(mask_dir)
 
     print(f'number of images: {len(img_list)}')
     print(f'number of masks: {len(mask_list)}')
@@ -65,30 +64,32 @@ if CREATE_MASKS:
 # split image data
 print('splitting image data')
 
-ann_all_file = 'annotations_tussock_21032526_G507_all1.json'
+# ann_all_file = 'annotations_tussock_21032526_G507_all1.json'
 
+# eg, in case negative files are added
 # annotation files Master (contains all images - we don't touch this file, just
 # use it as a reference/check)
-ann_master_file = 'annotations_tussock_21032526_G507_master1.json'  # we are using master file as allpoly, because it contains all images
+ann_master_file = '2021-03-25_MFS_Tussock.json'  # we are using master file as allpoly, because it contains all images
 
 # annotation files out
-ann_train_file = 'annotations_tussock_21032526_G507_train.json'
-ann_test_file = 'annotations_tussock_21032526_G507_test.json'
-ann_val_file = 'annotations_tussock_21032526_G507_val.json'
+ann_train_file = ann_file[:-5] + '_train.json'
+ann_test_file = ann_file[:-5] + '_test.json'
+ann_val_file = ann_file[:-5] + '_val.json'
 
 
 if SPLIT_DATA:
     img_folders, ann_files = ProTool.split_image_data(root_dir,
                                                         img_dir,
                                                         ann_master_file,
-                                                        ann_all_file,
+                                                        ann_file,
                                                         ann_train_file,
                                                         ann_val_file,
-                                                        ann_test_file)
+                                                        ann_test_file,
+                                                        mask_folder=mask_dir)
 else:
-    train_folder = os.path.join(root_dir, 'Images', 'Train')
-    test_folder = os.path.join(root_dir, 'Images','Test')
-    val_folder = os.path.join(root_dir, 'Images', 'Validation')
+    train_folder = os.path.join(root_dir, 'images_train')
+    test_folder = os.path.join(root_dir, 'images_test')
+    val_folder = os.path.join(root_dir, 'images_validation')
     img_folders = [train_folder, test_folder, val_folder]
 
     annotations_train = os.path.join(ann_dir, ann_train_file)
@@ -101,9 +102,9 @@ else:
 print('creating datasets')
 
 # default mask folders
-mask_folders = [os.path.join(mask_dir, 'Train'),
-               os.path.join(mask_dir, 'Test'),
-               os.path.join(mask_dir, 'Validation')]
+mask_folders = [os.path.join(root_dir, 'masks_train'),
+               os.path.join(root_dir, 'masks_test'),
+               os.path.join(root_dir, 'masks_validation')]
 # all_mask_dir = os.path.join(mask_dir, 'All')
 
 # set hyper parameters of dataset

@@ -46,7 +46,7 @@ print(glob_ann)
 
 # create folder for symlinks
 out_dir = os.path.join('/home/dorian/Data/AOS_TussockDataset/2021-03-25_MFS_Tussock')
-img_out_dir = os.path.join(out_dir, 'images_all')
+img_out_dir = os.path.join(out_dir, 'images')
 ann_out_dir = os.path.join(out_dir, 'metadata')
 os.makedirs(img_out_dir, exist_ok=True)
 os.makedirs(ann_out_dir, exist_ok=True)

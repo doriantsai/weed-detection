@@ -239,9 +239,9 @@ class PreProcessingToolbox:
         """
 
         # setup directories
-        img_dir = os.path.join(root_dir, 'Images')
-        neg_img_dir = os.path.join(root_dir, 'Negative_Images')
-        ann_dir = os.path.join(root_dir, 'Annotations')
+        img_dir = os.path.join(root_dir, 'images')
+        neg_img_dir = os.path.join(root_dir, 'images_neg')
+        ann_dir = os.path.join(root_dir, 'metadata')
 
         os.makedirs(img_dir, exist_ok=True)
         os.makedirs(neg_img_dir, exist_ok=True)
@@ -322,7 +322,7 @@ class PreProcessingToolbox:
         return True
 
 
-    def copy_images(self, dataset, all_folder, save_folder, mask=False):
+    def copy_images(self, dataset, all_folder, save_folder, mask=False, symlink=True):
         """ copy images specified in dataset from all_folder to save_folder """
         for image, sample in dataset:
             image_id = sample['image_id'].item()
@@ -339,7 +339,12 @@ class PreProcessingToolbox:
             #     print('       to: {}'.format(new_img_path))
             #     import code
             #     code.interact(local=dict(globals(), **locals()))
-            shutil.copyfile(old_img_path, new_img_path)
+            if symlink:
+                if os.path.exists(new_img_path):
+                    os.unlink(new_img_path)
+                os.symlink(old_img_path, new_img_path)
+            else:
+                shutil.copyfile(old_img_path, new_img_path)
 
 
     def split_image_data(self,
@@ -353,15 +358,18 @@ class PreProcessingToolbox:
                          ratio_train_test=[0.7, 0.2],
                          clear_image_folders=True,
                          annotation_type='poly',
-                         mask_folder=None):
+                         mask_folder=None,
+                         ann_dir=None):
         """ prepare dataset/dataloader objects by randomly taking images from all_folder,
         and splitting them randomly into Train/Test/Val with respecctive annotation files
         """
+        # TODO should just return generator as object, so can reproduce with just generator, rather than splitting/making new data
+
 
         # setup folders
-        train_folder = os.path.join(root_dir, 'Images', 'Train')
-        test_folder = os.path.join(root_dir, 'Images','Test')
-        val_folder = os.path.join(root_dir, 'Images', 'Validation')
+        train_folder = os.path.join(root_dir, 'image_train')
+        test_folder = os.path.join(root_dir, 'iamges_test')
+        val_folder = os.path.join(root_dir, 'images_validation')
 
         if clear_image_folders:
             if os.path.isdir(train_folder):
@@ -379,13 +387,13 @@ class PreProcessingToolbox:
         os.makedirs(val_folder, exist_ok=True)
 
         if mask_folder is None:
-            mask_folder = os.path.join(root_dir, 'Masks', 'All')
+            mask_folder = os.path.join(root_dir, 'masks')
 
         if annotation_type == 'poly':
             print('making mask folders')
-            mask_train_folder = os.path.join(root_dir, 'Masks', 'Train')
-            mask_test_folder = os.path.join(root_dir, 'Masks','Test')
-            mask_val_folder = os.path.join(root_dir, 'Masks', 'Validation')
+            mask_train_folder = os.path.join(root_dir, 'masks_train')
+            mask_test_folder = os.path.join(root_dir, 'masks_test')
+            mask_val_folder = os.path.join(root_dir, 'masks_validation')
 
             if clear_image_folders:
                 if os.path.isdir(mask_train_folder):
@@ -404,8 +412,8 @@ class PreProcessingToolbox:
 
 
         # already in train/test/val folders
-
-        ann_dir = os.path.join(root_dir, 'Annotations')
+        if ann_dir is None:
+            ann_dir = os.path.join(root_dir, 'metadata')
         # NOTE I don't think I'm entirely consistent with use of annotation file names
         # TODO check for consistency
         ann_master = os.path.join(ann_dir, ann_master_file)
@@ -418,7 +426,7 @@ class PreProcessingToolbox:
 
         # create dummy weed dataset object to do random split
         if annotation_type == 'poly':
-            wd = WeedDatasetPoly(root_dir, ann_all, transforms=None)
+            wd = WeedDatasetPoly(root_dir, ann_all, transforms=None, mask_dir=mask_folder)
         else:
             # bounding boxes
             wd = WeedDataset(root_dir, ann_all, transforms=None)
@@ -509,7 +517,7 @@ class PreProcessingToolbox:
         # return with updated annotations file
 
         # assume image_folder is synced with annotations file in
-        ann_dir = os.path.join(root_dir, 'Annotations')
+        ann_dir = os.path.join(root_dir, 'metadata')
         if ann_transform is None:
             # ann_transform = os.path.join(ann_dir, 'annotations_transform.json')
             ann_transform = 'annotations_transform.json'
@@ -565,7 +573,7 @@ class PreProcessingToolbox:
                                transforms=tform,
                                img_dir=img_dir)
 
-        save_folder = os.path.join(root_dir, 'Images','Augmented')
+        save_folder = os.path.join(root_dir, 'images_augmented')
         if rm_folder and os.path.isdir(save_folder):
             # remove all files in folder
             print(f'WARNING: removing all files in folder {save_folder}')
