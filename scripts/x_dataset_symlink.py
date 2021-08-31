@@ -60,8 +60,8 @@ for i, img_path in enumerate(glob_img):
     dst_file = os.path.join(img_out_dir, img_name)
     if os.path.exists(dst_file):
         os.unlink(dst_file)
-    else:
-        os.symlink(img_path, dst_file)
+
+    os.symlink(img_path, dst_file)
 
 # check number of symlinks in folder:
 print(f'num images in glob = {len(glob_img)}')
