@@ -138,7 +138,7 @@ hp_test['shuffle'] = False
 Tussock = WeedModel()
 # save all datasets/dataloaders in a .pkl file
 # dataset_name_save = dataset_name + '_shortgrass'
-dataset_name_save = dataset_name
+dataset_name_save = dataset_name + '_MaskRCNN'
 dataset_path = Tussock.create_train_test_val_datasets(img_folders,
                                                       ann_files,
                                                       hp,

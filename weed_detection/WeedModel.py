@@ -268,7 +268,11 @@ class WeedModel:
             mask_train_folder = mask_folders[0]
             mask_test_folder = mask_folders[1]
             mask_val_folder = mask_folders[2]
-
+        else:
+            mask_train_folder = None
+            mask_test_folder = None
+            mask_val_folder = None
+            
         # should be full path list to json files (ann_dir + ann_xx_file)
         ann_train = ann_files[0]
         ann_test = ann_files[1]
