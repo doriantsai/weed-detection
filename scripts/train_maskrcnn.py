@@ -113,7 +113,7 @@ num_workers = 10
 learning_rate = 0.005 # 0.002
 momentum = 0.9 # 0.8
 weight_decay = 0.0001
-num_epochs = 25
+num_epochs = 100
 step_size = round(num_epochs / 2)
 shuffle = True
 rescale_size = int(1024)
@@ -154,7 +154,7 @@ dso = Tussock.load_dataset_objects(dataset_path)
 dataset = dso['ds_train']
 dataloader = dso['dl_train']
 
-img, sam = dataset[0]
+# img, sam = dataset[0]
 # images, samples = next(iter(dataloader))
 
 # ============================================================

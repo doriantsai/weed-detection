@@ -19,7 +19,21 @@ Tussock = WM()
 # dataset_name = 'Tussock_v2'
 # dataset_name = 'Tussock_v3_augment'
 # dataset_name = 'Tussock_v0_mini'
-dataset_name = 'Tussock_v4_poly'
+dataset_name = '2021-03-25_MFS_Tussock'
+
+# folder locations and file names
+root_dir = os.path.join('/home',
+                        'dorian',
+                        'Data',
+                        'AOS_TussockDataset',
+                        dataset_name)
+
+# ann_dir = os.path.join(root_dir, 'metadata')
+# ann_file = '2021-03-25_MFS_Tussock_balanced.json'
+# ann_path = os.path.join(ann_dir, ann_file)
+
+# img_dir = os.path.join(root_dir, 'images_balanced')
+
 dataset_file = os.path.join('dataset_objects', dataset_name, dataset_name + '.pkl')
 
 # call WM.train
