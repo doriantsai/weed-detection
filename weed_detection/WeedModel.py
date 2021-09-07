@@ -51,7 +51,8 @@ class WeedModel:
                  device=None,
                  hyper_parameters=None,
                  epoch=None,
-                 note=None):
+                 note=None,
+                 annotation_type='poly'):
 
         self._weed_name = weed_name
         # TODO maybe save model type/architecture also, hyper parameters?
@@ -80,6 +81,7 @@ class WeedModel:
 
         self._note = note # just a capture-all string TEMP
         self._epoch = epoch
+        self._annotation_type = annotation_type
 
 
     @property
@@ -150,6 +152,7 @@ class WeedModel:
         in_features = model.roi_heads.box_predictor.cls_score.in_features
         # replace pre-trained head with new one
         model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
+        self._annotation_type = 'box'
         return model
 
 
@@ -173,6 +176,7 @@ class WeedModel:
         model.roi_heads.mask_predictor = MaskRCNNPredictor(in_features_mask,
                                                            hidden_layer,
                                                            num_classes)
+        self._annotation_type = 'poly'
 
         return model
 
@@ -272,7 +276,7 @@ class WeedModel:
             mask_train_folder = None
             mask_test_folder = None
             mask_val_folder = None
-            
+
         # should be full path list to json files (ann_dir + ann_xx_file)
         ann_train = ann_files[0]
         ann_test = ann_files[1]
@@ -578,7 +582,7 @@ class WeedModel:
         # set object model and model path and epoch number
         self._model_path = os.path.join(snapshot_folder, snapshot_files[i_emin])
         self._epoch = e[i_emin]
-        self.load_model()
+        self.load_model(annotation_type=self._annotation_type)
 
         return True
 

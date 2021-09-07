@@ -21,15 +21,15 @@ WeedTemp = WM()
 #                  'Tussock_v3_neg_test',
 #                  'Tussock_v3_neg_train_test']
 
-dataset_names = ['Tussock_v3_neg_train_test',
-                 'Tussock_v3_neg_train_test']
+dataset_names = ['2021-03-25_MFS_Tussock',
+                 '2021-03-25_MFS_Tussock']
                 #  'Tussock_v3_neg_train
 
 # set the thresholds
 # TODO call prcurve functions
 nms_iou_thresh = 0.5
 decision_iou_thresh = 0.5
-confidence_thresh = np.linspace(0.99, 0.01, num=51, endpoint=True)
+confidence_thresh = np.linspace(0.99, 0.01, num=25, endpoint=True)
 confidence_thresh = np.array(confidence_thresh, ndmin=1)
 # TODO for 0.0 and 1.0 confidence threshold, produces nans because no tp
 
@@ -38,23 +38,24 @@ confidence_thresh = np.array(confidence_thresh, ndmin=1)
 # model_names = ['Tussock_v2 epoch 100',
 #                'Tussock_v2 epoch 20']
             #    'Tussock_v3_neg_train_test']
-model_names = ['Tussock_v3_neg_train_test',
-               'Tussock_v3_neg_train_test']
+model_names = ['2021-03-25_MFS_Tussock_FasterRCNN_2021-08-31_22_21',
+               '2021-03-25_MFS_Tussock_MaskRCNN_2021-08-31_19_33']
 
 # where to store the results
-model_folders = [dataset_names[0],
-                 dataset_names[1]]
+# model_folders = [dataset_names[0],
+#                  dataset_names[1]]
+model_folders = model_names
 
-dataset_object_names = ['Tussock_v3_neg_train_test_shortgrass',
-                        'Tussock_v3_neg_train_test_longgrass']
-legend_names = ['short grass', 'long grass']
+dataset_object_names = ['2021-03-25_MFS_Tussock',
+                        '2021-03-25_MFS_Tussock']
+legend_names = ['FasterRCNN', 'MaskRCNN']
 
+ann_types = ['box', 'poly']
 # iterate for each model_name:
 
 results = []
 WeedModelList = []
-i = 0
-for name in model_names:
+for i, name in enumerate(model_names):
 
     # dataset_file = os.path.join('dataset_objects', dataset_names[i], dataset_names[i] + '.pkl')
     dataset_file = os.path.join('dataset_objects', dataset_object_names[i], dataset_object_names[i] + '.pkl')
@@ -62,13 +63,17 @@ for name in model_names:
 
     WeedModel = WM(model_name=name, model_folder=model_folders[i])
     save_model_path = os.path.join('output', model_folders[i], model_folders[i] + '.pth')
-    WeedModel.load_model(save_model_path, annotation_type='box')
+    # import code
+    # code.interact(local=dict(globals(), **locals()))
+    WeedModel.load_model(save_model_path, annotation_type=ann_types[i])
     WeedModel.set_model_name(name)
     WeedModel.set_model_path(save_model_path)
 
     # TEMP changing epoch for "early stopping"
-    # if i == 1:
-    #     WeedModel.set_snapshot(20)
+    if i == 0:
+        WeedModel.set_snapshot(25)
+    elif i == 1:
+        WeedModel.set_snapshot(20)
 
     # import code
     # code.interact(local=dict(globals(), **locals()))
@@ -80,11 +85,11 @@ for name in model_names:
                                 decision_iou_thresh=decision_iou_thresh,
                                 save_folder=save_prcurve_folder,
                                 imsave=True,
-                                annotation_type='box')
+                                annotation_type=ann_types[i])
 
     results.append(res)
     WeedModelList.append(WeedModel)
-    i += 1
+    # i += 1
 
 #  res = {'precision': p_final,
 #            'recall': r_final,

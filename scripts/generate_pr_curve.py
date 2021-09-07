@@ -15,9 +15,9 @@ from weed_detection.WeedModel import WeedModel as WM
 # model_folder = 'Tussock_v3_neg_train_test'
 # dataset_name = 'Tussock_v3_neg_train_test'
 
-model_name = 'Tussock_v4_poly'
-model_folder = 'Tussock_v4_poly'
-dataset_name = 'Tussock_v4_poly'
+model_name = '2021-03-25_MFS_Tussock_2021-08-31_10_16'
+model_folder = '2021-03-25_MFS_Tussock_2021-08-31_10_16'
+dataset_name = '2021-03-25_MFS_Tussock'
 
 # init WM object
 Tussock = WM(model_name=model_name,
@@ -29,7 +29,7 @@ save_model_path = os.path.join('output',
 Tussock.load_model(save_model_path)
 Tussock.set_model_name(model_name)
 Tussock.set_model_path(save_model_path)
-Tussock.set_snapshot(15)
+Tussock.set_snapshot(20)
 
 # load dataset objects
 # dataset_name = 'Tussock_v1'

@@ -31,7 +31,7 @@ ann_path = os.path.join(ann_dir, ann_file)
 img_dir = os.path.join(root_dir, 'images_balanced')
 
 # ============================================================
-# sync annotation file with images 
+# sync annotation file with images
 # ann_file_out = 'annotations_tussock_21032526_G507_all1.json'
 # ann_out_path = os.path.join(ann_dir, ann_file_out)
 ProTool = PreProcessingToolbox()
@@ -80,8 +80,8 @@ ann_files = [annotations_train, annotations_test, annotations_val]
 print('creating datasets')
 
 # set hyper parameters of dataset
-batch_size = 1
-num_workers = 1
+batch_size = 10
+num_workers = 10
 learning_rate = 0.005 # 0.002
 momentum = 0.9 # 0.8
 weight_decay = 0.0001
@@ -123,7 +123,8 @@ dataset_path = os.path.join('dataset_objects', dataset_name, dataset_name + '.pk
 # train model
 model_name = dataset_name + '_FasterRCNN'
 model, model_save_path = Tussock_FasterRCNN.train(model_name = model_name,
-                                       dataset_path=dataset_path)
+                                       dataset_path=dataset_path,
+                                       annotation_type='box')
 print('finished training model: {0}'.format(model_save_path))
 
 
