@@ -1,0 +1,30 @@
+# conda environment configuration file
+# for agkelpie project
+name: agkelpie
+channels:
+  - conda-forge
+  - pytorch
+  - nvidia
+  - defaults
+dependencies:
+  - python=3.8
+  - numpy
+  - matplotlib
+  - pip
+  - pandas
+  - pillow
+  - pycocotools
+  - scipy
+  - scikit-image
+  - scikit-learn
+  - tensorboard
+  - pytorch
+  - torchvision
+  - torchaudio
+  - cudatoolkit=11.1
+  - shapely
+  - pylint
+  - autopep8
+  - flake8
+  - pytorch-lightning
+  - wandb

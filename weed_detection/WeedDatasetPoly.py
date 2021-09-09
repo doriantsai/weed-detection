@@ -147,9 +147,9 @@ class WeedDatasetPoly(object):
                 boxes.append([xmin, ymin, xmax, ymax])
 
         if nobj == 0:
-            boxes = torch.zeros((0, 4), dtype=torch.float64)
+            boxes = torch.zeros((0, 4), dtype=torch.float32)
         else:
-            boxes = torch.as_tensor(boxes, dtype=torch.float64)
+            boxes = torch.as_tensor(boxes, dtype=torch.float32)
 
         # TODO read in points!
         points = []
@@ -179,9 +179,9 @@ class WeedDatasetPoly(object):
                 print(f'idx = {idx}, img_name = {img_name}')
                 # TODO need to do a python script that checks for this ahead of time
 
-            points = torch.as_tensor(points, dtype=torch.float64)
+            points = torch.as_tensor(points, dtype=torch.float32)
         else:
-            points = torch.zeros((0, 2), dtype=torch.float64)
+            points = torch.zeros((0, 2), dtype=torch.float32)
 
         # compute area
         if nobj == 0:
@@ -189,7 +189,7 @@ class WeedDatasetPoly(object):
             area = 0
         else:
             area = (boxes[:, 3] - boxes[:, 1]) * (boxes[:, 2] - boxes[:, 0])
-        area = torch.as_tensor(area, dtype=torch.float64)
+        area = torch.as_tensor(area, dtype=torch.float32)
 
         # only one class + background:
         labels = torch.ones((nobj,), dtype=torch.int64)
@@ -257,21 +257,26 @@ class ToTensor(object):
 
         # convert image
         image = tvtransfunc.to_tensor(image)
+        image = torch.as_tensor(image, dtype=torch.float32)
+        # make sure to convert to float64
 
         # convert samples
         boxes = sample['boxes']
         if not torch.is_tensor(boxes):
             boxes = torch.from_numpy(boxes)
+            boxes = torch.as_tensor(boxes, dtype=torch.float32)
         sample['boxes'] = boxes
 
         masks = sample['masks']
         if not torch.is_tensor(masks):
             masks = torch.from_numpy(masks)
+            masks = torch.as_tensor(masks, dtype=torch.float32)
         sample['masks'] = masks
 
         points = sample['points']
         if not torch.is_tensor(points):
             points = torch.from_numpy(points)
+            points = torch.as_tensor(points, dtype=torch.float32)
         sample['points'] = points
 
         return image, sample

@@ -14,13 +14,14 @@ import os
 import json
 from weed_detection.PreProcessingToolbox import PreProcessingToolbox
 from weed_detection.WeedModel import WeedModel
-
+import numpy as np
 
 SPLIT_DATA = True
 CREATE_MASKS = True
 
 # folder/file locations/paths
-dataset_name = '2021-03-25_MFS_Tussock'
+# dataset_name = '2021-03-25_MFS_Tussock'
+dataset_name = '2021-03-26_MFS_Horehound'
 
 # folder locations and file names
 root_dir = os.path.join('/home',
@@ -30,7 +31,8 @@ root_dir = os.path.join('/home',
                         dataset_name)
 
 ann_dir = os.path.join(root_dir, 'metadata')
-ann_file = '2021-03-25_MFS_Tussock_balanced.json'
+# ann_file = '2021-03-25_MFS_Tussock_ed20210909_balanced.json'
+ann_file = '2021-03-26_MFS_Horehound_balanced.json'
 ann_path = os.path.join(ann_dir, ann_file)
 
 img_dir = os.path.join(root_dir, 'images_balanced')
@@ -59,6 +61,8 @@ if CREATE_MASKS:
 
     print(f'number of images: {len(img_list)}')
     print(f'number of masks: {len(mask_list)}')
+else:
+    print('masks already created')
 
 # ============================================================
 # split image data
@@ -69,7 +73,8 @@ print('splitting image data')
 # eg, in case negative files are added
 # annotation files Master (contains all images - we don't touch this file, just
 # use it as a reference/check)
-ann_master_file = '2021-03-25_MFS_Tussock.json'  # we are using master file as allpoly, because it contains all images
+# ann_master_file = '2021-03-25_MFS_Tussock_ed20210909.json'  # we are using master file as allpoly, because it contains all images
+ann_master_file = ann_file # for horehound case
 
 # annotation files out
 ann_train_file = ann_file[:-5] + '_train.json'
@@ -159,6 +164,7 @@ dataloader = dso['dl_train']
 
 # ============================================================
 # train model
+print('start training model')
 model, model_save_path = Tussock.train(model_name = dataset_name,
                                        dataset_path=dataset_path, model_name_suffix=True)
 print('finished training model: {0}'.format(model_save_path))
@@ -170,7 +176,6 @@ Tussock_MaskRCNN = WeedModel(model_name = dataset_name)
 Tussock_MaskRCNN.load_model(model_save_path)
 Tussock_MaskRCNN.set_model_path(model_save_path)
 
-import numpy as np
 conf_thresh = np.linspace(0.99, 0.01, num=25, endpoint=True)
 iou_thresh = 0.5
 save_prcurve_folder = os.path.join('output', model_name, 'purcurve')

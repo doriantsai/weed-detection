@@ -70,6 +70,8 @@ def train_one_epoch(model,
         # for object detection, cannot pass through this..
         # workaround is to create a new class of "other" and
         # train that for everything that is not tussock
+        # import code
+        # code.interact(local=dict(globals(), **locals()))
         loss_dict = model(images, targets)
 
         losses = sum(loss for loss in loss_dict.values())

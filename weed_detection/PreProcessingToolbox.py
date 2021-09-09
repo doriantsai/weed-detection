@@ -344,6 +344,8 @@ class PreProcessingToolbox:
                     os.unlink(new_img_path)
                 os.symlink(old_img_path, new_img_path)
             else:
+                # TODO possible solution to faster copyfiles
+                # https://stackoverflow.com/questions/22078621/how-to-copy-files-fast
                 shutil.copyfile(old_img_path, new_img_path)
 
 
@@ -367,8 +369,8 @@ class PreProcessingToolbox:
 
 
         # setup folders
-        train_folder = os.path.join(root_dir, 'image_train')
-        test_folder = os.path.join(root_dir, 'iamges_test')
+        train_folder = os.path.join(root_dir, 'images_train')
+        test_folder = os.path.join(root_dir, 'images_test')
         val_folder = os.path.join(root_dir, 'images_validation')
 
         if clear_image_folders:

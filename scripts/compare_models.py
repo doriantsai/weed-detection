@@ -38,7 +38,7 @@ confidence_thresh = np.array(confidence_thresh, ndmin=1)
 # model_names = ['Tussock_v2 epoch 100',
 #                'Tussock_v2 epoch 20']
             #    'Tussock_v3_neg_train_test']
-model_names = ['2021-03-25_MFS_Tussock_FasterRCNN_2021-08-31_22_21',
+model_names = ['2021-03-25_MFS_Tussock_FasterRCNN_2021-09-01_16_49',
                '2021-03-25_MFS_Tussock_MaskRCNN_2021-08-31_19_33']
 
 # where to store the results

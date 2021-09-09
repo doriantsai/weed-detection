@@ -1,7 +1,7 @@
 #! /usr/bin/env python
 
 """
-script to generate tussock dataset from weeds reference library setup,
+script to generate horehound dataset from weeds reference library setup,
 grab all image files
 grab all json files
 create one large merged json file for entire dataset
@@ -54,13 +54,14 @@ def create_sym_ann(img_in_dir, img_out_dir, ann_in_dict, ann_file_out):
 # output all photos into single folder via symlinks
 
 # dataset location/root_dir
-dataset_name = '2021-03-25_MFS_Tussock'
+dataset_name = '2021-03-26_MFS_Horehound'
 root_dir = os.path.join('/home/dorian/Data/AOS_TussockDataset', dataset_name)
 # img folder
 img_dir = os.path.join(root_dir, 'images')
 # annotation folder/file
 ann_dir = os.path.join(root_dir, 'metadata')
-ann_file = '2021-03-25_MFS_Tussock_ed20210909.json'
+# ann_file = '2021-03-26_MFS_Horehound.json'
+ann_file = '2021-03-26_MFS_Horehound.json'
 ann_path = os.path.join(ann_dir, ann_file)
 
 

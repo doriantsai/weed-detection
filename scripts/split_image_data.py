@@ -10,7 +10,8 @@ from weed_detection.PreProcessingToolbox import PreProcessingToolbox
 # set folder locations init PT object PT.split_image_data
 
 # dataset_name = 'Tussock_v2'
-dataset_name = 'Tussock_v4_poly'
+# folder/file locations/paths
+dataset_name = '2021-03-25_MFS_Tussock'
 
 # folder locations and file names
 root_dir = os.path.join('/home',
@@ -20,31 +21,37 @@ root_dir = os.path.join('/home',
                         dataset_name)
 
 # folder containing all images to be used for testing/training/validation
-all_folder = os.path.join(root_dir, 'Images', 'All')
+all_folder = os.path.join(root_dir, 'images')
 # corresponding annotations file to Images/All
 # ann_all_file = 'annotations_tussock_21032526_G507_all.json'
 # ann_all_file = 'via_project_29Apr2021_17h43m_json_bbox_poly_pt.json'
 # ann_all_file = 'via_project_07Jul2021_08h00m_240_test_allpoly.json'
-ann_all_file = '20210819-MFS-01-bootprogress-570-occlusion24_json.json'
+# ann_all_file = '20210819-MFS-01-bootprogress-570-occlusion24_json.json'
+ann_file = '2021-03-25_MFS_Tussock_ed20210909.json'
 
 # annotation files Master (contains all images - we don't touch this file, just
 # use it as a reference/check)
 # ann_master_file = 'annotations_tussock_21032526_G507_master.json'
 # ann_master_file = 'via_project_07Jul2021_08h00m_240_test_allpoly.json'
-ann_master_file = '20210819-MFS-01-bootprogress-570-occlusion24_json.json'  # we are using master file as allpoly, because it contains all images
+# ann_master_file = '20210819-MFS-01-bootprogress-570-occlusion24_json.json'  # we are using master file as allpoly, because it contains all images
+ann_master_file = '2021-03-25_MFS_Tussock_ed20210909.json'
 
 # annotation files out
-ann_train_file = 'annotations_tussock_21032526_G507_train.json'
-ann_test_file = 'annotations_tussock_21032526_G507_test.json'
-ann_val_file = 'annotations_tussock_21032526_G507_val.json'
+# ann_train_file = 'annotations_tussock_21032526_G507_train.json'
+# ann_test_file = 'annotations_tussock_21032526_G507_test.json'
+# ann_val_file = 'annotations_tussock_21032526_G507_val.json'
 
+# annotation files out
+ann_train_file = ann_file[:-5] + '_train.json'
+ann_test_file = ann_file[:-5] + '_test.json'
+ann_val_file = ann_file[:-5] + '_val.json'
 
 # create PT object
 ProTool = PreProcessingToolbox()
 img_folders, ann_files = ProTool.split_image_data(root_dir,
                                                     all_folder,
                                                     ann_master_file,
-                                                    ann_all_file,
+                                                    ann_file,
                                                     ann_train_file,
                                                     ann_val_file,
                                                     ann_test_file)

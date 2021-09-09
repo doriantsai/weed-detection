@@ -17,28 +17,19 @@ Tussock = WM()
 
 # load dataset objects
 # dataset_name = 'Tussock_v0_mini'
-dataset_name = 'Tussock_v4_poly286'
+dataset_name = '2021-03-25_MFS_Tussock'
 
-DATASET_FILE_EXISTS = False
+DATASET_FILE_EXISTS = True
 if DATASET_FILE_EXISTS:
     dataset_file = os.path.join('dataset_objects',
                                 dataset_name,
                                 dataset_name + '.pkl')
     # load dataset files via unpacking the pkl file
-    if os.path.isfile(dataset_file):
-        with open(dataset_file, 'rb') as f:
-            ds_train = pickle.load(f)
-            ds_test = pickle.load(f)
-            ds_val = pickle.load(f)
-            dl_train = pickle.load(f)
-            dl_test = pickle.load(f)
-            dl_val = pickle.load(f)
-            hp_train = pickle.load(f)
-            hp_test = pickle.load(f)
-            dataset_name = pickle.load(f)
+    dso = Tussock.load_dataset_objects(dataset_file)
 
     # just choose which dataset object to use for this script
-    ds_infer = ds_train
+    ds_infer = dso['ds_train']
+    dl_infer = dso['dl_train']
 
 else:
     root_dir = os.path.join('/home',
@@ -73,7 +64,7 @@ else:
     hp['num_epochs'] = num_epochs
     hp['shuffle'] = shuffle
     hp['rescale_size'] = rescale_size
-    
+
     tform = Compose([Rescale(rescale_size),
                      ToTensor()])
     dataset, dataloader = Tussock.create_dataset_dataloader(root_dir=root_dir,
@@ -93,7 +84,8 @@ else:
 # model_name = 'tussock_test_2021-05-16_16_13'
 # model_name = 'Tussock_v0_mini_2021-06-14_13_25'
 # model_name = 'Tussock_v4_poly286_2021-07-14_10_24'
-model_name = 'Tussock_v4_poly286_2021-07-15_11_08'
+# model_name = 'Tussock_v4_poly286_2021-07-15_11_08'
+model_name = '2021-03-25_MFS_Tussock_MaskRCNN_2021-08-31_19_33'
 save_model_path = os.path.join('output',
                                model_name,
                                model_name + '.pth')
@@ -124,13 +116,15 @@ Tussock.set_snapshot(20)
 
 
 # run model inference on single image batch
-images, samples = next(iter(dataloader))
-bs = 10 # hp_test['batch_size']
-for i in range(bs):
+# images, samples = next(iter(dl_infer))
+
+# bs = 10 # hp_test['batch_size']
+# for i in range(bs):
+for image, sample in enumerate(ds_infer):
     # import code
     # code.interact(local=dict(globals(), **locals()))
-    image = images[i]
-    sample = samples[i]
+    # image = images[i]
+    # sample = samples[i]
     image_id = sample['image_id'].item()
     start_time = time.time()
     image_out, pred = Tussock.infer_image(image,

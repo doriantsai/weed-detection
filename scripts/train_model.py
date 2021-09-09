@@ -19,7 +19,7 @@ Tussock = WM()
 # dataset_name = 'Tussock_v2'
 # dataset_name = 'Tussock_v3_augment'
 # dataset_name = 'Tussock_v0_mini'
-dataset_name = '2021-03-25_MFS_Tussock'
+dataset_name = '2021-03-25_MFS_Tussock_MaskRCNN'
 
 # folder locations and file names
 root_dir = os.path.join('/home',

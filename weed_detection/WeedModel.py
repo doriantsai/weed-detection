@@ -6,7 +6,7 @@ functionality, such as training, inference, evaluation
 """
 
 import os
-from jedi.inference.gradual import annotation
+# from jedi.inference.gradual import annotation
 # from weed_detection.WeedDatasetPoly import WeedDatasetPoly
 
 import torch
@@ -75,6 +75,7 @@ class WeedModel:
         self._hp = hyper_parameters
         # TODO consider expanding hp from dictionary into actual
         # properties/attributes for more readability
+        # TODO should get image height/width automatically from PIL images
         self._image_height = int(2056/2) # rescale_size
         self._image_width = int(2464 /2)  # should be computed based on aspect ratio
 
@@ -1130,22 +1131,22 @@ class WeedModel:
                                             (int(bb[2]), int(bb[3])),
                                             color=sample_color,
                                             thickness=gt_box_thick)
-            # points_gt = sample['point']
-            # if len(points_gt) > 0:
-            #     for p in points_gt:
-            #         # plot polygon centroid for sample
-            #         # get image size, make circle a function of image size
-            #         h, w, _ = image_out.shape
-            #         imsize = min((h, w))
-            #         ptsize = int(imsize / 75)
-            #         xc = int(p[0])
-            #         yc = int(p[1])
-            #         image_out = cv.circle(image_out,
-            #                               center=(xc, yc),
-            #                               radius=ptsize,
-            #                               color=sample_color,
-            #                               thickness=dt_box_thick,
-            #                               lineType=cv.LINE_8)
+            points_gt = sample['points']
+            if len(points_gt) > 0:
+                for p in points_gt:
+                    # plot polygon centroid for sample
+                    # get image size, make circle a function of image size
+                    h, w, _ = image_out.shape
+                    imsize = min((h, w))
+                    ptsize = int(imsize / 75)
+                    xc = int(p[0])
+                    yc = int(p[1])
+                    image_out = cv.circle(image_out,
+                                          center=(xc, yc),
+                                          radius=ptsize,
+                                          color=sample_color,
+                                          thickness=dt_box_thick,
+                                          lineType=cv.LINE_8)
 
             masks = sample['masks']
             if len(masks) > 0:  # probably not necessary - "if there is a mask"
@@ -2018,6 +2019,7 @@ class WeedModel:
             f = interp1d(r, c, bounds_error=False, fill_value=(c[0], c[-1]))
             cg = f(rg)
 
+
         elif rg is None and pg is not None:
             # we use pg to interpolate for cg print('using p to interp c')
             f = interp1d(p, c, bounds_error=False, fill_value=(c[-1], c[0]))
@@ -2145,6 +2147,12 @@ class WeedModel:
 
         return res
 
+    def get_p_from_r(self, prec, rec, r):
+        """ given precision and recall curve, given r, interpolate to find p"""
+        # check prec and rec are same size
+        f = interp1d(rec, prec)
+        p = f(r)
+        return p
 # =========================================================================== #
 
 if __name__ == "__main__":

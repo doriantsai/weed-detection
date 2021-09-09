@@ -12,27 +12,41 @@ import weed_detection.WeedModel as WeedModel
 # dataset_name = 'Tussock_v3_augment'
 # dataset_name = 'Tussock_v0_mini'
 # dataset_name = 'Tussock_v3_neg_train_test'
-dataset_name = 'Tussock_v4_poly'
+dataset_name = '2021-03-25_MFS_Tussock'
 
 root_dir = os.path.join('/home',
                         'dorian',
                         'Data',
                         'AOS_TussockDataset',
                         dataset_name)
-img_folders = [os.path.join(root_dir, 'Images','Train'),
-               os.path.join(root_dir, 'Images', 'Test'),
-               os.path.join(root_dir, 'Images', 'Validation')]
-
-mask_dir = os.path.join(root_dir, 'Masks')
-mask_folders = [os.path.join(mask_dir, 'Train'),
-               os.path.join(mask_dir, 'Test'),
-               os.path.join(mask_dir, 'Validation')]
-all_mask_dir = os.path.join(mask_dir, 'All')
+train_folder = os.path.join(root_dir, 'images_train')
+test_folder = os.path.join(root_dir, 'images_test')
+val_folder = os.path.join(root_dir, 'images_validation')
+img_folders = [train_folder, test_folder, val_folder]
 
 
-ann_files = [os.path.join(root_dir, 'Annotations', 'annotations_tussock_21032526_G507_train.json'),
-            os.path.join(root_dir, 'Annotations', 'annotations_tussock_21032526_G507_test.json'),
-            os.path.join(root_dir, 'Annotations', 'annotations_tussock_21032526_G507_val.json')]
+# default mask folders
+mask_folders = [os.path.join(root_dir, 'masks_train'),
+               os.path.join(root_dir, 'masks_test'),
+               os.path.join(root_dir, 'masks_validation')]
+# all_mask_dir = os.path.join(mask_dir, 'All')
+all_mask_dir = os.path.join(root_dir, 'masks')
+
+ann_dir = os.path.join(root_dir, 'metadata')
+ann_file = '2021-03-25_MFS_Tussock_ed20210909.json'
+ann_path = os.path.join(ann_dir, ann_file)
+
+ann_master_file = '2021-03-25_MFS_Tussock_ed20210909.json'  # we are using master file as allpoly, because it contains all images
+
+# annotation files out
+ann_train_file = ann_file[:-5] + '_train.json'
+ann_test_file = ann_file[:-5] + '_test.json'
+ann_val_file = ann_file[:-5] + '_val.json'
+
+annotations_train = os.path.join(ann_dir, ann_train_file)
+annotations_val = os.path.join(ann_dir, ann_val_file)
+annotations_test = os.path.join(ann_dir, ann_test_file)
+ann_files = [annotations_train, annotations_test, annotations_val]
 
 # ann_files = [os.path.join(root_dir, 'Annotations', 'annotations_tussock_21032526_G507_train.json'),
 #             os.path.join(root_dir, 'Annotations', 'annotations_tussock_21032526_G507_test_shortgrass.json'),
@@ -44,7 +58,7 @@ num_workers = 10
 learning_rate = 0.005 # 0.002
 momentum = 0.9 # 0.8
 weight_decay = 0.0001
-num_epochs = 200
+num_epochs = 100
 step_size = round(num_epochs / 2)
 shuffle = True
 rescale_size = int(1024)

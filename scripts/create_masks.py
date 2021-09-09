@@ -10,16 +10,16 @@ from weed_detection.PreProcessingToolbox import PreProcessingToolbox
 import matplotlib.pyplot as plt
 
 # folder locations + database name
-db_name = 'Tussock_v4_poly'
+dataset_name = '2021-03-25_MFS_Tussock'
 root_dir = os.path.join('/home', 'dorian', 'Data', 'AOS_TussockDataset',
-                            db_name)
+                            dataset_name)
 
-img_dir_in = os.path.join(root_dir, 'Images', 'All')
+img_dir_in = os.path.join(root_dir, 'images')
 # ann_file_name = 'via_project_07Jul2021_08h00m_240_test_allpoly.json'
 # ann_file_name = 'via_project_07Jul2021_08h00m_240_polysubset_bootstrap.json'
-ann_file_name = 'annotations_tussock_21032526_G507_master1.json'
-ann_file_path = os.path.join(root_dir, 'Annotations', ann_file_name)
-img_dir_out = os.path.join(root_dir, 'Masks', 'All')
+ann_file_name = '2021-03-25_MFS_Tussock_ed20210909.json'
+ann_file_path = os.path.join(root_dir, 'metadata', ann_file_name)
+img_dir_out = os.path.join(root_dir, 'masks')
 
 
 # init object
