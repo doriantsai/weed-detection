@@ -15,7 +15,8 @@ from weed_detection.PreProcessingToolbox import PreProcessingToolbox
 from weed_detection.WeedModel import WeedModel
 
 # folder/file locations/paths
-dataset_name = '2021-03-25_MFS_Tussock'
+# dataset_name = '2021-03-25_MFS_Tussock'
+dataset_name = '2021-03-26_MFS_Horehound'
 
 # folder locations and file names
 root_dir = os.path.join('/home',
@@ -25,7 +26,8 @@ root_dir = os.path.join('/home',
                         dataset_name)
 
 ann_dir = os.path.join(root_dir, 'metadata')
-ann_file = '2021-03-25_MFS_Tussock_balanced.json'
+# ann_file = '2021-03-25_MFS_Tussock_balanced.json'
+ann_file = '2021-03-26_MFS_Horehound_balanced.json'
 ann_path = os.path.join(ann_dir, ann_file)
 
 img_dir = os.path.join(root_dir, 'images_balanced')
@@ -50,7 +52,8 @@ ProTool = PreProcessingToolbox()
 # ann_master_file = 'annotations_tussock_21032526_G507_master1.json'  # we are using master file as allpoly, because it contains all images
 
 # annotation files out
-ann_master_file = '2021-03-25_MFS_Tussock.json'  # we are using master file as allpoly, because it contains all images
+# ann_master_file = '2021-03-25_MFS_Tussock.json'  # we are using master file as allpoly, because it contains all images
+ann_master_file = ann_file
 
 # annotation files out
 ann_train_file = ann_file[:-5] + '_train.json'

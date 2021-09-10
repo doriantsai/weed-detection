@@ -17,9 +17,11 @@ import matplotlib.pyplot as plt
 from weed_detection.WeedModel import WeedModel as WM
 
 # model names
-model_names = ['2021-03-25_MFS_Tussock_FasterRCNN_2021-08-31_22_21',
-               '2021-03-25_MFS_Tussock_MaskRCNN_2021-08-31_19_33']
-legend_names = ['FasterRCNN', 'MaskRCNN']
+# model_names = ['2021-03-25_MFS_Tussock_FasterRCNN_2021-08-31_22_21',
+            #    '2021-03-25_MFS_Tussock_MaskRCNN_2021-08-31_19_33']
+model_names = ['2021-03-26_MFS_Horehound_FasterRCNN_2021-09-09_20_17',
+               '2021-03-26_MFS_Horehound_2021-09-09_18_08']
+legend_names = ['Hh_FasterRCNN', 'Hh_MaskRCNN']
 
 # pickle file should be of the format:
 # output/model_name/prcurve/model_name_prcurve.pkl
@@ -61,7 +63,7 @@ for i, pr in enumerate(pr_dicts):
     ap = pr['ap']
     f1score = pr['f1score']
     c = pr['confidence']
-    r_goal = 0.8
+    r_goal = 0.7
     conf_goal = Tussock.get_confidence_from_pr(prec, rec, c, f1score, rg=r_goal)
     p_goal = Tussock.get_p_from_r(prec, rec, r_goal)
 
@@ -78,6 +80,7 @@ plt.xlabel('recall')
 plt.ylabel('precision')
 plt.title('model comparison: PR curve')
 plt.grid(True)
+
 mdl_names_str = "".join(legend_names)
 save_plot_name = os.path.join('output', 'model_compare_' +  mdl_names_str + '.png')
 plt.savefig((save_plot_name))

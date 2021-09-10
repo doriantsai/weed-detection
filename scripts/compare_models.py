@@ -38,17 +38,20 @@ confidence_thresh = np.array(confidence_thresh, ndmin=1)
 # model_names = ['Tussock_v2 epoch 100',
 #                'Tussock_v2 epoch 20']
             #    'Tussock_v3_neg_train_test']
-model_names = ['2021-03-25_MFS_Tussock_FasterRCNN_2021-09-01_16_49',
-               '2021-03-25_MFS_Tussock_MaskRCNN_2021-08-31_19_33']
-
+# model_names = ['2021-03-25_MFS_Tussock_FasterRCNN_2021-09-01_16_49',
+#                '2021-03-25_MFS_Tussock_MaskRCNN_2021-08-31_19_33']
+model_names = ['2021-03-26_MFS_Horehound_FasterRCNN_2021-09-09_20_17',
+               '2021-03-26_MFS_Horehound_2021-09-09_18_08']
 # where to store the results
 # model_folders = [dataset_names[0],
 #                  dataset_names[1]]
 model_folders = model_names
 
-dataset_object_names = ['2021-03-25_MFS_Tussock',
-                        '2021-03-25_MFS_Tussock']
-legend_names = ['FasterRCNN', 'MaskRCNN']
+# dataset_object_names = ['2021-03-25_MFS_Tussock',
+#                         '2021-03-25_MFS_Tussock']
+dataset_object_names = ['2021-03-26_MFS_Horehound',
+                        '2021-03-26_MFS_Horehound']
+legend_names = ['Horehound_FasterRCNN', 'Horehound_MaskRCNN']
 
 ann_types = ['box', 'poly']
 # iterate for each model_name:

@@ -20,13 +20,13 @@ import shutil
 # output all photos into single folder via symlinks
 
 # dataset location/root_dir
-dataset_name = '2021-03-25_MFS_Tussock'
+dataset_name = '2021-03-26_MFS_Horehound'
 root_dir = os.path.join('/home/dorian/Data/AOS_TussockDataset', dataset_name)
 # img folder
 # img_dir = os.path.join(root_dir, 'images_test')
 # annotation folder/file
 ann_dir = os.path.join(root_dir, 'metadata')
-ann_file = '2021-03-25_MFS_Tussock_balanced_val.json'
+ann_file = '2021-03-26_MFS_Horehound_balanced_val.json'
 ann_path = os.path.join(ann_dir, ann_file)
 
 print(ann_file)

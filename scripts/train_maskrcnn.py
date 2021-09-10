@@ -16,8 +16,8 @@ from weed_detection.PreProcessingToolbox import PreProcessingToolbox
 from weed_detection.WeedModel import WeedModel
 import numpy as np
 
-SPLIT_DATA = True
-CREATE_MASKS = True
+SPLIT_DATA = False
+CREATE_MASKS = False
 
 # folder/file locations/paths
 # dataset_name = '2021-03-25_MFS_Tussock'
@@ -143,7 +143,7 @@ hp_test['shuffle'] = False
 Tussock = WeedModel()
 # save all datasets/dataloaders in a .pkl file
 # dataset_name_save = dataset_name + '_shortgrass'
-dataset_name_save = dataset_name + '_MaskRCNN'
+dataset_name_save = dataset_name + '_2'
 dataset_path = Tussock.create_train_test_val_datasets(img_folders,
                                                       ann_files,
                                                       hp,
@@ -171,7 +171,7 @@ print('finished training model: {0}'.format(model_save_path))
 
 # ============================================================
 # generate pr curve
-model_name = dataset_name
+model_name = dataset_name + '_MaskRCNN'
 Tussock_MaskRCNN = WeedModel(model_name = dataset_name)
 Tussock_MaskRCNN.load_model(model_save_path)
 Tussock_MaskRCNN.set_model_path(model_save_path)

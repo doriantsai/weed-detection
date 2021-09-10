@@ -17,7 +17,7 @@ Tussock = WM()
 # load dataset objects
 # dataset_name = 'Tussock_v0_mini'
 # dataset_name = 'Tussock_v3_neg_train_test'
-dataset_name = '2021-03-25_MFS_Tussock_MaskRCNN'
+dataset_name = '2021-03-26_MFS_Horehound'
 
 DATASET_FILE_EXISTS = True
 if DATASET_FILE_EXISTS:
@@ -83,7 +83,9 @@ else:
 # model_name = 'Tussock_v0_mini_2021-06-09_09_19'
 # model_name = 'Tussock_v4_poly286_2021-07-15_11_08'
 # model_name = '2021-03-25_MFS_Tussock_MaskRCNN_2021-08-31_19_33'
-model_name = '2021-03-25_MFS_Tussock_FasterRCNN_2021-09-01_16_49'
+# model_name = '2021-03-25_MFS_Tussock_FasterRCNN_2021-09-01_16_49'
+# model_name = '2021-03-26_MFS_Horehound_2021-09-09_18_08'
+model_name = '2021-03-26_MFS_Horehound_FasterRCNN_2021-09-09_20_17'
 
 # model_name = dataset_name
 save_model_path = os.path.join('output',
@@ -100,7 +102,7 @@ print('infering dataset')
 pred = Tussock.infer_dataset(dso['ds_test'],
                              imsave=True,
                              save_subfolder='infer_dataset_test',
-                             conf_thresh=0.42,
+                             conf_thresh=0.19,
                              annotation_type='box')
     # image_out, pred = Tussock.infer_image(image,
     #                                       sample=sample,
