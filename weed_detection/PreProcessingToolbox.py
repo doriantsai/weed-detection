@@ -25,6 +25,7 @@ from weed_detection.WeedDataset import WeedDataset, Compose, \
     RandomSaturation, ToTensor
 import torch
 import random
+import glob
 
 import matplotlib.pyplot as plt # somewhat redundany w cv, but provides better image/plot analysis/gui tools
 from matplotlib.patches import Polygon
@@ -97,11 +98,6 @@ class PreProcessingToolbox:
         ann_list = []
         if ann_dir is None:
             ann_dir = '.'
-        #     # absolute filepath for ann_files
-        #     for i in range(len(ann_files)):
-        #         ann.append(json.load(open(ann_files[i])))
-        # elif ann_dir = False:
-            # absolute pathing
 
         for ann in ann_files:
 
@@ -110,15 +106,9 @@ class PreProcessingToolbox:
                 ann_open = ann
             else:
                 ann_open = os.path.join(ann_dir, ann)
-            # try:
-            # print(i)
-            # print(ann_open)
-            # import code
-            # code.interact(local=dict(globals(), **locals()))
+
             ann_list.append(json.load(open(ann_open)))
-            # except:
-            #     print(f'ERROR: failed to open {ann_open}')
-            #     break
+
 
         # for now, assume unique key-value pairs, but should probably check length
         ann_all = {}
@@ -133,11 +123,9 @@ class PreProcessingToolbox:
         # len(ann_all) vs sum(len(ann_i))
 
         if ann_dir is False:
-            with open(ann_out, 'w') as ann_file:
-                json.dump(ann_all, ann_file, indent=4)
+            self.make_annfile_from_dict(ann_all, ann_out)
         else:
-            with open(os.path.join(ann_dir, ann_out), 'w') as ann_file:
-                json.dump(ann_all, ann_file, indent=4)
+            self.make_annfile_from_dict(ann_all, os.path.join(ann_dir, ann_out))
 
         n_all = len(ann_all)
         if n_img_sum == n_all:
@@ -182,8 +170,7 @@ class PreProcessingToolbox:
             ann_dict = self.sample_dict(ann_dict, sample)
 
         # create annotations_out_file:
-        with open(ann_out_file, 'w') as ann_file:
-            json.dump(ann_dict, ann_file, indent=4)
+        self.make_annfile_from_dict(ann_dict, ann_out_file)
 
         return ann_out_file
 
@@ -229,7 +216,7 @@ class PreProcessingToolbox:
         return True
 
 
-    def find_positive_images(self, folder_in, root_dir, ann_in, ann_out):
+    def split_pos_neg_images(self, folder_in, root_dir, ann_in, ann_out):
         """ find images with positive weed annotations in an image
         folder/annotations_in file pair that have both negative and positive
         images of weeds
@@ -267,21 +254,6 @@ class PreProcessingToolbox:
                                 os.path.join(img_dir, img_name))
 
                 # save annotations by remaking the dictionary
-                # file_ref = sample['fileref']
-                # file_size = sample['size']
-                # file_name = sample['filename']
-                # img_data = sample['base54_img_data']
-                # file_att = sample['file_attributes']
-                # regions = sample['regions']
-
-                # ann_dict[file_name + str(file_size)] = {
-                #     'fileref': file_ref,
-                #     'size': file_size,
-                #     'filename': file_name,
-                #     'base64_img_data': img_data,
-                #     'file_attributes': file_att,
-                #     'regions': regions
-                # }
                 ann_dict = self.sample_dict(ann_dict, sample)
 
             else:
@@ -291,8 +263,7 @@ class PreProcessingToolbox:
 
         print('image copy to image_dir complete')
         # save annotation file
-        with open(os.path.join(ann_dir, ann_out), 'w') as ann_file:
-            json.dump(ann_dict, ann_file, indent=4)
+        self.make_annfile_from_dict(ann_dict, os.path.join(ann_dir, ann_out))
 
         print('filtered annotation file saved')
 
@@ -303,6 +274,31 @@ class PreProcessingToolbox:
         print('n img positive in out ann_file: {}'.format(n_out))
 
         return True
+
+    def count_pos_neg_images(self, ann_path):
+        """ count positive/negative images in json file, returns tuple (# pos, # neg) """
+        """ also can split pos/neg into dictionaries, return those dictionaries """
+
+        ann_dict = json.load(open(ann_path))
+        ann_list = list(ann_dict.values())
+
+        idx_pos = []
+        idx_neg = []
+        ann_pos = {}
+        ann_neg = {}
+        for i, ann in enumerate(ann_list):
+            reg = ann['regions']
+            # if regions is not empty, we have a positive image, otherwise, negative image
+            if bool(reg):
+                idx_pos.append(i)
+            else:
+                idx_neg.append(i)
+
+        print(f'pos images: {len(idx_pos)}')
+        print(f'neg images: {len(idx_neg)}')
+        # print('neg images: ' + len(idx_neg))
+        return (idx_pos, idx_neg)
+
 
 
     def rename_images(self, img_dir, str_pattern='.png'):
@@ -686,16 +682,13 @@ class PreProcessingToolbox:
                 # if already a file, we load the file
                 ann_old = json.load(open(ann_transform_path))
                 ann_all = {**ann_old, **ann_dict}
-                with open(ann_transform_path, 'w') as ann_file:
-                    json.dump(ann_all, ann_file, indent=4)
+                self.make_annfile_from_dict(ann_all, ann_transform_path)
             else:
                 # ann_transform_path is not a file, so shouldn't cause any
                 # problems
-                with open(ann_transform_path, 'w') as ann_file:
-                    json.dump(ann_dict, ann_file, indent=4)
+                self.make_annfile_from_dict(ann_dict, ann_transform_path)
         else:
-            with open(ann_transform_path, 'w') as ann_file:
-                json.dump(ann_dict, ann_file, indent=4)
+            self.make_annfile_from_dict(ann_dict, ann_transform_path)
 
         # append/merge with ann_in + ann_out
         ann_files = [ann_in, ann_transform]
@@ -868,9 +861,280 @@ class PreProcessingToolbox:
                     plt.show()
 
 
+    def generate_symbolic_links(self, 
+                          data_server_dir, 
+                          dataset_name,
+                          img_dir_patterns = None,
+                          ann_dir_patterns = None,
+                          img_pattern = '*.png',
+                          ann_pattern = '*labels_polygons.json',
+                          data_dir_out = None,
+                          ann_file_out = None,
+                          default_dir = '/home/dorian/Data/AOS_TussockDataset'):
+        """ generate symlinks from original data server directory
+        given specific string patterns for image directory, annotation directories, based on GLOB patterns
+        output symbolic links in data_dir_out and ann_file_out """
+
+        # given folder locations
+        # given types of files to look for (glob) --> images/annotations
+        # glob all relevant files
+        # combine into singular json file with folder locations (might require new tag added)
+        # output all photos into single folder via symlinks
+
+        # TODO check for valid input
+
+        # glob for all images
+        glob_imgs = []
+        for img_dir in img_dir_patterns:
+            glob_img = glob.glob(str(data_server_dir + img_dir + img_pattern), recursive=True)
+            glob_imgs.extend(glob_img)
+
+        # check globs
+        print('Found Image Globs:')
+        # for g in glob_img:
+        #     print(g)
+        print(len(glob_imgs))
+        
+        # glob for all annotation files
+        glob_anns = []
+        for ann_dir in ann_dir_patterns:
+            # print(str(data_server_dir + ann_dir_patterns + ann_pattern))
+            glob_ann = glob.glob(str(data_server_dir + ann_dir + ann_pattern), recursive=True)
+            glob_anns.extend(glob_ann)
+        
+        print('Found Annotation Globs:')
+        print(glob_anns)
+        print(len(glob_anns))
+        for g in glob_anns:
+            print(g)
+
+        # create folder for symlinks
+        if data_dir_out is None:
+            data_dir_out = os.path.join(default_dir, dataset_name)
+        img_out_dir = os.path.join(data_dir_out, 'images')
+        ann_out_dir = os.path.join(data_dir_out, 'metadata')
+        os.makedirs(img_out_dir, exist_ok=True)
+        os.makedirs(ann_out_dir, exist_ok=True)
+
+        # create symlinks
+        print('Creating symbolic links')
+        for i, img_path in enumerate(glob_imgs):
+            # print(f'{i+1} / {len(glob_img)}')
+            img_name = os.path.basename(img_path)
+
+            dst_file = os.path.join(img_out_dir, img_name)
+            if os.path.exists(dst_file):
+                os.unlink(dst_file)
+
+            os.symlink(img_path, dst_file)
+
+        # check number of symlinks in folder:
+        print(f'num images in glob = {len(glob_imgs)}')
+        img_list = os.listdir(img_out_dir)
+        print(f'num imgs in out_dir = {len(img_list)}')
+        print('should be the same')
+
+        # merge annotations to one:
+        if ann_file_out is None:
+            ann_file_out = dataset_name + '.json'
+    
+        ann_out_path = os.path.join(ann_out_dir, ann_file_out)
+        res = self.combine_annotations(ann_files=glob_anns,
+                                        ann_dir=False,
+                                        ann_out=ann_out_path)
+
+        # check number of entries in annotation out file
+        ann_check = json.load(open(ann_out_path))
+        print(f'num entries in ann_out = {len(ann_check)}')
+
+        return ann_out_path
 
 
+    def copy_symlinks_from_dict(self, ann_dict_in, img_src_dir, img_dst_dir):
+        """ helper function to generate_dataset_from_symlink """
+        os.makedirs(img_dst_dir, exist_ok=True)
+        print(img_dst_dir)
+        ann_list = list(ann_dict_in.values())
+        for ann in ann_list:
+            img_name = ann['filename'] # looping over dictionary gives just the key?
+            img_path = os.path.join(img_src_dir, img_name)
+            dst_file = os.path.join(img_dst_dir, img_name)
+            if os.path.exists(dst_file):
+                os.unlink(dst_file)
+            # create sym link
+            os.symlink(img_path, dst_file)
+        return True
 
+
+    def make_annfile_from_dict(self, ann_dict, ann_path):
+        """ create annotations file from dictionary """
+        ann_path = os.path.join(ann_path)
+        ann_dir = os.path.dirname(ann_path)
+        os.makedirs(ann_dir, exist_ok=True)
+        print(ann_path)
+        with open(ann_path, 'w') as f:
+            json.dump(ann_dict, f, indent=4)
+
+        return True
+
+
+    def convert_project2annotations(self, proj_path, ann_path=None):
+        """ convert VIA project file to annotations file """
+
+        proj_path = os.path.join(proj_path)
+        proj_dict = json.load(open(proj_path))
+
+        if ann_path is None:
+            proj_dir =  os.path.dirname(proj_path)
+            proj_name = os.path.basename(proj_path)
+            ann_name = proj_name + '_annotations.json'
+            ann_path = os.path.join(proj_dir, ann_name)
+
+        ann_dict = proj_dict['_via_img_metadata']
+
+        self.make_annfile_from_dict(ann_dict, ann_path)
+
+        return ann_path
+
+
+    def sort_imgs_by_index(self, ann_list, idx, img_in_dir, img_out_dir, ann_out_path):
+        """ sort images in annotation list by index, output symlinks to img_out_dir, and annotations to ann_out_path"""
+    
+        # create dictionary from idx
+        ann_dict = {}
+        ann_idx = [ann_list[i] for i in idx]
+        for ann in ann_idx:
+            ann_dict = self.sample_dict(ann_dict, ann)
+        
+        # ann_out_dir = os.path.dirname(ann_out_path)
+        self.copy_symlinks_from_dict(ann_dict, img_in_dir, img_out_dir)
+        
+        # make dictionary, save output
+        self.make_annfile_from_dict(ann_dict, ann_out_path)
+
+        # check:
+        print(f'num images in ann_dict = {len(ann_dict)}')
+        img_list = os.listdir(img_out_dir)
+        print(f'num imgs in img_out_dir = {len(img_list)}')
+        if len(ann_dict) == len(img_list):
+            print('check passed - images same in ann_file and img_out_dir')
+            return True, ann_dict
+        else:
+            print('check failed - not equal')
+            print(ann_out_path)
+            print(img_out_dir)
+            return False, ann_dict
+        
+
+    def generate_dataset_from_symbolic_links(self,
+                                             root_dir,
+                                             ann_path,
+                                             ann_out_file=None,
+                                             pos_neg_img_ratio=1.0,
+                                             img_out_dir=None):
+        """ generate dataset from symbolic link folders """
+        # load annotations file
+        # from images folder that has a mix of pos/neg images
+        # create folder for symlinks into positive and negative
+        # take X pos images based on take_pos_imgs ratio
+        # take Y neg images, based on pos_neg_img_ratio
+        # save this as a trim negative set
+        # combine pos, neg image directories and respective json files into balanced json file/folder\
+
+        img_dir_in = os.path.join(root_dir, 'images')
+
+        # load annotations file
+        ann_dict = json.load(open(ann_path))
+        ann_list = list(ann_dict.values())
+
+        # TODO check if len(img_dir_in) == len(ann_dict)
+        # we assume they match, otherwise, might be problems
+
+        # get indices of positive, negative images  (wrt ann_path)
+        idx_pos, idx_neg = self.count_pos_neg_images(ann_path)
+
+        # create folders for symlinks
+        # ann_out_dir = os.path.dirname(ann_path)
+        img_neg_out_dir = os.path.join(root_dir, 'images_neg')
+        img_pos_out_dir = os.path.join(root_dir, 'images_pos')
+        
+        ann_pos_out = ann_path[:-5] + '_pos.json'
+        ann_neg_out = ann_path[:-5] + '_neg.json'
+
+        # sort images based on index, create corresponding symlink image folder and annotation file
+        # do this for both pos, negative image sets
+        res, ann_pos = self.sort_imgs_by_index(ann_list, idx_pos, img_dir_in, img_pos_out_dir, ann_pos_out)
+        res, ann_neg = self.sort_imgs_by_index(ann_list, idx_neg, img_dir_in, img_neg_out_dir, ann_neg_out)
+
+        # "trim" negative images based on ratios
+        # TODO could make this a method: self.trim_negative_images()
+        # want to par down negative images to X:Y of num img_pos: num img_neg
+        n_pos = len(ann_pos)
+        n_neg = len(ann_neg)
+        n_neg_goal = round(n_pos * pos_neg_img_ratio)
+        n_delete = n_neg - n_neg_goal
+        if n_delete <= 0:
+            print('no trimming of negative images')
+            print('n_delete = ' + n_delete)
+        else:
+            print('trimming negative images')
+            # randomly sample which elements to delete, based on index
+            to_delete = set(random.sample(range(len(ann_neg)), n_delete))
+            ann_neg_list = list(ann_neg.values())
+            ann_neg_trim_list = [x for k, x in enumerate(ann_neg_list) if not k in to_delete]
+            print(f'len ann_neg_trim = {len(ann_neg_trim_list)}')
+
+        # convert ann_neg_trim_list to dictionary
+        ann_neg_trim = {}
+        for ann in ann_neg_trim_list:
+            ann_neg_trim = self.sample_dict(ann_neg_trim, ann)
+
+        # need to clear out img_neg_trim_dir before loading it up
+        img_neg_trim_dir = os.path.join(root_dir, 'images_neg_trim')
+        if os.path.isdir(img_neg_trim_dir):
+            shutil.rmtree(img_neg_trim_dir)
+        self.copy_symlinks_from_dict(ann_neg_trim, img_dir_in, img_neg_trim_dir)
+        
+        # make dictionary, save output
+        ann_neg_trim_out = os.path.join(ann_neg_out[:-5] + '_trim.json')
+        self.make_annfile_from_dict(ann_neg_trim, ann_neg_trim_out)      
+
+        print(f'num images in ann_neg_trim = {len(ann_neg_trim)}')
+        img_list = os.listdir(img_neg_trim_dir)
+        print(f'num imgs in img_neg_trim_dir = {len(img_list)}')
+        print('should be the same')
+
+        # findally, combine pos, neg img directories and respective json files
+        if img_out_dir is None:
+            img_out_dir = os.path.join(root_dir, 'images_balanced')
+        # clear img_out_dir first
+        if os.path.isdir(img_out_dir):
+            shutil.rmtree(img_out_dir)
+        
+        # copy images over as symlinks to img_out_dir
+
+        self.copy_symlinks_from_dict(ann_pos, img_pos_out_dir, img_out_dir)
+        self.copy_symlinks_from_dict(ann_neg_trim, img_neg_trim_dir, img_out_dir)
+
+        # combine annotation files
+        ann_combine = [ann_pos_out, ann_neg_trim_out]
+        if ann_out_file is None:
+            ann_out_file = ann_path[:-5] + '_balanced.json'
+        res = self.combine_annotations(ann_combine, ann_dir=False, ann_out=ann_out_file)
+
+
+        # check
+        img_out_list = os.listdir(img_out_dir)
+        img_pos_list = os.listdir(img_pos_out_dir)
+        img_neg_list = os.listdir(img_neg_trim_dir)
+        print(f'img_pos_list +  img_neg_list = {len(img_pos_list) + len(img_neg_list)}')
+        print(f'img_out_list = {len(img_out_list)}')
+        print('should be same')
+
+        ann_out_dict = json.load(open(ann_out_file))
+        print(f'len of ann_out_dict = {len(ann_out_dict)}')
+
+        return img_out_dir, ann_out_file
 
 # =========================================================================== #
 
@@ -881,11 +1145,21 @@ if __name__ == "__main__":
     """ testing create_masks_from_poly """
 
     ppt = PreProcessingToolbox()
-    db_name = 'Tussock_v0_mini'
-    root_dir = os.path.join('/home', 'dorian', 'Data', 'AOS_TussockDataset',
-                              db_name)
-    img_dir_in = os.path.join(root_dir, 'Images', 'All')
-    ann_file_name = 'via_project_29Apr2021_17h43m_json_bbox_poly_pt.json'
-    ann_file_path = os.path.join(root_dir, 'Annotations', ann_file_name)
-    img_dir_out = os.path.join(root_dir, 'Masks', 'All')
-    ppt.create_masks_from_poly(img_dir_in, ann_file_path, img_dir_out)
+    # db_name = 'Tussock_v0_mini'
+    # root_dir = os.path.join('/home', 'dorian', 'Data', 'AOS_TussockDataset',
+    #                           db_name)
+    # img_dir_in = os.path.join(root_dir, 'Images', 'All')
+    # ann_file_name = 'via_project_29Apr2021_17h43m_json_bbox_poly_pt.json'
+    # ann_file_path = os.path.join(root_dir, 'Annotations', ann_file_name)
+    # img_dir_out = os.path.join(root_dir, 'Masks', 'All')
+    # ppt.create_masks_from_poly(img_dir_in, ann_file_path, img_dir_out)
+
+    # testing: generate_symbolic_links
+    res = ppt.generate_symbolic_links(data_server_dir='/home/dorian/Data/AOS_TussockDataset/03_Tagged',
+                                      dataset_name='2021-03-25_MFS_Tussock',
+                                      img_dir_patterns=['/2021-03-25/*/images/', '/2021-03-26/Location_1/images/'],
+                                      ann_dir_patterns=['/2021-03-25/*/metadata/', '/2021-03-26/Location_1/metadata/'])
+    print(res)
+
+    # import code
+    # code.interact(local=dict(globals(), **locals()))
