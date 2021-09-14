@@ -363,6 +363,8 @@ class PreProcessingToolbox:
         """
         # TODO should just return generator as object, so can reproduce with just generator, rather than splitting/making new data
 
+        # TODO make sub-function to iterate for one type of image folder/ann_file
+        # TODO then call sub-function 3x for each ann_file
 
         # setup folders
         train_folder = os.path.join(root_dir, 'images_train')
@@ -414,8 +416,12 @@ class PreProcessingToolbox:
             ann_dir = os.path.join(root_dir, 'metadata')
         # NOTE I don't think I'm entirely consistent with use of annotation file names
         # TODO check for consistency
-        ann_master = os.path.join(ann_dir, ann_master_file)
-        ann_all = os.path.join(ann_dir, ann_all_file)
+        if ann_dir is False:
+            ann_master = os.path.join(ann_master_file)
+            ann_all = os.path.join(ann_all_file)
+        else:
+            ann_master = os.path.join(ann_dir, ann_master_file)
+            ann_all = os.path.join(ann_dir, ann_all_file)
 
         # ensure annotations file matches all images in all_folder
         # a requirement for doing random_split
@@ -492,6 +498,9 @@ class PreProcessingToolbox:
         # package output
         img_folders = [train_folder, test_folder, val_folder]
         ann_files = [annotations_train, annotations_test, annotations_val]
+
+        # TODO check, as in split_image_data.py
+
         return img_folders, ann_files
 
 
@@ -860,6 +869,16 @@ class PreProcessingToolbox:
                 if SHOW:
                     plt.show()
 
+            # check
+            img_list = os.listdir(img_dir_in)
+            mask_list = os.listdir(mask_dir_out)
+            print(f'number of images: {len(img_list)}')
+            print(f'number of masks: {len(mask_list)}')
+            if len(img_list) == len(mask_list):
+                return True, mask_dir_out
+            else:
+                return False, mask_dir_out
+
 
     def unscale_polygon(self, polygon, output_size, input_size):
         """ unscale single polygon"""
@@ -979,7 +998,7 @@ class PreProcessingToolbox:
         ann_check = json.load(open(ann_out_path))
         print(f'num entries in ann_out = {len(ann_check)}')
 
-        return ann_out_path
+        return ann_out_path, default_dir
 
 
     def copy_symlinks_from_dict(self, ann_dict_in, img_src_dir, img_dst_dir):

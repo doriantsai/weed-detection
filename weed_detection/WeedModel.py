@@ -2120,12 +2120,15 @@ class WeedModel:
         p_final, r_final, c_final, = self.extend_pr(prec, rec, confidence_thresh)
         ap = self.compute_ap(p_final, r_final)
 
-        # plot final pr curve
         fig, ax = plt.subplots()
-        ax.plot(r_final, p_final)
-        plt.xlabel('recall')
-        plt.ylabel('precision')
-        plt.title('prec-rec curve, iou={}, ap = {:.2f}'.format(decision_iou_thresh, ap))
+        title_str = 'prec-rec curve, iou={}, ap = {:.2f}'.format(decision_iou_thresh, ap)
+        ax = self.plot_prcurve(p_final, r_final, ap, title_str, ax)
+        # # plot final pr curve
+        # fig, ax = plt.subplots()
+        # ax.plot(r_final, p_final)
+        # plt.xlabel('recall')
+        # plt.ylabel('precision')
+        # plt.title('prec-rec curve, iou={}, ap = {:.2f}'.format(decision_iou_thresh, ap))
         # ax.legend()
         save_plot_name = os.path.join(save_folder, self._model_name + '_pr.png')
         plt.savefig(save_plot_name)
@@ -2188,6 +2191,7 @@ class WeedModel:
         # setup default values
         if confidence_thresh is None:
             confidence_thresh = np.linspace(0.99, 0.01, num=25, endpoint=True)
+            confidence_thresh = np.array(confidence_thresh, ndmin=1)
 
         # for each model
         #   build model

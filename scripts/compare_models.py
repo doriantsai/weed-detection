@@ -27,109 +27,122 @@ dataset_names = ['2021-03-25_MFS_Tussock',
 
 # set the thresholds
 # TODO call prcurve functions
-nms_iou_thresh = 0.5
-decision_iou_thresh = 0.5
-confidence_thresh = np.linspace(0.99, 0.01, num=25, endpoint=True)
-confidence_thresh = np.array(confidence_thresh, ndmin=1)
+# nms_iou_thresh = 0.5
+# decision_iou_thresh = 0.5
+# confidence_thresh = np.linspace(0.99, 0.01, num=25, endpoint=True)
+# confidence_thresh = np.array(confidence_thresh, ndmin=1)
 # TODO for 0.0 and 1.0 confidence threshold, produces nans because no tp
 
 
 # provide a list of model names:
-# model_names = ['Tussock_v2 epoch 100',
-#                'Tussock_v2 epoch 20']
-            #    'Tussock_v3_neg_train_test']
 # model_names = ['2021-03-25_MFS_Tussock_FasterRCNN_2021-09-01_16_49',
 #                '2021-03-25_MFS_Tussock_MaskRCNN_2021-08-31_19_33']
 model_names = ['2021-03-26_MFS_Horehound_FasterRCNN_2021-09-09_20_17',
                '2021-03-26_MFS_Horehound_2021-09-09_18_08']
-# where to store the results
-# model_folders = [dataset_names[0],
-#                  dataset_names[1]]
 model_folders = model_names
 
 # dataset_object_names = ['2021-03-25_MFS_Tussock',
 #                         '2021-03-25_MFS_Tussock']
-dataset_object_names = ['2021-03-26_MFS_Horehound',
-                        '2021-03-26_MFS_Horehound']
-legend_names = ['Horehound_FasterRCNN', 'Horehound_MaskRCNN']
+model_names = ['2021-03-26_MFS_Horehound_FasterRCNN_2021-09-09_20_17',
+               '2021-03-26_MFS_Horehound_2021-09-09_18_08']
+model_descriptions = ['Hh_FasterRCNN', 'Hh_MaskRCNN']
+model_types = ['box', 'poly']
+model_epochs = [25, 20]
 
-ann_types = ['box', 'poly']
+# package model info as a dictionary
+models={'name': model_names,
+        'folder': model_names,
+        'description': model_descriptions,
+        'type': model_types,
+        'epoch': model_epochs}
+
+# where the datasets are found
+dataset_names = ['2021-03-26_MFS_Horehound',
+            '2021-03-26_MFS_Horehound']
+datasets = [os.path.join('dataset_objects', d, d + '.pkl') for d in dataset_names]
+
+Horehound = WM()
+Horehound.compare_models(models,
+                         datasets,
+                         load_prcurve=False,
+                         show_fig=True)
+
 # iterate for each model_name:
 
-results = []
-WeedModelList = []
-for i, name in enumerate(model_names):
+# results = []
+# WeedModelList = []
+# for i, name in enumerate(model_names):
 
-    # dataset_file = os.path.join('dataset_objects', dataset_names[i], dataset_names[i] + '.pkl')
-    dataset_file = os.path.join('dataset_objects', dataset_object_names[i], dataset_object_names[i] + '.pkl')
-    dso = WeedTemp.load_dataset_objects(dataset_file)
+#     # dataset_file = os.path.join('dataset_objects', dataset_names[i], dataset_names[i] + '.pkl')
+#     dataset_file = os.path.join('dataset_objects', dataset_object_names[i], dataset_object_names[i] + '.pkl')
+#     dso = WeedTemp.load_dataset_objects(dataset_file)
 
-    WeedModel = WM(model_name=name, model_folder=model_folders[i])
-    save_model_path = os.path.join('output', model_folders[i], model_folders[i] + '.pth')
-    # import code
-    # code.interact(local=dict(globals(), **locals()))
-    WeedModel.load_model(save_model_path, annotation_type=ann_types[i])
-    WeedModel.set_model_name(name)
-    WeedModel.set_model_path(save_model_path)
+#     WeedModel = WM(model_name=name, model_folder=model_folders[i])
+#     save_model_path = os.path.join('output', model_folders[i], model_folders[i] + '.pth')
+#     # import code
+#     # code.interact(local=dict(globals(), **locals()))
+#     WeedModel.load_model(save_model_path, annotation_type=ann_types[i])
+#     WeedModel.set_model_name(name)
+#     WeedModel.set_model_path(save_model_path)
 
-    # TEMP changing epoch for "early stopping"
-    if i == 0:
-        WeedModel.set_snapshot(25)
-    elif i == 1:
-        WeedModel.set_snapshot(20)
+#     # TEMP changing epoch for "early stopping"
+#     if i == 0:
+#         WeedModel.set_snapshot(25)
+#     elif i == 1:
+#         WeedModel.set_snapshot(20)
 
-    # import code
-    # code.interact(local=dict(globals(), **locals()))
+#     # import code
+#     # code.interact(local=dict(globals(), **locals()))
 
-    save_prcurve_folder = os.path.join('output', name, 'prcurve')
-    res = WeedModel.get_prcurve(dso['ds_test'],
-                                confidence_thresh=confidence_thresh,
-                                nms_iou_thresh=nms_iou_thresh,
-                                decision_iou_thresh=decision_iou_thresh,
-                                save_folder=save_prcurve_folder,
-                                imsave=True,
-                                annotation_type=ann_types[i])
+#     save_prcurve_folder = os.path.join('output', name, 'prcurve')
+#     res = WeedModel.get_prcurve(dso['ds_test'],
+#                                 confidence_thresh=confidence_thresh,
+#                                 nms_iou_thresh=nms_iou_thresh,
+#                                 decision_iou_thresh=decision_iou_thresh,
+#                                 save_folder=save_prcurve_folder,
+#                                 imsave=True,
+#                                 annotation_type=ann_types[i])
 
-    results.append(res)
-    WeedModelList.append(WeedModel)
-    # i += 1
+#     results.append(res)
+#     WeedModelList.append(WeedModel)
+#     # i += 1
 
-#  res = {'precision': p_final,
-#            'recall': r_final,
-#            'ap': ap,
-#            'f1score': f1score,
-#            'confidence': c_final}
+# #  res = {'precision': p_final,
+# #            'recall': r_final,
+# #            'ap': ap,
+# #            'f1score': f1score,
+# #            'confidence': c_final}
 
-# now plot:
-fig, ax = plt.subplots()
-ap_list = []
-for i, r in enumerate(results):
-    prec = r['precision']
-    rec = r['recall']
-    ap = r['ap']
-    f1score = r['f1score']
-    c = r['confidence']
+# # now plot:
+# fig, ax = plt.subplots()
+# ap_list = []
+# for i, r in enumerate(results):
+#     prec = r['precision']
+#     rec = r['recall']
+#     ap = r['ap']
+#     f1score = r['f1score']
+#     c = r['confidence']
 
-    # m_str = 'm={}, ap={:.2f}'.format(model_names[i], ap)
-    m_str = 'm={}, ap={:.2f}'.format(legend_names[i], ap)
-    ax.plot(rec, prec, label=m_str)
-    ap_list.append(ap)
+#     # m_str = 'm={}, ap={:.2f}'.format(model_names[i], ap)
+#     m_str = 'm={}, ap={:.2f}'.format(legend_names[i], ap)
+#     ax.plot(rec, prec, label=m_str)
+#     ap_list.append(ap)
 
-ax.legend()
-plt.xlabel('recall')
-plt.ylabel('precision')
-plt.title('model comparison: PR curve')
+# ax.legend()
+# plt.xlabel('recall')
+# plt.ylabel('precision')
+# plt.title('model comparison: PR curve')
 
-mdl_names_str = "".join(legend_names)
-save_plot_name = os.path.join('output', 'model_compare_' +  mdl_names_str + '.png')
-plt.savefig((save_plot_name))
-if IMSHOW:
-    plt.show()
+# mdl_names_str = "".join(legend_names)
+# save_plot_name = os.path.join('output', 'model_compare_' +  mdl_names_str + '.png')
+# plt.savefig((save_plot_name))
+# if IMSHOW:
+#     plt.show()
 
-print('model comparison complete')
-for i, m in enumerate(model_names):
-    print(str(i) + ' model: ' + m)
-    print(str(i) + ' name: ' + legend_names[i])
+# print('model comparison complete')
+# for i, m in enumerate(model_names):
+#     print(str(i) + ' model: ' + m)
+#     print(str(i) + ' name: ' + legend_names[i])
 
 # TODO add runtime notes?
 
