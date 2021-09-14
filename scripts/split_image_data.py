@@ -17,7 +17,7 @@ dataset_name = '2021-03-25_MFS_Tussock'
 root_dir = os.path.join('/home',
                         'dorian',
                         'Data',
-                        'AOS_TussockDataset',
+                        'agkelpie',
                         dataset_name)
 
 # folder containing all images to be used for testing/training/validation

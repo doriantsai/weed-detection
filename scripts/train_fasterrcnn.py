@@ -22,7 +22,7 @@ dataset_name = '2021-03-26_MFS_Horehound'
 root_dir = os.path.join('/home',
                         'dorian',
                         'Data',
-                        'AOS_TussockDataset',
+                        'agkelpie',
                         dataset_name)
 
 ann_dir = os.path.join(root_dir, 'metadata')

@@ -21,7 +21,7 @@ dataset_name = 'Tussock_v4_poly'
 root_dir = os.path.join('/home',
                         'dorian',
                         'Data',
-                        'AOS_TussockDataset',
+                        'agkelpie',
                         dataset_name)
 
 

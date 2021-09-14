@@ -35,7 +35,7 @@ else:
     root_dir = os.path.join('/home',
                             'dorian',
                             'Data',
-                            'AOS_TussockDataset',
+                            'agkelpie',
                             dataset_name)
     img_dir = os.path.join(root_dir, 'Images', 'PolySubset')
     mask_dir = os.path.join(root_dir, 'Masks', 'PolySubset')

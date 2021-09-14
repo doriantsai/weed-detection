@@ -20,7 +20,7 @@ ProTool = PT()
 # setup parameters/folders:
 # dataset_folder = 'Tussock_v2_mini'
 dataset_folder = 'Tussock_v2'
-root_dir = os.path.join('/home', 'dorian','Data','AOS_TussockDataset', dataset_folder)
+root_dir = os.path.join('/home', 'dorian','Data','agkelpie', dataset_folder)
 
 ann_master = os.path.join(root_dir, 'Annotations', 'annotations_tussock_21032526_G507_master.json')
 

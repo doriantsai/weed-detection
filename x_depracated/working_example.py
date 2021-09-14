@@ -45,7 +45,7 @@ img_name = 'mako___2021-3-25___15-8-20-458.png'
 img_path = os.path.join('/home',
                         'dorian',
                         'Data',
-                        'AOS_TussockDataset',
+                        'agkelpie',
                         'Tussock_v0',
                         'Images',
                         img_name)

@@ -127,10 +127,10 @@ if __name__ == "__main__":
     # dataset folder/file settings
 
     dataset_name = 'Horehound_v0'
-    root_dir = os.path.join(os.sep, 'home', 'dorian', 'Data', 'AOS_TussockDataset', 'Horehound_v0')
+    root_dir = os.path.join(os.sep, 'home', 'dorian', 'Data', 'agkelpie', 'Horehound_v0')
     json_file = os.path.join('Annotations', 'annotations_horehound_210326_G507_location2.json')
     # dataset_name = 'Tussock_v0'
-    # root_dir = os.path.join(os.sep, 'home', 'dorian', 'Data', 'AOS_TussockDataset', 'Tussock_v0')
+    # root_dir = os.path.join(os.sep, 'home', 'dorian', 'Data', 'agkelpie', 'Tussock_v0')
     # json_file = os.path.join('Annotations', 'annotations_tussock_21032526_G507_combined.json')
 
     # dataset_lengths = (500, 1, 69)

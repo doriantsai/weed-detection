@@ -16,7 +16,7 @@ import json
 import glob
 
 # dataset location
-root_dir = os.path.join('/home/dorian/Data/AOS_TussockDataset/Tussock_v2')
+root_dir = os.path.join('/home/dorian/Data/agkelpie/Tussock_v2')
 
 # annotations
 ann_master = 'annotations_tussock_21032526_G507_allpoly.json'
@@ -25,7 +25,7 @@ ann_dict = json.load(open(ann_path))
 ann_list = list(ann_dict.values())
 
 # first, find all subfolders that start with "DayX" thave have images in them
-res = glob.glob('/home/dorian/Data/AOS_TussockDataset/Tussock_v2/Images/Day*/*.png', recursive=True)
+res = glob.glob('/home/dorian/Data/agkelpie/Tussock_v2/Images/Day*/*.png', recursive=True)
 
 for r in res:
     print(res)

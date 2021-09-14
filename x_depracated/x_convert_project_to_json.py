@@ -14,7 +14,7 @@ project_file = '20210907-agkelpie-MFS-02-positive_tags_labels_polygons_projectfi
 # ann_file_out = '20210819-MFS-01-bootprogress-570-occlusion24_test.json'
 actual_ann_out = '20210907-agkelpie-MFS-02-positive_tags_labels_polygons.json'
 
-ann_dir = '/home/dorian/Data/AOS_TussockDataset/03_Tagged/2021-03-26/Location_2/metadata'
+ann_dir = '/home/dorian/Data/agkelpie/03_Tagged/2021-03-26/Location_2/metadata'
 proj_path = os.path.join(ann_dir, project_file)
 ann_path = os.path.join(ann_dir, actual_ann_out)
 # goal is to get ann_file_out == actual_ann_out

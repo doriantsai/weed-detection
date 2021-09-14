@@ -47,7 +47,7 @@ def unscale_polygon(polygon, output_size, input_size):
         # p_out['all_points_y'] = list(np.int32(new_y))
         p_out['all_points_x'] = [round(new_x[i]) for i in range(len(new_x))] # must be in "int" for json
         p_out['all_points_y'] = [round(new_y[i]) for i in range(len(new_y))]
-        
+
 
     return p_out
 
@@ -65,7 +65,7 @@ def unscale_polygon(polygon, output_size, input_size):
 
 # dataset name:
 dataset_name = 'Tussock_v4_poly286'
-dataset_path = os.path.join('/home', 'dorian', 'Data', 'AOS_TussockDataset', dataset_name)
+dataset_path = os.path.join('/home', 'dorian', 'Data', 'agkelpie', dataset_name)
 # img_dir = os.path.join(dataset_path, 'Images', 'PolySubset')
 img_dir = os.path.join(dataset_path, 'Images','All_Unlabelled_v2')
 ann_dir = os.path.join(dataset_path, 'Annotations')
@@ -184,7 +184,7 @@ for i, img_name in enumerate(img_names_rem):
             #     import code
             #     code.interact(local=dict(globals(), **locals()))
 
-            
+
             p_coord = boot_model.simplify_polygon(ctr_sqz)
             p_area = boot_model.polygon_area(p_coord)
             print(f' i={i}, j={j}: polygon area = {p_area}')
@@ -201,7 +201,7 @@ for i, img_name in enumerate(img_names_rem):
             p_simp['name'] = 'polygon'
             p_simp['all_points_x'] = [p_coord[k, 0] for k in range(len(p_coord))]
             p_simp['all_points_y'] = [p_coord[k, 1] for k in range(len(p_coord))]
-            
+
             # print('in with mask bin')
 
             # import code
@@ -210,15 +210,15 @@ for i, img_name in enumerate(img_names_rem):
             # unscale polygon to original image size
             # poly_uns = unscale_polygon(poly, original_size, rescale_size)
             p_simp = unscale_polygon(p_simp, original_size, rescale_size)
-            
-            # need to add the polygon region/annotation 
+
+            # need to add the polygon region/annotation
             # poly_region = {'shape_attributes': poly_uns, 'region_attributes': {}}
             p_simp_reg = {'shape_attributes': p_simp, 'region_attributes': {}}
             # find out how many regions there already are
             # nreg = len(ann_all_list[idx]['regions'])
             # create dictionary with key "nreg", signifying the region number
             # don't have to "add one", because increments from 0
-            # add_poly_region = {str(nreg): poly_region} 
+            # add_poly_region = {str(nreg): poly_region}
 
 
             # ann_all_list[idx]['regions'].update(add_poly_region)
@@ -230,8 +230,8 @@ for i, img_name in enumerate(img_names_rem):
     # polygons.append(polygons_per_img)
     # put x_binarize_image.py into a function, call it here on the predicted mask
 
-    
-    
+
+
     # if i >= 1:
     #     print('hit max number of images for testing purposes')
     #     break
@@ -263,7 +263,7 @@ for i, k in enumerate(keys_all):
 
     if img_name_cur in img_names_rem:
         ann_out = {**ann_out, k: ann_all_list[i]}
-    else: 
+    else:
         # (keys must be in original poly list, img_names_com:)
         ann_out = {**ann_out, k: ann_poly_dict[k]}
 

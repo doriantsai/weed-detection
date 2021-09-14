@@ -19,7 +19,7 @@ from weed_detection.PreProcessingToolbox import PreProcessingToolbox
 
 # dataset location
 # folder = os.path.join('/home', 'dt-cronus', 'Dropbox', 'QUT_WeedImaging')
-folder = os.path.join('/home', 'dorian', 'Data', 'AOS_TussockDataset')
+folder = os.path.join('/home', 'dorian', 'Data', 'agkelpie')
 dataset_name = 'Tussock_v4_poly286'
 root_dir = os.path.join(folder, dataset_name)
 ann_dir = os.path.join(root_dir, 'Annotations')

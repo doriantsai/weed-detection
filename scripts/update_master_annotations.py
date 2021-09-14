@@ -23,7 +23,7 @@ dataset_name = '03_Tagged/2021-03-26/Location_2'
 root_dir = os.path.join('/home',
                         'dorian',
                         'Data',
-                        'AOS_TussockDataset',
+                        'agkelpie',
                         dataset_name)
 ann_dir = os.path.join(root_dir, 'metadata')
 

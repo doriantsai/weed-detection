@@ -47,7 +47,7 @@ ProTool = PT()
 root_dir = os.path.join('/home',
                         'dorian',
                         'Data',
-                        'AOS_TussockDataset',
+                        'agkelpie',
                         dataset_name)
 img_dir = os.path.join(root_dir, 'Images', 'Train')
 ann_dir = 'Annotations'

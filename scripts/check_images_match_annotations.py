@@ -7,12 +7,17 @@ script to check images match
 import os
 from weed_detection import PreProcessingToolbox
 
-pt = PreProcessingToolbox()
+ppt = PreProcessingToolbox()
 
-root_dir = os.path.join('/home', 'dorian','Data','AOS_TussockDataset', 'Tussock_210325_G507_location1_positivetags')
-img_dir = os.path.join(root_dir, 'positive-tags')
-ann_file = os.path.join(root_dir, 'Annotations', 'Thursday_25-03-21_G507_location1_positive-tags_labels.json')
+root_dir = os.path.join('/home', 'dorian','Data','agkelpie',
+    '2021-03-26_MFS_Horehound')
+img_dir = os.path.join(root_dir, 'images')
+ann_file = os.path.join(root_dir, 'metadata', '2021-03-26_MFS_Horehound.json')
 
-res = pt.check_images_match_annotations(img_dir, ann_file)
-
+res = ppt.check_images_match_annotations(img_dir, ann_file)
 print(res)
+
+if res:
+    print('Yay, images match annotations!')
+else:
+    print('Error: images do not match annotations!')

@@ -1,6 +1,6 @@
 #! /usr/bin/env python
 
-""" 
+"""
 script to find area/centroid of polygon
 """
 
@@ -23,7 +23,7 @@ dataset_name = 'Tussock_v4_poly286'
 root_dir = os.path.join('/home',
                         'dorian',
                         'Data',
-                        'AOS_TussockDataset',
+                        'agkelpie',
                         dataset_name)
 
 img_dir = os.path.join(root_dir, 'Images', 'Regions_Test')
@@ -60,7 +60,7 @@ for i, ann in enumerate(ann_list):
                 cy = r['cy']
                 area = 0
                 reg_cent.append((cx, cy))
-                reg_areas.append(area) 
+                reg_areas.append(area)
                 reg_pts.append((cx, cy))
 
             elif reg_type == 'rect':
@@ -105,7 +105,7 @@ for i, ann in enumerate(ann_list):
                 reg_pts.append(p)
             else:
                 print(f'warning: invalid region type: {reg_type}')
-            
+
     region_areas.append(reg_areas)
     region_centroids.append(reg_cent)
     region_pts.append(reg_pts)

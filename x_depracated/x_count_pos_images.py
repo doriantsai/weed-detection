@@ -21,7 +21,7 @@ import shutil
 
 # dataset location/root_dir
 dataset_name = '2021-03-26_MFS_Horehound'
-root_dir = os.path.join('/home/dorian/Data/AOS_TussockDataset', dataset_name)
+root_dir = os.path.join('/home/dorian/Data/agkelpie', dataset_name)
 # img folder
 # img_dir = os.path.join(root_dir, 'images_test')
 # annotation folder/file

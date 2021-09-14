@@ -20,7 +20,7 @@ from inference import show_groundtruth_and_prediction_bbox, cv_imshow
 torch.manual_seed(42)
 
 dataset_name = 'Horehound_v0'
-root_dir = os.path.join(os.sep, 'home', 'dorian', 'Data', 'AOS_TussockDataset', 'Horehound_v0')
+root_dir = os.path.join(os.sep, 'home', 'dorian', 'Data', 'agkelpie', 'Horehound_v0')
 json_file = os.path.join('Annotations', 'annotations_horehound_210326_G507_location2.json')
 
 dataset_lengths = (200, 1, 49)

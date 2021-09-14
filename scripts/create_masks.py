@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 
 # folder locations + database name
 dataset_name = '2021-03-25_MFS_Tussock'
-root_dir = os.path.join('/home', 'dorian', 'Data', 'AOS_TussockDataset',
+root_dir = os.path.join('/home', 'dorian', 'Data', 'agkelpie',
                             dataset_name)
 
 img_dir_in = os.path.join(root_dir, 'images')

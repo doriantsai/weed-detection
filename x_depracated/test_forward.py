@@ -16,7 +16,7 @@ dataset_name = 'Tussock_v0_mini'
 root_dir = os.path.join('/home',
                         'dorian',
                         'Data',
-                        'AOS_TussockDataset',
+                        'agkelpie',
                         dataset_name)
 
 img_folder = os.path.join(root_dir, 'Images')

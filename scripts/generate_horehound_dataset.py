@@ -55,7 +55,7 @@ import shutil
 
 # dataset location/root_dir
 dataset_name = '2021-03-26_MFS_Horehound'
-root_dir = os.path.join('/home/dorian/Data/AOS_TussockDataset', dataset_name)
+root_dir = os.path.join('/home/dorian/Data/agkelpie', dataset_name)
 # img folder
 # img_dir = os.path.join(root_dir, 'images')
 # annotation folder/file
@@ -96,7 +96,7 @@ img_out_dir, ann_out_file = ppt.generate_dataset_from_symbolic_links(root_dir, a
 
 # # create folder for symlinks
 # print('create folders')
-# # out_dir = os.path.join('/home/dorian/Data/AOS_TussockDataset/2021-03-25_MFS_Tussock')
+# # out_dir = os.path.join('/home/dorian/Data/agkelpie/2021-03-25_MFS_Tussock')
 # out_dir = root_dir
 
 # ann_out_dir = os.path.join(out_dir, 'metadata')

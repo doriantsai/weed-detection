@@ -43,7 +43,7 @@ for ds in dataset_names:
     root_dir = os.path.join('/home',
                             'dorian',
                             'Data',
-                            'AOS_TussockDataset',
+                            'agkelpie',
                             ds)
     img_folders = [os.path.join(root_dir, 'Images','Train'),
                 os.path.join(root_dir, 'Images', 'Test'),

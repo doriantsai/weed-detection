@@ -421,7 +421,7 @@ if __name__ == "__main__":
     # setup dataset
     # root_dir = os.path.join('SerratedTussockDataset')
     # json_file = os.path.join('Annotations', 'via_region_data.json')
-    # root_dir = os.path.join('/home', 'dorian', 'Data', 'AOS_TussockDataset', 'Tussock_v0')
+    # root_dir = os.path.join('/home', 'dorian', 'Data', 'agkelpie', 'Tussock_v0')
     # json_file = os.path.join('Annotations', 'annotations_tussock_21032526_G507_combined.json')
 
     # here, order matters (order in = order out)

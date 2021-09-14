@@ -861,8 +861,36 @@ class PreProcessingToolbox:
                     plt.show()
 
 
-    def generate_symbolic_links(self, 
-                          data_server_dir, 
+    def unscale_polygon(self, polygon, output_size, input_size):
+        """ unscale single polygon"""
+
+        # determine new size multipliers based on input size
+        h, w = output_size
+        if isinstance(input_size, int):
+            if h > w:
+                new_h, new_w = input_size * h / w, input_size
+            else:
+                new_h, new_w = input_size, input_size * w / h
+        else:
+            new_h, new_w = input_size
+        new_h, new_w = int(new_h), int(new_w)
+        xChange = float(new_w) / float(w)
+        yChange = float(new_h) / float(h)
+
+        # apply scale changes to all points in polygon
+        p_out = polygon.copy()
+        if len(polygon) > 0:
+            new_x = np.array(p_out['all_points_x'], np.float32) / xChange
+            new_y = np.array(p_out['all_points_y'], np.float32) / yChange
+            p_out['all_points_x'] = [round(new_x[i]) for i in range(len(new_x))] # must be in "int" for json
+            p_out['all_points_y'] = [round(new_y[i]) for i in range(len(new_y))]
+
+        return p_out
+
+
+
+    def generate_symbolic_links(self,
+                          data_server_dir,
                           dataset_name,
                           img_dir_patterns = None,
                           ann_dir_patterns = None,
@@ -870,7 +898,7 @@ class PreProcessingToolbox:
                           ann_pattern = '*labels_polygons.json',
                           data_dir_out = None,
                           ann_file_out = None,
-                          default_dir = '/home/dorian/Data/AOS_TussockDataset'):
+                          default_dir = '/home/dorian/Data/agkelpie'):
         """ generate symlinks from original data server directory
         given specific string patterns for image directory, annotation directories, based on GLOB patterns
         output symbolic links in data_dir_out and ann_file_out """
@@ -886,6 +914,7 @@ class PreProcessingToolbox:
         # glob for all images
         glob_imgs = []
         for img_dir in img_dir_patterns:
+            print(str(data_server_dir + img_dir + img_pattern))
             glob_img = glob.glob(str(data_server_dir + img_dir + img_pattern), recursive=True)
             glob_imgs.extend(glob_img)
 
@@ -894,14 +923,14 @@ class PreProcessingToolbox:
         # for g in glob_img:
         #     print(g)
         print(len(glob_imgs))
-        
+
         # glob for all annotation files
         glob_anns = []
         for ann_dir in ann_dir_patterns:
             # print(str(data_server_dir + ann_dir_patterns + ann_pattern))
             glob_ann = glob.glob(str(data_server_dir + ann_dir + ann_pattern), recursive=True)
             glob_anns.extend(glob_ann)
-        
+
         print('Found Annotation Globs:')
         print(glob_anns)
         print(len(glob_anns))
@@ -918,14 +947,17 @@ class PreProcessingToolbox:
 
         # create symlinks
         print('Creating symbolic links')
-        for i, img_path in enumerate(glob_imgs):
+        for img_path in glob_imgs:
             # print(f'{i+1} / {len(glob_img)}')
             img_name = os.path.basename(img_path)
 
             dst_file = os.path.join(img_out_dir, img_name)
-            if os.path.exists(dst_file):
+            # symlink fails if link already exists, so we unlink any existing links first
+            # also, os.path.exists returns false if symlink is already broken
+            if os.path.exists(dst_file) or os.path.lexists(dst_file):
                 os.unlink(dst_file)
-
+            # print(os.path.exists(dst_file))
+            # print(dst_file)
             os.symlink(img_path, dst_file)
 
         # check number of symlinks in folder:
@@ -937,7 +969,7 @@ class PreProcessingToolbox:
         # merge annotations to one:
         if ann_file_out is None:
             ann_file_out = dataset_name + '.json'
-    
+
         ann_out_path = os.path.join(ann_out_dir, ann_file_out)
         res = self.combine_annotations(ann_files=glob_anns,
                                         ann_dir=False,
@@ -959,7 +991,7 @@ class PreProcessingToolbox:
             img_name = ann['filename'] # looping over dictionary gives just the key?
             img_path = os.path.join(img_src_dir, img_name)
             dst_file = os.path.join(img_dst_dir, img_name)
-            if os.path.exists(dst_file):
+            if os.path.exists(dst_file) or os.path.lexists(dst_file):
                 os.unlink(dst_file)
             # create sym link
             os.symlink(img_path, dst_file)
@@ -999,16 +1031,16 @@ class PreProcessingToolbox:
 
     def sort_imgs_by_index(self, ann_list, idx, img_in_dir, img_out_dir, ann_out_path):
         """ sort images in annotation list by index, output symlinks to img_out_dir, and annotations to ann_out_path"""
-    
+
         # create dictionary from idx
         ann_dict = {}
         ann_idx = [ann_list[i] for i in idx]
         for ann in ann_idx:
             ann_dict = self.sample_dict(ann_dict, ann)
-        
+
         # ann_out_dir = os.path.dirname(ann_out_path)
         self.copy_symlinks_from_dict(ann_dict, img_in_dir, img_out_dir)
-        
+
         # make dictionary, save output
         self.make_annfile_from_dict(ann_dict, ann_out_path)
 
@@ -1024,7 +1056,7 @@ class PreProcessingToolbox:
             print(ann_out_path)
             print(img_out_dir)
             return False, ann_dict
-        
+
 
     def generate_dataset_from_symbolic_links(self,
                                              root_dir,
@@ -1057,7 +1089,7 @@ class PreProcessingToolbox:
         # ann_out_dir = os.path.dirname(ann_path)
         img_neg_out_dir = os.path.join(root_dir, 'images_neg')
         img_pos_out_dir = os.path.join(root_dir, 'images_pos')
-        
+
         ann_pos_out = ann_path[:-5] + '_pos.json'
         ann_neg_out = ann_path[:-5] + '_neg.json'
 
@@ -1094,10 +1126,10 @@ class PreProcessingToolbox:
         if os.path.isdir(img_neg_trim_dir):
             shutil.rmtree(img_neg_trim_dir)
         self.copy_symlinks_from_dict(ann_neg_trim, img_dir_in, img_neg_trim_dir)
-        
+
         # make dictionary, save output
         ann_neg_trim_out = os.path.join(ann_neg_out[:-5] + '_trim.json')
-        self.make_annfile_from_dict(ann_neg_trim, ann_neg_trim_out)      
+        self.make_annfile_from_dict(ann_neg_trim, ann_neg_trim_out)
 
         print(f'num images in ann_neg_trim = {len(ann_neg_trim)}')
         img_list = os.listdir(img_neg_trim_dir)
@@ -1110,7 +1142,7 @@ class PreProcessingToolbox:
         # clear img_out_dir first
         if os.path.isdir(img_out_dir):
             shutil.rmtree(img_out_dir)
-        
+
         # copy images over as symlinks to img_out_dir
 
         self.copy_symlinks_from_dict(ann_pos, img_pos_out_dir, img_out_dir)
@@ -1146,7 +1178,7 @@ if __name__ == "__main__":
 
     ppt = PreProcessingToolbox()
     # db_name = 'Tussock_v0_mini'
-    # root_dir = os.path.join('/home', 'dorian', 'Data', 'AOS_TussockDataset',
+    # root_dir = os.path.join('/home', 'dorian', 'Data', 'agkelpie',
     #                           db_name)
     # img_dir_in = os.path.join(root_dir, 'Images', 'All')
     # ann_file_name = 'via_project_29Apr2021_17h43m_json_bbox_poly_pt.json'
@@ -1155,7 +1187,7 @@ if __name__ == "__main__":
     # ppt.create_masks_from_poly(img_dir_in, ann_file_path, img_dir_out)
 
     # testing: generate_symbolic_links
-    res = ppt.generate_symbolic_links(data_server_dir='/home/dorian/Data/AOS_TussockDataset/03_Tagged',
+    res = ppt.generate_symbolic_links(data_server_dir='/home/dorian/Data/agkelpie/03_Tagged',
                                       dataset_name='2021-03-25_MFS_Tussock',
                                       img_dir_patterns=['/2021-03-25/*/images/', '/2021-03-26/Location_1/images/'],
                                       ann_dir_patterns=['/2021-03-25/*/metadata/', '/2021-03-26/Location_1/metadata/'])
