@@ -498,10 +498,12 @@ class PreProcessingToolbox:
         # package output
         img_folders = [train_folder, test_folder, val_folder]
         ann_files = [annotations_train, annotations_test, annotations_val]
-
+        mask_folders = []
+        if annotation_type == 'poly':
+            mask_folders = [mask_train_folder, mask_test_folder, mask_val_folder]
         # TODO check, as in split_image_data.py
 
-        return img_folders, ann_files
+        return img_folders, ann_files, mask_folders
 
 
     def augment_training_data(self,
