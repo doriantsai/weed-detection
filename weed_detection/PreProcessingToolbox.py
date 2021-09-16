@@ -477,15 +477,17 @@ class PreProcessingToolbox:
         print('copy images from all_folder to train/test/val_folder complete')
 
         # now, call sync_annotations_with_imagefolder for each:
-        annotations_train = os.path.join(ann_dir, ann_train_file)
-        annotations_val = os.path.join(ann_dir, ann_val_file)
-        annotations_test = os.path.join(ann_dir, ann_test_file)
+
+        if not ann_dir is False:
+            ann_train_file = os.path.join(ann_dir, ann_train_file)
+            ann_val_file = os.path.join(ann_dir, ann_val_file)
+            ann_test_file = os.path.join(ann_dir, ann_test_file)
 
         # function calls for each folder
         print('syncing json files with image folders...')
-        self.sync_annotations(train_folder, ann_all, annotations_train)
-        self.sync_annotations(val_folder, ann_all, annotations_val)
-        self.sync_annotations(test_folder, ann_all, annotations_test)
+        self.sync_annotations(train_folder, ann_all, ann_train_file)
+        self.sync_annotations(val_folder, ann_all, ann_val_file)
+        self.sync_annotations(test_folder, ann_all, ann_test_file)
         print('sync json with image folders complete')
 
         # copy masks to corresponding folders as well!
@@ -497,7 +499,7 @@ class PreProcessingToolbox:
 
         # package output
         img_folders = [train_folder, test_folder, val_folder]
-        ann_files = [annotations_train, annotations_test, annotations_val]
+        ann_files = [ann_train_file, ann_test_file, ann_val_file]
         mask_folders = []
         if annotation_type == 'poly':
             mask_folders = [mask_train_folder, mask_test_folder, mask_val_folder]
@@ -871,15 +873,15 @@ class PreProcessingToolbox:
                 if SHOW:
                     plt.show()
 
-            # check
-            img_list = os.listdir(img_dir_in)
-            mask_list = os.listdir(mask_dir_out)
-            print(f'number of images: {len(img_list)}')
-            print(f'number of masks: {len(mask_list)}')
-            if len(img_list) == len(mask_list):
-                return True, mask_dir_out
-            else:
-                return False, mask_dir_out
+        # check
+        img_list = os.listdir(img_dir_in)
+        mask_list = os.listdir(mask_dir_out)
+        print(f'number of images: {len(img_list)}')
+        print(f'number of masks: {len(mask_list)}')
+        if len(img_list) == len(mask_list):
+            return True, mask_dir_out
+        else:
+            return False, mask_dir_out
 
 
     def unscale_polygon(self, polygon, output_size, input_size):
@@ -1000,7 +1002,7 @@ class PreProcessingToolbox:
         ann_check = json.load(open(ann_out_path))
         print(f'num entries in ann_out = {len(ann_check)}')
 
-        return ann_out_path, default_dir
+        return ann_out_path, data_dir_out
 
 
     def copy_symlinks_from_dict(self, ann_dict_in, img_src_dir, img_dst_dir):

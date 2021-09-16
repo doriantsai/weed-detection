@@ -89,59 +89,55 @@ class WeedModel:
     def model(self):
         return self._model
 
-    # getters and setters
-    def set_model(self, model):
-        self._model = model
-
-
+    # getters
     def get_model(self):
          return self._model
-
-
-    def set_model_folder(self, folder):
-        self._model_folder = folder
 
     def get_model_folder(self):
         return self._model_folder
 
-    def set_model_name(self, name):
-        self._model_name = name
-
-
     def get_model_name(self):
         return self._model_name
-
-
-    def set_weed_name(self, name):
-        self._weed_name = name
-
-
-    def get_weed_name(self):
-        return self._weed_name
-
-
-    def set_model_path(self, path):
-        self._model_path = path
-
-
-    def get_model_path(self):
-        return self._model_path
-
-
-    def set_model_epoch(self, epoch):
-        self._epoch = epoch
-
 
     def get_model_epoch(self):
         return self._epoch
 
+    def get_weed_name(self):
+        return self._weed_name
+
+    def get_annotation_type(self):
+        return self._annotation_type
+
+    def get_hyper_parameters(self):
+        return self._hp
+
+    def get_model_path(self):
+        return self._model_path
+
+    # setters
+    def set_model(self, model):
+        self._model = model
+
+    def set_model_folder(self, folder):
+        self._model_folder = folder
+
+    def set_model_name(self, name):
+        self._model_name = name
+
+    def set_model_path(self, path):
+        self._model_path = path
+
+    def set_weed_name(self, name):
+        self._weed_name = name
+
+    def set_model_epoch(self, epoch):
+        self._epoch = epoch
 
     def set_hyper_parameters(self, hp):
         self._hp = hp
 
-
-    def get_hyper_parameters(self):
-        return self._hp
+    def set_annotation_type(self, ann_type):
+        self._annotation_type = ann_type
 
 
     def build_fasterrcnn_model(self, num_classes):
@@ -556,8 +552,17 @@ class WeedModel:
 
         print('old model path: {}'.format(self._model_path))
 
+        # HACK
         if snapshot_folder is None:
-            snapshot_folder = os.path.join('output', self._model_folder, 'snapshots')
+            snapshot_dir = os.path.join(self._model_folder, 'snapshots')
+            snapshot_dir2 = os.path.join('output', self._model_folder, 'snapshots')
+            if os.path.isdir(snapshot_dir):
+                snapshot_folder = snapshot_dir
+            elif os.path.isdir(snapshot_dir2):
+                snapshot_folder = snapshot_dir2
+            else:
+                print('snapshot folder not found: ' + str(snapshot_dir))
+                print('snapshot folder not found: ' + str(snapshot_dir2))
 
         # find all filenames in snapshot folder
         snapshot_files = os.listdir(snapshot_folder)

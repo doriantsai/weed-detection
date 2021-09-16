@@ -16,11 +16,13 @@ from weed_detection.PreProcessingToolbox import PreProcessingToolbox
 
 # setup file/folder locations
 dataserver_dir = os.path.join('/home/dorian/Data/agkelpie/03_Tagged')
-dataset_name = '2021-03-26_MFS_Horehound_v0'
+dataset_name = '2021-03-25_MFS_Tussock_v0'
 
 # glob string patterns to find the images and metadata (annotations) files, respectively
-img_dir_patterns=['/2021-03-26/Location_2/images/']
-ann_dir_patterns=['/2021-03-26/Location_2/metadata/']
+img_dir_patterns=['/2021-03-25/*/images/',
+                  '/2021-03-26/Location_1/images/']
+ann_dir_patterns=['/2021-03-25/*/metadata/',
+                  '/2021-03-26/Location_1/metadata/']
 
 ppt = PreProcessingToolbox()
 
@@ -104,35 +106,35 @@ hp['rescale_size'] = rescale_size
 
 # create dataset
 print('Creating dataset objects')
-Horehound = WeedModel(model_name=dataset_name)
-dataset_path = Horehound.create_train_test_val_datasets(img_dirs,
+Tussock = WeedModel(model_name=dataset_name)
+dataset_path = Tussock.create_train_test_val_datasets(img_dirs,
                                                         ann_files,
                                                         hp,
                                                         dataset_name,
                                                         annotation_type=model_type,
                                                         mask_folders=mask_dirs)
 # load dataset
-dso = Horehound.load_dataset_objects(dataset_path)
+dso = Tussock.load_dataset_objects(dataset_path)
 
 # ======================================================================================
 # train model
 # ======================================================================================
 print('Training model')
-model, model_save_path = Horehound.train(model_name=dataset_name,
+model, model_save_path = Tussock.train(model_name=dataset_name,
                                          dataset_path=dataset_path,
                                          model_name_suffix=True)
 print(f'finished training model: {model_save_path}')
 
 # python debug code
-import code
-code.interact(local=dict(globals(), **locals()))
+# import code
+# code.interact(local=dict(globals(), **locals()))
 
 # ======================================================================================
 # generate pr curve
 # ======================================================================================
 print('Computing PR curve')
-model_names = [Horehound.get_model_name()]
-model_descriptions = ['Hh_MaskRCNN']
+model_names = [Tussock.get_model_name()]
+model_descriptions = ['St_MaskRCNN']
 model_types = [model_type]
 model_epochs = [20]  # TODO find min. of validation curve and use nearest
 models={'name': model_names,
@@ -144,7 +146,7 @@ models={'name': model_names,
 dataset_names = [dataset_name]
 datasets = [os.path.join('dataset_objects', d, d + '.pkl') for d in dataset_names]
 
-res = Horehound.compare_models(models,
+res = Tussock.compare_models(models,
                          datasets,
                          load_prcurve=False,
                          show_fig=True)
