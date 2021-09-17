@@ -12,7 +12,7 @@ import os
 import torch
 import torchvision
 import re
-import glob
+
 import time
 import datetime
 import pickle
@@ -89,55 +89,59 @@ class WeedModel:
     def model(self):
         return self._model
 
-    # getters
+    # getters and setters
+    def set_model(self, model):
+        self._model = model
+
+
     def get_model(self):
          return self._model
 
-    def get_model_folder(self):
-        return self._model_folder
-
-    def get_model_name(self):
-        return self._model_name
-
-    def get_model_epoch(self):
-        return self._epoch
-
-    def get_weed_name(self):
-        return self._weed_name
-
-    def get_annotation_type(self):
-        return self._annotation_type
-
-    def get_hyper_parameters(self):
-        return self._hp
-
-    def get_model_path(self):
-        return self._model_path
-
-    # setters
-    def set_model(self, model):
-        self._model = model
 
     def set_model_folder(self, folder):
         self._model_folder = folder
 
+    def get_model_folder(self):
+        return self._model_folder
+
     def set_model_name(self, name):
         self._model_name = name
 
-    def set_model_path(self, path):
-        self._model_path = path
+
+    def get_model_name(self):
+        return self._model_name
+
 
     def set_weed_name(self, name):
         self._weed_name = name
 
+
+    def get_weed_name(self):
+        return self._weed_name
+
+
+    def set_model_path(self, path):
+        self._model_path = path
+
+
+    def get_model_path(self):
+        return self._model_path
+
+
     def set_model_epoch(self, epoch):
         self._epoch = epoch
+
+
+    def get_model_epoch(self):
+        return self._epoch
+
 
     def set_hyper_parameters(self, hp):
         self._hp = hp
 
-    def set_annotation_type(self, ann_type):
-        self._annotation_type = ann_type
+
+    def get_hyper_parameters(self):
+        return self._hp
 
 
     def build_fasterrcnn_model(self, num_classes):
@@ -552,17 +556,8 @@ class WeedModel:
 
         print('old model path: {}'.format(self._model_path))
 
-        # HACK
         if snapshot_folder is None:
-            snapshot_dir = os.path.join(self._model_folder, 'snapshots')
-            snapshot_dir2 = os.path.join('output', self._model_folder, 'snapshots')
-            if os.path.isdir(snapshot_dir):
-                snapshot_folder = snapshot_dir
-            elif os.path.isdir(snapshot_dir2):
-                snapshot_folder = snapshot_dir2
-            else:
-                print('snapshot folder not found: ' + str(snapshot_dir))
-                print('snapshot folder not found: ' + str(snapshot_dir2))
+            snapshot_folder = os.path.join(self._model_folder, 'snapshots')
 
         # find all filenames in snapshot folder
         snapshot_files = os.listdir(snapshot_folder)
@@ -1130,7 +1125,7 @@ class WeedModel:
                 n_gt, _ = boxes_gt.size()
                 for i in range(n_gt):
                     bb = np.array(boxes_gt[i, :].cpu(), dtype=np.float32) # TODO just specify int8 or imt16?
-                    # overwrite the original image with groundtruth boxes
+                   # overwrite the original image with groundtruth boxes
                     image_out = cv.rectangle(image_out,
                                             (int(bb[0]), int(bb[1])),
                                             (int(bb[2]), int(bb[3])),
@@ -1540,7 +1535,7 @@ class WeedModel:
                                    fps=fps,
                                    frameSize=(int(self._image_width), int(self._image_height)))
 
-        tform_rsc = Rescale(self._hp['rescale_size'])
+        tform_rsc = WDP.Rescale(self._hp['rescale_size'])
 
         # read in video
         i = 0
@@ -2024,7 +2019,6 @@ class WeedModel:
             f = interp1d(r, c, bounds_error=False, fill_value=(c[0], c[-1]))
             cg = f(rg)
 
-
         elif rg is None and pg is not None:
             # we use pg to interpolate for cg print('using p to interp c')
             f = interp1d(p, c, bounds_error=False, fill_value=(c[-1], c[0]))
@@ -2125,15 +2119,12 @@ class WeedModel:
         p_final, r_final, c_final, = self.extend_pr(prec, rec, confidence_thresh)
         ap = self.compute_ap(p_final, r_final)
 
+        # plot final pr curve
         fig, ax = plt.subplots()
-        title_str = 'prec-rec curve, iou={}, ap = {:.2f}'.format(decision_iou_thresh, ap)
-        ax = self.plot_prcurve(p_final, r_final, ap, title_str, ax)
-        # # plot final pr curve
-        # fig, ax = plt.subplots()
-        # ax.plot(r_final, p_final)
-        # plt.xlabel('recall')
-        # plt.ylabel('precision')
-        # plt.title('prec-rec curve, iou={}, ap = {:.2f}'.format(decision_iou_thresh, ap))
+        ax.plot(r_final, p_final)
+        plt.xlabel('recall')
+        plt.ylabel('precision')
+        plt.title('prec-rec curve, iou={}, ap = {:.2f}'.format(decision_iou_thresh, ap))
         # ax.legend()
         save_plot_name = os.path.join(save_folder, self._model_name + '_pr.png')
         plt.savefig(save_plot_name)
@@ -2154,167 +2145,6 @@ class WeedModel:
             pickle.dump(res, f)
 
         return res
-
-    def get_p_from_r(self, prec, rec, r):
-        """ given precision and recall curve, given r, interpolate to find p"""
-        # check prec and rec are same size
-        f = interp1d(rec, prec)
-        p = f(r)
-        return p
-
-
-    def compare_models(self,
-                       models, # dictionary: model_type, model_name, model_folder
-                       datasets, # corresponding length of models
-                       confidence_thresh=None,
-                       decision_iou_thresh=0.5,
-                       nms_iou_thresh=0.5,
-                       rgoal=0.7,
-                       save_prcurve_dir=None,
-                       save_plot_name=None,
-                       load_prcurve=False,
-                       pr_files=None,
-                       save_prcurve_images=False,
-                       show_fig=False):
-        """ compute pr curves of each model in models (a list of models)
-            then plot prcurves together and save """
-
-        # model['model_type'] = 'box' or 'poly'
-        # model['model_name'] = name of the model/pointer to model folder (normally the same)
-        # model['model_folder'] = location of model folder/.pth file
-        # model['model_description'] = descriptor for the legend (eg 'MaskRCNN_Horehound')
-        # model['epochs'] = list of epochs that correspond to which snapshot to select
-
-        model_names = models['name']
-        model_folders = model_names
-        model_descriptions = models['description']
-        model_types = models['type']
-        model_epochs = models['epoch']
-        # datasets = full path to .pkl files
-
-        # TODO ensure proper input in
-        # setup default values
-        if confidence_thresh is None:
-            confidence_thresh = np.linspace(0.99, 0.01, num=25, endpoint=True)
-            confidence_thresh = np.array(confidence_thresh, ndmin=1)
-
-        # for each model
-        #   build model
-        #   get prcurve (option to load already done pkl file)
-        prds = []
-        for i, name in enumerate(model_names):
-
-            # get pr curve
-            if load_prcurve:
-                # see reploy_prcurves.py
-                if pr_files is None:
-                    pr_pkl = glob.glob(str('output/' + name + '/prcurve/*_prcurve.pkl'))
-                    print(pr_pkl)
-                    if len(pr_pkl) <= 0:
-                        print(f'ERROR: prcurve pickle file not found: {pr_pkl}')
-                    elif len(pr_pkl) > 1:
-                        print('ERROR: multiple pickle files found. Printing:')
-                        for p in pr_pkl:
-                            print(p)
-                    else:
-                        # len(pr_pkl) == 1
-                        if os.path.isfile(pr_pkl[0]):
-                            with open(pr_pkl[0], 'rb') as f:
-                                prd = pickle.load(f)
-                else:
-                    if os.path.isfile(pr_files[i]):
-                        with open(pr_files[i], 'rb') as f:
-                            prd = pickle.load(f)
-            else:
-                # load dataset object to evaluate
-                dso = self.load_dataset_objects(datasets[i])
-
-                # set model
-                model_path = os.path.join('output', model_folders[i], model_folders[i] + '.pth')
-                self.load_model(model_path, annotation_type=model_types[i])
-                self.set_model_name = name
-                self.set_model_path(model_path)
-                self.set_snapshot(model_epochs[i])
-
-                if save_prcurve_dir is None:
-                    save_prcurve_dir = os.path.join(model_folders[i], 'prcurve')
-
-                # get pr curve
-                prd = self.get_prcurve(dso['ds_test'],
-                                       confidence_thresh=confidence_thresh,
-                                       nms_iou_thresh=nms_iou_thresh,
-                                       decision_iou_thresh=decision_iou_thresh,
-                                       save_folder=save_prcurve_dir,
-                                       imsave=save_prcurve_images,
-                                       annotation_type=model_types[i])
-            prds.append(prd)
-
-        # do plot (should be its own method)
-        fig, ax = plt.subplots()
-        ap_list = []
-        for i, prd in enumerate(prds):
-            self.plot_prcurve(prd['precision'],
-                              prd['recall'],
-                              prd['ap'],
-                              model_descriptions[i],
-                              ax=ax)
-            ap_list.append(prd['ap'])
-
-        ax.legend()
-        plt.title('model comparison: PR Curve')
-        mdl_names_str = "".join(model_descriptions)
-        save_plot_name = os.path.join('output', 'model_compare_' +  mdl_names_str + '.png')
-        plt.savefig(save_plot_name)
-        if show_fig:
-            plt.show()
-
-        pgoals, cgoals = self.get_pc_from_rgoal(prds, rgoal)
-        print('model comparison complete')
-        for i, m in enumerate(model_names):
-            print(str(i) + ' model: ' + m)
-            print(str(i) + ' name: ' + model_descriptions[i])
-            print(f'{str(i)}: rgoal = {rgoal}')
-            print(f'{str(i)}: pgoal = {pgoals[i]}')
-            print(f'{str(i)}: conf = {cgoals[i]}')
-
-        return True
-
-
-    def get_pc_from_rgoal(self, prdicts, rgoal=0.7):
-        """ get precision, confidence values from recall goal using pr dictionaries """
-
-        pgoal = []
-        cgoal = []
-        for i, pr in enumerate(prdicts):
-            p = pr['precision']
-            r = pr['recall']
-            c = pr['confidence']
-            f1 = pr['f1score']
-            cg = self.get_confidence_from_pr(p, r, c, f1, rg=rgoal)
-            pg = self.get_p_from_r(p, r, rgoal)
-
-            pgoal.append(pg)
-            cgoal.append(cg)
-
-        return pgoal, cgoal
-
-
-
-    def plot_prcurve(self, p, r, ap, name, title_str=None, ax=None):
-        """ plot pr curve on given ax """
-        if ax is None:
-            fig, ax = plt.subplots()
-        m_str = 'm={}, ap={:.2f}'.format(name, ap)
-        ax.plot(r, p, label=m_str)
-        plt.xlabel('recall')
-        plt.ylabel('precision')
-        if title_str is None:
-            title_str = str('pr curve: ' + name)
-        plt.title(title_str)
-        plt.grid(True)
-        return ax
-
-
 
 # =========================================================================== #
 
