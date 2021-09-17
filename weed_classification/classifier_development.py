@@ -34,15 +34,16 @@ torch.manual_seed(42)
 
 
 ########### classes #############
-CLASSES = (0, 1, 2, 3, 4, 5, 6, 7)
+CLASSES = (0, 1, 2, 3, 4, 5, 6, 7, 8)
 CLASS_NAMES = ('Chinee apple',
-                'Lantana',
-                'Parkinsonia',
-                'Parthenium',
-                'Prickly acacia',
-                'Rubber vine',
-                'Siam weed',
-                'Snake weed')
+               'Lantana',
+               'Parkinsonia',
+               'Parthenium',
+               'Prickly acacia',
+               'Rubber vine',
+               'Siam weed',
+               'Snake weed',
+               'Negative')
 CLASS_DICT = {i: CLASS_NAMES[i] for i in range(0, len(CLASSES))}
 
 

@@ -2,6 +2,8 @@
 
 """
 pr curves for classifier, between development and deployment conditions
+using sklearn
+might be wrong with negative class not being negative (sklearn requires negative class to be negative)
 """
 
 import code
@@ -12,7 +14,6 @@ import os
 import pandas as pd
 import pickle
 from deepweeds_dataset import DeepWeedsDataset, Rescale, RandomCrop, ToTensor, CLASSES, CLASS_NAMES
-from torchvision import models
 import torch.nn as nn
 import torch
 from torchvision import transforms, utils, models
@@ -37,7 +38,7 @@ CLASS_NAMES = ('Chinee apple',
                'Snake weed',
                'Negative')
 CLASSES = np.arange(0, len(CLASS_NAMES))
-CLASS_DICT = {i: CLASS_NAMES[i] for i in range(0, len(CLASSES))}
+# CLASS_DICT = {i: CLASS_NAMES[i] for i in range(0, len(CLASSES))}
 
 # load model
 model_file = 'dw_r50_s500_i0.pth'
@@ -84,9 +85,9 @@ else:
     batch_size = 10
     num_workers = 10
     tdl = DataLoader(full_dataset,
-                    batch_size=batch_size,
-                    shuffle=False,
-                    num_workers=num_workers)
+                     batch_size=batch_size,
+                     shuffle=False,
+                     num_workers=num_workers)
     dataloader_do = tdl
 # print(td)
 

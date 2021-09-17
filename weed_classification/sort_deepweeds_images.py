@@ -1,7 +1,7 @@
 #! /usr/bin/env python
 
 """
-solrt deepweeds' images into runs/sequences based on filename time
+solrt deepweeds' images into runs/sequences based on filename time into different days
 """
 
 # deepweed's images have filenames that have capture time encoded

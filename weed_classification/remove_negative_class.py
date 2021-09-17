@@ -14,14 +14,14 @@ import shutil
 
 
 CLASSES = (0, 1, 2, 3, 4, 5, 6, 7, 8)
-CLASS_NAMES = ('Chinee apple', 
-                'Lantana', 
-                'Parkinsonia', 
+CLASS_NAMES = ('Chinee apple',
+                'Lantana',
+                'Parkinsonia',
                 'Parthenium',
-                'Prickly acacia', 
-                'Rubber vine', 
-                'Siam weed', 
-                'Snake weed', 
+                'Prickly acacia',
+                'Rubber vine',
+                'Siam weed',
+                'Snake weed',
                 'Negative')
 CLASS_DICT = {i: CLASS_NAMES[i] for i in range(0, len(CLASSES))}
 
@@ -64,7 +64,7 @@ if __name__ == "__main__":
     # edit the dataset - remove the negative class:
     # go through the csv file, make a new csv file with no labels from the negative class
     # save the corresponding images
-    # copy over new set of images to a new folder?    
+    # copy over new set of images to a new folder?
     images_folder = './images'
     labels_folder = './labels'
 
@@ -79,16 +79,10 @@ if __name__ == "__main__":
     negative_class = 8
     img_name = []
     label = []
-    positive_dataset_folder = './nonnegative_images'
-    positive_csv_file = os.path.join(labels_folder, 'nonnegative_labels.csv')
+    positive_dataset_folder = './pos_images'
+    positive_csv_file = os.path.join(labels_folder, 'labels_pos.csv')
 
-    # if files exist in the folder, remove the folder first
-    # then makedir
-    if os.path.isdir(positive_dataset_folder):
-        print('removing existing {} folder'.format(positive_dataset_folder))
-        shutil.rmtree(positive_dataset_folder)
-
-    os.mkdir(positive_dataset_folder)
+    os.makedirs(positive_dataset_folder, exist_ok=True)
 
     neg_label = []
     neg_name = []
@@ -112,21 +106,20 @@ if __name__ == "__main__":
 
     print('finished iterating through dataset')
     print('initial number of images: {}'.format(len(fulldataset)))
-    print('final number of nonnegative class images: {}'.format(len(label)))
+    print('final number of positive class images: {}'.format(len(label)))
 
     # import code
-    # code.interact(local=dict(globals(), **locals()))  
+    # code.interact(local=dict(globals(), **locals()))
 
     # save lists to csv file
     outfile = pd.DataFrame({'Filename': img_name, 'Label': label})
     outfile.to_csv(positive_csv_file, index=False)
 
-    negative_csv_file = os.path.join(labels_folder, 'negative_labels.csv')
+    negative_csv_file = os.path.join(labels_folder, 'labels_neg.csv')
     neg_df = pd.DataFrame({'Filename': neg_name, 'Label': neg_label})
     neg_df.to_csv(negative_csv_file, index=False)
 
-    print('creating nonnegative dataset complete')
+    print('creating positive dataset complete')
     # import code
-    # code.interact(local=dict(globals(), **locals())) 
-    # 
-      
+    # code.interact(local=dict(globals(), **locals()))
+    #

@@ -6,6 +6,7 @@
 # conversion to script from early notebook exploration
 
 from __future__ import print_function, division
+from math import degrees
 import os
 import sys
 import pandas as pd
@@ -35,17 +36,18 @@ np.random.seed(42)
 torch.manual_seed(42)
 
 
+
 ########### classes #############
 CLASSES = (0, 1, 2, 3, 4, 5, 6, 7, 8)
 CLASS_NAMES = ('Chinee apple',
-                'Lantana',
-                'Parkinsonia',
-                'Parthenium',
-                'Prickly acacia',
-                'Rubber vine',
-                'Siam weed',
-                'Snake weed',
-                'Negative')
+               'Lantana',
+               'Parkinsonia',
+               'Parthenium',
+               'Prickly acacia',
+               'Rubber vine',
+               'Siam weed',
+               'Snake weed',
+               'Negative')
 CLASS_DICT = {i: CLASS_NAMES[i] for i in range(0, len(CLASSES))}
 
 
@@ -81,74 +83,117 @@ class DeepWeedsDataset(Dataset):
         return sample
 
 
-class Rescale(object):
-    """ Rescale image to given size """
+# class Rescale(object):
+#     """ Rescale image to given size """
 
-    def __init__(self, output_size):
-        assert isinstance(output_size, (int, tuple))
-        self.output_size = output_size
+#     def __init__(self, output_size):
+#         assert isinstance(output_size, (int, tuple))
+#         self.output_size = output_size
+
+#     def __call__(self, sample):
+#         # open up the dict
+#         image, label, id = sample['image'], sample['label'], sample['image_id']
+
+#         # handle the aspect ratio
+#         h, w = image.shape[:2]
+#         if isinstance(self.output_size, int):
+#             if h > w:
+#                 new_h, new_w = self.output_size * h / w, self.output_size
+#             else:
+#                 new_h, new_w = self.output_size, self.output_size * w / h
+#         else:
+#             new_h, new_w = self.output_size
+#         new_h, new_w = int(new_h), int(new_w)
+
+#         # do the transform
+#         img = transform.resize(image, (new_h, new_w))
+
+#         # return as a dictionary, as before
+#         return {'image': img, 'label': label, 'image_id': id}
+
+
+# class RandomCrop(object):
+#     """ Randomly crop image """
+
+#     def __init__(self, output_size):
+#         assert isinstance(output_size, (int, tuple))
+#         if isinstance(output_size, int):
+#             self.output_size = (output_size, output_size)
+#         else:
+#             assert len(output_size) == 2
+#             self.output_size = output_size
+
+#     def __call__(self, sample):
+#         # unpack the dictionary
+#         # get h,w
+#         # new h,w from output size
+#         # randomly crop from top/left
+#         # return image in sample
+#         image, label, id = sample['image'], sample['label'], sample['image_id']
+
+#         h, w = image.shape[:2]
+#         new_h, new_w = self.output_size
+
+#         top, left = np.random.randint(
+#             0, h - new_h), np.random.randint(0, w - new_w)
+#         image = image[top:top + new_h, left:left + new_w]
+
+#         return {'image': image, 'label': label, 'image_id': id}
+class RandomPixelIntensityScaling(object):
+    """ randomly scale pixel intensities in an image """
+
+    def __init__(self, prob, scale_min, scale_max):
+        self.prob = prob
+        self.scale_min = scale_min
+        self.scale_max = scale_max
 
     def __call__(self, sample):
-        # open up the dict
-        image, label, id = sample['image'], sample['label'], sample['image_id']
+        img = sample['image']
 
-        # handle the aspect ratio
-        h, w = image.shape[:2]
-        if isinstance(self.output_size, int):
-            if h > w:
-                new_h, new_w = self.output_size * h / w, self.output_size
-            else:
-                new_h, new_w = self.output_size, self.output_size * w / h
-        else:
-            new_h, new_w = self.output_size
-        new_h, new_w = int(new_h), int(new_w)
-
-        # do the transform
-        img = transform.resize(image, (new_h, new_w))
-
-        # return as a dictionary, as before
-        return {'image': img, 'label': label, 'image_id': id}
-
-
-class RandomCrop(object):
-    """ Randomly crop image """
-
-    def __init__(self, output_size):
-        assert isinstance(output_size, (int, tuple))
-        if isinstance(output_size, int):
-            self.output_size = (output_size, output_size)
-        else:
-            assert len(output_size) == 2
-            self.output_size = output_size
-    def __call__(self, sample):
-        # unpack the dictionary
-        # get h,w
-        # new h,w from output size
-        # randomly crop from top/left
-        # return image in sample
-        image, label, id = sample['image'], sample['label'], sample['image_id']
-
-        h, w = image.shape[:2]
-        new_h, new_w = self.output_size
-
-        top, left = np.random.randint(0, h - new_h), np.random.randint(0, w - new_w)
-        image = image[top:top + new_h, left:left + new_w]
-
-        return {'image': image, 'label': label, 'image_id': id}
-
+        # TODO we have a PIL image
+        # if prob:
+        # do transform
+        # randomly choose a scale value between scale_min/max
+        # multiply entire image intensities by scale
+        # save to image sample/return image sample
+        # else
+        # just return normal
 
 class ToTensor(object):
     """ convert ndarray to sample in Tensors """
+
     def __call__(self, sample):
         image, label, id = sample['image'], sample['label'], sample['image_id']
 
         image = image.transpose((2, 0, 1))
         return {'image': torch.from_numpy(image), 'label': label, 'image_id': id}
 
+# TODO rotation, then  scaled horz/vert, each colour channel shifted
+# can't we just call torchvision.transforms.RandomX?
+# class RandomHorizontalFlip(object):
+#     """ random horizontal flip """
+#     def __init__(self, prob):
+#         """ probability of horizontal image flip """
+#         self.prob = prob
 
-# TODO define own model class, play around with various parameters for CNN
+# class RandomRotate(object):
+#     """ randomly rotate image """
+#     def __init__(self, prob):
+#         self.prob = prob
 
+# class RandomColourJitter(object):
+#     """ randomly shift pixel intensity, colour"""
+#     # sere torchvision.transforms.ColorJitter(brightness)
+#     def __init__(self, prob):
+#         self.prob = prob
 
+# class RandomPerspective(object):
+#     """ randomly apply affine transformation for perspective shift """
+#     # see RandomAffine
+#     def ___init__(self, prob):
+#         self.prob = prob
+
+# TODO randomly apply transforms using "RandomApply"
 ############# functions #################
 
 
@@ -164,7 +209,7 @@ def show_image(image, label):
     # show image
     plt.imshow(image)
     xy = (5, image.shape[1]/20)  # annotation offset from top-left corner
-    ann = str(label) #  + ': ' + weed_name
+    ann = str(label)  # + ': ' + weed_name
     plt.annotate(ann, xy, color=(1, 0, 0))
     plt.pause(0.001)
 
@@ -243,7 +288,7 @@ def plot_classes_preds(net, images, labels):
             CLASS_NAMES[preds[idx]],
             probs[idx] * 100.0,
             CLASS_NAMES[labels[idx]]),
-                    color=("green" if preds[idx]==labels[idx].item() else "red"))
+            color=("green" if preds[idx] == labels[idx].item() else "red"))
     return fig
 
 
@@ -289,7 +334,8 @@ def train_model(model,
     start = time.time()
 
     if train_size is None:
-        train_size = len(train_dl) * train_dl.batch_size  # a very rough approximation, but should hit the right ballpark
+        # a very rough approximation, but should hit the right ballpark
+        train_size = len(train_dl) * train_dl.batch_size
     if val_size is None:
         val_size = len(valid_dl) * valid_dl.batch_size
 
@@ -337,7 +383,8 @@ def train_model(model,
 
             for step, sample_batch in enumerate(dataloader):
                 # note: output from dataloader is all converted to tensors, I believe
-                imgs, lbls = sample_batch['image'].float(), sample_batch['label']
+                imgs, lbls = sample_batch['image'].float(
+                ), sample_batch['label']
                 # We move our tensor to the GPU if available
                 if torch.cuda.is_available():
                     imgs = imgs.to(device)
@@ -375,7 +422,8 @@ def train_model(model,
             print('{} Loss: {:.4f}'.format(phase, epoch_loss))
             nImgPerClass = round((train_size + val_size) / len(CLASS_NAMES))
 
-            writer.add_scalar('Size' + str(nImgPerClass) + '/Training_Loss', epoch_loss, epoch + 1)
+            writer.add_scalar('Size' + str(nImgPerClass) +
+                              '/Training_Loss', epoch_loss, epoch + 1)
             # writer.add_scalar('Size' + str(train_size + val_size) + '/Accuracy', epoch_acc, epoch + 1)
             # writer.add_graph(model,imgs)
 
@@ -394,7 +442,8 @@ def train_model(model,
 
             for step, sample_batch in enumerate(dataloader):
                 # note: output from dataloader is all converted to tensors, I believe
-                imgs, lbls = sample_batch['image'].float(), sample_batch['label']
+                imgs, lbls = sample_batch['image'].float(
+                ), sample_batch['label']
                 # We move our tensor to the GPU if available
                 if torch.cuda.is_available():
                     imgs = imgs.to(device)
@@ -413,8 +462,10 @@ def train_model(model,
             epoch_acc = running_acc / len(dataloader.dataset)
             epoch_loss = running_loss_val / len(dataloader.dataset)
             nImgPerClass = round((train_size + val_size) / len(CLASS_NAMES))
-            writer.add_scalar('Size' + str(nImgPerClass) + '/Val_Accuracy', epoch_acc, epoch + 1)
-            writer.add_scalar('Size' + str(nImgPerClass) + '/Val_Loss', epoch_loss, epoch + 1)
+            writer.add_scalar('Size' + str(nImgPerClass) +
+                              '/Val_Accuracy', epoch_acc, epoch + 1)
+            writer.add_scalar('Size' + str(nImgPerClass) +
+                              '/Val_Loss', epoch_loss, epoch + 1)
 
             sample_batch = next(iter(dataloader))
 
@@ -423,15 +474,14 @@ def train_model(model,
 
             imgs, lbls = sample_batch['image'].float(), sample_batch['label']
             if torch.cuda.is_available():
-                    imgs = imgs.to(device)
-                    lbls = lbls.to(device)
+                imgs = imgs.to(device)
+                lbls = lbls.to(device)
             writer.add_figure('predictions vs actuals',
                               plot_classes_preds(model, imgs, lbls))
 
-
     time_elapsed = time.time() - start
-    print('Training complete in {:.0f}m {:.0f}s'.format(time_elapsed // 60, time_elapsed % 60))
-
+    print('Training complete in {:.0f}m {:.0f}s'.format(
+        time_elapsed // 60, time_elapsed % 60))
 
     writer.close()
 
@@ -452,10 +502,8 @@ def acc_metric(outputs, labels):
     return (predicted == labels).float().mean()
 
 
-
 # --------------------------------------------------------------------------- #
 if __name__ == "__main__":
-
 
     # main code
     # init classes as objects
@@ -482,15 +530,16 @@ if __name__ == "__main__":
     # classes
     # see global?
 
-    # hyperparameters
-    num_epochs = 500
-    learning_rate = 0.001
+    # hyperparameters -->now taken from the DeepWeeds Paper
+    num_epochs = 200
+    learning_rate = 0.0001 # LR halved if val loss did not decrease after 16 epochs
     momentum = 0.9
-    batch_size = 10
+    batch_size = 10 # TODO use batch size 32
     shuffle = True
     num_workers = 10
     expsuffix = 'tbplots'
-    acc_step_size = 10
+    acc_step_size = 5
+    # TODO early stopping if val loss did not decrease after 32 epochs
 
     # assuming an even class distribution, if we want training size of X/class, then we need
     # X*8 images
@@ -498,7 +547,8 @@ if __name__ == "__main__":
     train_test_split = 0.9
 
     # max images = 8403 * 0.8 / 8 = 840.3
-    train_sizes = [500 * len(CLASSES)] # ntrain]  # last number should be ntrain
+    # ntrain]  # last number should be ntrain
+    train_sizes = [500 * len(CLASSES)]
     print('train size = {}'.format(train_sizes))
 
     ntrain_times = 1
@@ -510,12 +560,20 @@ if __name__ == "__main__":
     # val_label_file = os.path.join(labels_folder, 'val_subset0.csv')  # perhaps join these?
     # test_label_file = os.path.join(labels_folder, 'test_subset0.csv')
 
+    # tforms = transforms.Compose([
+    #                             Rescale(256),
+    #                             RandomCrop(224),
+    #                             ToTensor()
+    #                             ])
     tforms = transforms.Compose([
-                                Rescale(256),
-                                RandomCrop(224),
-                                ToTensor()
-                                ])
-
+        transforms.Resize(size=(256, 256)),
+        transforms.RandomRotation(degrees=(-360, 360)),
+        transforms.RandomResizedCrop(size=(256, 256), scale=(0.5, 1.0)),
+        transforms.ColorJitter(brightness=(0, 0.1), hue=(-0.01, 0.01)), # TODO unsure about these values
+        RandomPixelIntensityScaling(),
+        transforms.RandomAffine(degrees=5, translate=(0.05, 0.05)),
+        transforms.RandomHorizontalFlip(p=0.5)
+    ])
     # full dataset
     full_dataset = DeepWeedsDataset(csv_file=labels_file,
                                     root_dir=images_folder,
@@ -528,19 +586,16 @@ if __name__ == "__main__":
     # save the corresponding images
     # copy over new set of images to a new folder?
 
-
     # use random_split to break up train/val/test sets
     # then further use random_split to break train into smaller and smaller sets
-
 
     # first, take the largest training size, and split it into training and testing:
     # choose ratio of 80/20 % for training/testing
 
     ntrain = round(nimg * train_test_split)
 
-    train_dataset, test_dataset = torch.utils.data.random_split(full_dataset, [ntrain, nimg - ntrain])
-
-
+    train_dataset, test_dataset = torch.utils.data.random_split(
+        full_dataset, [ntrain, nimg - ntrain])
 
     # now we split up the original train_dataset into subdatasets
     # each needs their training and validation datasets
@@ -580,17 +635,20 @@ if __name__ == "__main__":
 
     # testing
     test_loader = DataLoader(test_dataset,
-                            batch_size=batch_size,
-                            shuffle=shuffle,
-                            num_workers=num_workers)
+                             batch_size=batch_size,
+                             shuffle=shuffle,
+                             num_workers=num_workers)
     print('test_dataset length =', len(test_dataset))
     print(f'validation dataset length = {len(vd)}')
     print(f'traininh dataset length = {len(td)}')
     # save datasets and dataloader objects for future use:
     save_dataset_objects = os.path.join('dataset_objects', lbls_file[:-4])
     os.makedirs(save_dataset_objects, exist_ok=True)
-    save_dataset_path = os.path.join(save_dataset_objects, lbls_file[:-4] + '.pkl')
+    save_dataset_path = os.path.join(
+        save_dataset_objects, lbls_file[:-4] + '.pkl')
     with open(save_dataset_path, 'wb') as f:
+        # TODO should save the entire dataset as well
+        # pickle.dump(full_dataset, f)
         pickle.dump(td, f)
         pickle.dump(vd, f)
         pickle.dump(test_dataset, f)
@@ -645,25 +703,31 @@ if __name__ == "__main__":
 
             # define model (resnet 50, random initialised weights)
             model = models.resnet50(pretrained=False)
-            model.fc = nn.Linear(in_features=2048, out_features=len(CLASSES), bias=True)
+            model.fc = nn.Linear(
+                in_features=2048, out_features=len(CLASSES), bias=True)
 
             # select loss function and optimizer
-            criterion = nn.CrossEntropyLoss()  # TODO consider adding weights to classes (eg Negative class)
-            optimizer = optim.SGD(model.parameters(), lr=learning_rate, momentum=momentum)
+            # TODO consider adding weights to classes (eg Negative class)
+            criterion = nn.CrossEntropyLoss()
+            optimizer = optim.SGD(model.parameters(),
+                                  lr=learning_rate, momentum=momentum)
 
             # generate save_path/name for each one
             # save_path = './saved_model/testtraining/deepweeds_resnet50_train0.pth'
-            save_folder = os.path.join('saved_model','development_training' + str(folder_num))
+            save_folder = os.path.join(
+                'saved_model', 'development_training' + str(folder_num))
             # if not os.path.isdir(save_folder):
             #     os.mkdir(save_folder)
             os.makedirs(save_folder, exist_ok=True)
-            save_path = os.path.join(save_folder, 'dw_r50_s' + str(round(training_step_size/len(CLASSES))) + '_i' + str(j) + '.pth')
+            save_path = os.path.join(save_folder, 'dw_r50_s' + str(
+                round(training_step_size/len(CLASSES))) + '_i' + str(j) + '.pth')
 
             print(save_path)
 
             # generate run name (for tensorboard)
             now = str(datetime.datetime.now())
-            expname = now[0:10] + '_' + now[11:13] + '-' + now[14:16] + '-' + expsuffix
+            expname = now[0:10] + '_' + now[11:13] + \
+                '-' + now[14:16] + '-' + expsuffix
             # NOTE: model saved at end of train_model using save_path
             train_loss_i, val_loss_i = train_model(model,
                                                    train_dataloader_list[i],
@@ -671,8 +735,10 @@ if __name__ == "__main__":
                                                    criterion,
                                                    optimizer,
                                                    acc_metric,
-                                                   train_size=len(train_dataset_list[i]),
-                                                   val_size=len(val_dataset_list[i]),
+                                                   train_size=len(
+                                                       train_dataset_list[i]),
+                                                   val_size=len(
+                                                       val_dataset_list[i]),
                                                    num_epochs=num_epochs,
                                                    save_path=save_path,
                                                    expname=expname,
@@ -686,11 +752,13 @@ if __name__ == "__main__":
             nimg = len(images)
             print(images.size())
             print(labels)
-            print('Groundtruth: ', ' '.join('%5s' % CLASSES[labels[j]] for j in range(nimg)))
+            print('Groundtruth: ', ' '.join('%5s' %
+                  CLASSES[labels[j]] for j in range(nimg)))
 
             outputs = model(images.float().cuda())
             _, predicted = torch.max(outputs, 1)
-            print('Predicted: ', ' '.join('%5s' % CLASSES[predicted[j]] for j in range(nimg)))
+            print('Predicted: ', ' '.join('%5s' %
+                  CLASSES[predicted[j]] for j in range(nimg)))
 
             # plot to tensorboard
             # create grid of images
@@ -702,7 +770,8 @@ if __name__ == "__main__":
             total = 0
 
             # use gpu if available
-            device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+            device = torch.device(
+                'cuda:0' if torch.cuda.is_available() else 'cpu')
             # print(device)
             # if torch.cuda.is_available():
             #     model.to(device)
@@ -712,34 +781,34 @@ if __name__ == "__main__":
                 for data in test_loader:
                     images, labels = data['image'].float(), data['label']
                     if torch.cuda.is_available():
-                            images = images.to(device)
-                            labels = labels.to(device)
+                        images = images.to(device)
+                        labels = labels.to(device)
                     outputs = model(images)
                     _, predicted = torch.max(outputs.data, 1)
                     total += labels.size(0)
                     correct += (predicted == labels).sum().item()
             model_acc = 100 * correct / total
-            print('Accuracy of network on {} test images: {}'.format(total, model_acc))
+            print('Accuracy of network on {} test images: {}'.format(
+                total, model_acc))
 
             # save the training and loss numbers
-            train_loss_times.append( train_loss_i)
+            train_loss_times.append(train_loss_i)
             val_loss_times.append(val_loss_i)
             save_paths.append(save_path)
             model_acc_times.append(model_acc)
-
 
             # del model
 
             # import code
             # code.interact(local=dict(globals(), **locals()))
 
-
         train_loss_sizes.append(train_loss_times)
         val_loss_sizes.append(val_loss_times)
         model_acc_sizes.append(model_acc_times)
 
     # save train_loss_sizes and val_loss_sizes just in case:
-    save_tv_path = os.path.join('.', 'saved_model', 'training' + str(folder_num), 'dw_train_val_losses' + str(folder_num) + '.pkl')
+    save_tv_path = os.path.join('.', 'saved_model', 'training' + str(
+        folder_num), 'dw_train_val_losses' + str(folder_num) + '.pkl')
     with open(save_tv_path, 'wb') as f:
         pickle.dump(train_loss_sizes, f)
         pickle.dump(val_loss_sizes, f)
@@ -756,7 +825,5 @@ if __name__ == "__main__":
     # for var, obj in local_vars:
     #     print(var, sys.getsizeof(obj))
 
-
     import code
     code.interact(local=dict(globals(), **locals()))
-

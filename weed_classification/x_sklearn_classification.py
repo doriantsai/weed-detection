@@ -1,5 +1,8 @@
 #! /usr/bin/env python
 
+from itertools import cycle
+from sklearn.multiclass import OneVsRestClassifier
+import code
 from sklearn import svm, datasets
 from sklearn.model_selection import train_test_split
 import numpy as np
@@ -42,16 +45,10 @@ disp.ax_.set_title('2-class Precision-Recall curve: '
                    'AP={0:0.2f}'.format(average_precision))
 
 
-
-
-
-
-
 # Use label_binarize to be multi-label like settings
 Y = label_binarize(y, classes=[0, 1, 2])
 n_classes = Y.shape[1]
 
-import code
 code.interact(local=dict(globals(), **locals()))
 
 
@@ -60,14 +57,12 @@ X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=.5,
                                                     random_state=random_state)
 
 # We use OneVsRestClassifier for multi-label prediction
-from sklearn.multiclass import OneVsRestClassifier
 
 # Run classifier
 classifier = OneVsRestClassifier(svm.LinearSVC(random_state=random_state))
 classifier.fit(X_train, Y_train)
 y_score = classifier.decision_function(X_test)
 
-import code
 code.interact(local=dict(globals(), **locals()))
 
 
@@ -82,7 +77,7 @@ for i in range(n_classes):
 
 # A "micro-average": quantifying score on all classes jointly
 precision["micro"], recall["micro"], _ = precision_recall_curve(Y_test.ravel(),
-    y_score.ravel())
+                                                                y_score.ravel())
 average_precision["micro"] = average_precision_score(Y_test, y_score,
                                                      average="micro")
 print('Average precision score, micro-averaged over all classes: {0:0.2f}'
@@ -99,7 +94,6 @@ plt.title(
     'Average precision score, micro-averaged over all classes: AP={0:0.2f}'
     .format(average_precision["micro"]))
 
-from itertools import cycle
 # setup plot details
 colors = cycle(['navy', 'turquoise', 'darkorange', 'cornflowerblue', 'teal'])
 
@@ -139,5 +133,4 @@ plt.legend(lines, labels, loc=(0, -.38), prop=dict(size=14))
 plt.show()
 
 
-import code
 code.interact(local=dict(globals(), **locals()))

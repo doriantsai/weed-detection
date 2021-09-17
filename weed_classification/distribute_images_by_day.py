@@ -152,13 +152,13 @@ lbl_all = os.path.join(lbl_dir, 'labels.csv')
 lbl_all_df = pd.read_csv(lbl_all)
 nlbl_all = len(lbl_all_df)
 
-lbl_pos = os.path.join(lbl_dir, 'nonnegative_labels.csv')
+lbl_pos = os.path.join(lbl_dir, 'labels_pos.csv')
 lbl_pos_df = pd.read_csv(lbl_pos)
 npos = len(lbl_pos_df)
 ndev = len(dev_df)
 ndep = len(dep_df)
 
-lbl_neg = os.path.join(lbl_dir, 'negative_labels.csv')
+lbl_neg = os.path.join(lbl_dir, 'labels_neg.csv')
 lbl_neg_df = pd.read_csv(lbl_neg)
 nneg = len(lbl_neg_df)
 
@@ -174,7 +174,7 @@ print(f'ratio of ndev/npos = {ndev / npos}')
 print(f'number of negative images to the dev set: {nneg_dev}')
 print(f'number of negative images to the dep set: {nneg_dep}')
 
-# do random split 
+# do random split
 idx = np.arange(nneg)
 idx_dev = set(random.sample(range(nneg), nneg_dev))
 idx_dep = [x for x in idx if not x in idx_dev]
