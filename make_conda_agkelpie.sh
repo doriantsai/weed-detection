@@ -8,6 +8,10 @@ conda env create -f agkelpie.yml
 # current attempt does this, but build may take a while
 pip install --no-binary opencv-python opencv-python
 
+# for weed-camera interface, unsure if zeromq == zmq, stackoverflow seems
+# to imply they are different
+pip install zmq
+
 # section where we install weed_detection locally using pip
 # cd weed_detection
 pip install -e .

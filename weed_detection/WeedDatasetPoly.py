@@ -292,7 +292,11 @@ class Rescale(object):
     def __call__(self, image, sample=None):
 
         # handle the aspect ratio
+        if isinstance(image, np.ndarray):
+            image = Image.fromarray(image) # convert to PIL image
+
         h, w = image.size[:2]
+
         if isinstance(self.output_size, int):
             if h > w:
                 new_h, new_w = self.output_size * h / w, self.output_size
@@ -304,7 +308,8 @@ class Rescale(object):
         new_h, new_w = int(new_h), int(new_w)
 
         # do the transform
-        img = T.Resize((new_w, new_h))(image)
+
+        img = T.Resize((new_w, new_h))(image) # only works for PIL images
 
 
         # apply transform to bbox as well

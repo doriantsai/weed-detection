@@ -19,7 +19,7 @@ import pickle
 import numpy as np
 import cv2 as cv
 import matplotlib.pyplot as plt
-
+import PIL
 
 # TODO replace tensorboard with weightsandbiases
 from torch.utils.tensorboard import SummaryWriter
@@ -95,8 +95,10 @@ class WeedModel:
 
 
     def get_model(self):
-         return self._model
+        return self._model
 
+    def get_image_tensor_size(self):
+        return (3, self._image_height, self._image_width)
 
     def set_model_folder(self, folder):
         self._model_folder = folder
@@ -537,6 +539,8 @@ class WeedModel:
         print('loaded model: {}'.format(model_path))
         model.to(self._device)
         self._model = model
+        self._model_path = model_path
+        self._model_folder = os.path.dirname(model_path)
 
         return model
 
@@ -1375,11 +1379,34 @@ class WeedModel:
                                   interpolation=cv.INTER_CUBIC)
         return image_out
 
+
+    def is_valid_image(self, image):
+        """ check if image is valid type """
+        # is image a... tensor/numpy array/PIL image?
+        check = False
+        check_type = False
+        check_size = False
+
+        if isinstance(image, torch.Tensor):
+            check_type = True
+        # is the image range correct? (0-1 automatically for Tensors)
+        # is image a width x height x 3 matrix?
+        # is the image the right width/height?
+
+        if image.size() == self.get_image_tensor_size():
+            check_size = True
+
+        if check_type and check_size:
+            check = True
+
+        return check
+
     def infer_image(self,
                     image,
                     sample=None,
                     imshow=True,
                     imsave=False,
+                    save_dir=None,
                     image_name=None,
                     conf_thresh=0.5,
                     iou_thresh=0.5,
@@ -1387,6 +1414,32 @@ class WeedModel:
         """ do inference on a single image """
         # assume image comes in as a tensor for now (eg, from image, sample in
         # dataset)
+
+        # TODO check image
+        # if invalid size, rescale/reshape and do normal operation
+        # if invalid type, convert to valid type and do normal operation
+        # if valid type, do normal operations
+        # else if invalid image, return error
+
+        if isinstance(image, np.ndarray):
+            c, h, w = self.get_image_tensor_size()
+            [hi, wi, ci] = image.shape
+
+            # if height or width don't match
+            if (h != hi) or (w != wi):
+                # print('rescaling image to expected image size')
+                tform_rsc = WDP.Rescale(h)
+                image = tform_rsc(image)
+
+            # check valid image size ()
+            # convert np array to image tensor
+            # print('image is numpy array, converting to tensor')
+            image = tv_transform.to_tensor(image)
+
+        # if isinstance(image, PIL.Image.Image):
+        #     print('image is PIL image, convert to tensor')
+        #     image = torch.tensor(image)
+
 
         with torch.no_grad():
             self._model.to(self._device)
@@ -1396,6 +1449,8 @@ class WeedModel:
 
             # TODO accept different types of image input (tensor, numpy array,
             # PIL, filename?)
+
+
 
             if image_name is None:
                 image_name = self._model_name + '_image'
@@ -1416,9 +1471,12 @@ class WeedModel:
                                           sample=sample,
                                           predictions=pred)
             if imsave:
-                save_folder = os.path.join('output', self._model_folder)
-                os.makedirs(save_folder, exist_ok=True)
-                save_image_name = os.path.join(save_folder, image_name + '.png')
+                if save_dir is None:
+                    save_dir = os.path.join('output', self._model_folder)
+                # print('save dir: ', save_folder)
+                os.makedirs(save_dir, exist_ok=True)
+                save_image_name = os.path.join(save_dir, image_name + '.png')
+                # print('save img: ', save_image_name)
                 image_out_bgr = cv.cvtColor(image, cv.COLOR_RGB2BGR)
                 cv.imwrite(save_image_name, image_out_bgr)
 

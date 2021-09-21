@@ -17,7 +17,7 @@ Tussock = WM()
 
 # load dataset objects
 # dataset_name = 'Tussock_v0_mini'
-dataset_name = '2021-03-25_MFS_Tussock'
+dataset_name = '2021-03-25_MFS_Tussock_v0'
 
 DATASET_FILE_EXISTS = True
 if DATASET_FILE_EXISTS:
@@ -28,8 +28,8 @@ if DATASET_FILE_EXISTS:
     dso = Tussock.load_dataset_objects(dataset_file)
 
     # just choose which dataset object to use for this script
-    ds_infer = dso['ds_train']
-    dl_infer = dso['dl_train']
+    ds_infer = dso['ds_test']
+    # dl_infer = dso['dl_train']
 
 else:
     root_dir = os.path.join('/home',
@@ -85,14 +85,14 @@ else:
 # model_name = 'Tussock_v0_mini_2021-06-14_13_25'
 # model_name = 'Tussock_v4_poly286_2021-07-14_10_24'
 # model_name = 'Tussock_v4_poly286_2021-07-15_11_08'
-model_name = '2021-03-25_MFS_Tussock_MaskRCNN_2021-08-31_19_33'
+model_name = '2021-03-25_MFS_Tussock_v0_2021-09-16_08_55'
 save_model_path = os.path.join('output',
                                model_name,
                                model_name + '.pth')
 Tussock.load_model(save_model_path)
 Tussock.set_model_name(model_name)
 Tussock.set_model_path(save_model_path)
-Tussock.set_model_folder(model_name)
+Tussock.set_model_folder(os.path.join('output', model_name))
 Tussock.set_snapshot(20)
 
 
@@ -120,9 +120,9 @@ Tussock.set_snapshot(20)
 
 # bs = 10 # hp_test['batch_size']
 # for i in range(bs):
-for image, sample in enumerate(ds_infer):
-    # import code
-    # code.interact(local=dict(globals(), **locals()))
+for image, sample in ds_infer:
+    import code
+    code.interact(local=dict(globals(), **locals()))
     # image = images[i]
     # sample = samples[i]
     image_id = sample['image_id'].item()
