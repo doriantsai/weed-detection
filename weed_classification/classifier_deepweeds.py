@@ -8,15 +8,11 @@
 from __future__ import print_function, division
 from math import degrees
 import os
-import sys
-import pandas as pd
-from skimage import io, transform
 
 import cv2 as cv
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import torchvision
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -28,7 +24,7 @@ import code
 
 from PIL import Image
 from torch.utils.data import Dataset, DataLoader
-from torchvision import transforms, utils, models
+from torchvision import utils, models
 
 # use tensorboard to see training in progress
 from torch.utils.tensorboard import SummaryWriter
@@ -557,8 +553,12 @@ if __name__ == "__main__":
         for j in range(ntrain_times):
 
             # define model (resnet 50, random initialised weights)
-            model = models.resnet50(pretrained=True)
+            model = models.resnet50(pretrained=False)
             model.fc = nn.Linear(in_features=2048, out_features=len(CLASSES), bias=True)
+
+            # model fron deep weeds, which was converted from keras to pytorch
+            # keras_model_path =
+            # model.load_state_dict()
 
             # select loss function and optimizer
             # TODO consider adding weights to classes (eg Negative class)
@@ -574,7 +574,7 @@ if __name__ == "__main__":
             #     os.mkdir(save_folder)
             os.makedirs(save_folder, exist_ok=True)
             save_path = os.path.join(save_folder, 'dw_r50_s' + str(
-                round(training_step_size/len(CLASSES))) + '_i' + str(j) + '.pth')
+                round(training_step_size/len(CLASSES))) + '_i' + str(j) + '_finetuned.pth')
 
             print(save_path)
 

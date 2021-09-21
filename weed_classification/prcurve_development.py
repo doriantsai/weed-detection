@@ -14,7 +14,9 @@ import matplotlib.pyplot as plt
 import torch.nn as nn
 
 from itertools import cycle
-from deepweeds_dataset import DeepWeedsDataset, Rescale, RandomCrop, ToTensor, CLASSES, CLASS_NAMES
+from deepweeds_dataset import DeepWeedsDataset, Rescale, RandomAffine, RandomColorJitter, RandomPixelIntensityScaling
+from deepweeds_dataset import RandomHorizontalFlip, RandomRotate, RandomResizedCrop, ToTensor, Compose
+from deepweeds_dataset import CLASSES, CLASS_NAMES
 from torchvision import models, transforms
 from torch.utils.data import Dataset, DataLoader
 from torchmetrics import PrecisionRecallCurve, AveragePrecision
@@ -68,13 +70,23 @@ else:
     lbl_dir = './labels'
     img_dir = './images'
 
-    lbls_file = 'development_labels_trim.csv'
+    # lbls_file = 'development_labels_trim.csv'
+    lbls_file = 'deployment_labels.csv'
     lbls_file = os.path.join(lbl_dir, lbls_file)
 
-    tforms = transforms.Compose([Rescale(256), RandomCrop(224), ToTensor()])
+    tforms = Compose([
+        Rescale(256),
+        RandomRotate(360),
+        RandomResizedCrop(size=(224, 224), scale=(0.5, 1.0)),
+        RandomColorJitter(brightness=(0, 0.1), hue=(-0.01, 0.01)), # TODO unsure about these values
+        RandomPixelIntensityScaling(),
+        RandomAffine(degrees=5, translate=(0.05, 0.05)),
+        RandomHorizontalFlip(prob=0.5),
+        ToTensor()
+    ])
     full_data = DeepWeedsDataset(lbls_file, img_dir, tforms)
 
-    batch_size = 10
+    batch_size = 32
     num_workers = 10
     tedl = DataLoader(full_data,
                       batch_size=batch_size,
@@ -119,7 +131,7 @@ ap = ap_compute(outputs, actual_labels)
 colors = ['pink', 'blue', 'green', 'yellow', 'cyan', 'red', 'purple', 'orange', 'grey']
 
 # f-score contours
-plt.figure(figsize=(7, 8))
+# plt.figure(figsize=(7, 7))
 f_scores = np.linspace(0.2, 0.8, num=4)
 lines = []
 labels = []
@@ -142,14 +154,14 @@ for i in range(len(CLASSES)):
 
 fig = plt.gcf()
 plt.xlim([0, 1])
-plt.ylim([0, 1])
+plt.ylim([0, 1.05])
 plt.xlabel('recall')
 plt.ylabel('precision')
 plt.title('PR-Curve for Deep Weeds Classifier')
 plt.legend(lines, labels)
 
 base_name = os.path.basename(lbls_file)
-save_img_path = os.path.join('output', base_name[:-4] + '_prcurves2.png')
+save_img_path = os.path.join('output', base_name[:-4] + '_prcurves.png')
 # plt.show()
 plt.savefig(save_img_path)
 
