@@ -383,10 +383,10 @@ if __name__ == "__main__":
     # see global?
 
     # hyperparameters -->now taken from the DeepWeeds Paper
-    num_epochs = 200
-    learning_rate = 0.0001 # LR halved if val loss did not decrease after 16 epochs
+    num_epochs = 500
+    learning_rate = 0.001 # LR halved if val loss did not decrease after 16 epochs
     momentum = 0.9
-    batch_size = 10 # TODO use batch size 32
+    batch_size = 32 # TODO use batch size 32
     shuffle = True
     num_workers = 10
     expsuffix = 'tbplots'
@@ -557,7 +557,7 @@ if __name__ == "__main__":
         for j in range(ntrain_times):
 
             # define model (resnet 50, random initialised weights)
-            model = models.resnet50(pretrained=False)
+            model = models.resnet50(pretrained=True)
             model.fc = nn.Linear(in_features=2048, out_features=len(CLASSES), bias=True)
 
             # select loss function and optimizer
