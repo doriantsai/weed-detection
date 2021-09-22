@@ -16,24 +16,13 @@ import torch.nn as nn
 from itertools import cycle
 from deepweeds_dataset import DeepWeedsDataset, Rescale, RandomAffine, RandomColorJitter, RandomPixelIntensityScaling
 from deepweeds_dataset import RandomHorizontalFlip, RandomRotate, RandomResizedCrop, ToTensor, Compose
-from deepweeds_dataset import CLASSES, CLASS_NAMES
+from deepweeds_dataset import CLASSES, CLASS_NAMES, CLASS_COLORS
 from torchvision import models, transforms
 from torch.utils.data import Dataset, DataLoader
 from torchmetrics import PrecisionRecallCurve, AveragePrecision
 
 np.random.seed(42)
 torch.manual_seed(42)
-
-# CLASS_NAMES = ('Chinee apple',
-#                'Lantana',
-#                'Parkinsonia',
-#                'Parthenium',
-#                'Prickly acacia',
-#                'Rubber vine',
-#                'Siam weed',
-#                'Snake weed',
-#                'Negative')
-# CLASSES = np.arange(0, len(CLASS_NAMES))
 
 # set device
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
@@ -128,7 +117,6 @@ ap_compute = AveragePrecision(num_classes=len(CLASSES))
 ap = ap_compute(outputs, actual_labels)
 
 # TODO calculate AP scores
-colors = ['pink', 'blue', 'green', 'yellow', 'cyan', 'red', 'purple', 'orange', 'grey']
 
 # f-score contours
 # plt.figure(figsize=(7, 7))
@@ -147,7 +135,7 @@ labels.append('iso-f1 curves')
 for i in range(len(CLASSES)):
     l, = plt.plot(recall[i].cpu().numpy(),
                     precision[i].cpu().numpy(),
-                    color=colors[i],
+                    color=CLASS_COLORS[i],
                     lw=2)
     lines.append(l)
     labels.append('{0} (ap={1:0.2f})'.format(CLASS_NAMES[i], ap[i].cpu().numpy()))

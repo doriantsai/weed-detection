@@ -1,0 +1,259 @@
+#! /usr/bin/env python
+
+"""
+a class to group collection of model inference and plotting functions
+"""
+
+# import pkl file of dataset/dataloader
+# iterate through dataloader
+# plot image with name and confidence on each image
+# save image
+import os
+import matplotlib.pyplot as plt
+import numpy as np
+from deepweeds_dataset import DeepWeedsDataset, CLASSES, CLASS_NAMES, CLASS_COLORS, CLASS_COLOR_ARRAY
+import torch
+import torch.nn.functional as torchf
+import pickle as pkl
+import cv2 as cv
+
+
+class DeepweedsPlotModel(object):
+
+    def __init__(self,
+                 model_name,
+                 model_path,
+                 model=None,
+                 data_path=None,
+                 img_dir=None,
+                 lbl_file=None,
+                 device=None):
+
+        self._model_name = model_name
+        self._model_path = model_path
+
+        # TODO load the model?
+        self._data_path = data_path
+        self._img_dir = img_dir
+        self._lbl_file = lbl_file
+        self._model = model
+
+        if device is None:
+            device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+        self._device = device
+
+    # getters
+    def get_model_name(self):
+        return self._model_name
+
+    def get_model_path(self):
+        return self._model_path
+
+    def get_data_path(self):
+        return self._data_path
+
+    def get_img_dir(self):
+        return self._img_dir
+
+    def get_lbl_file(self):
+        return self._lbl_file
+
+    def get_model(self):
+        return self._model
+
+    # setters
+    def set_model_name(self, model_name):
+        # todo make sure is string
+        self._model_name = model_name
+
+    def set_model_path(self, model_path):
+        # todo make sure is path
+        self._model_path = model_path
+        # todo automatically load the model?
+
+    def set_model(self, model):
+        self._model = model
+
+    def set_data_path(self, data_path):
+        self._data_path = data_path
+
+    def set_img_dir(self, img_dir):
+        self._img_dir = img_dir
+
+    def set_lbl_file(self, lbl_file):
+        self._lbl_file = lbl_file
+
+    def load_data(self, data_path=None):
+        """ loads data path"""
+
+        if data_path is None:
+            data_path = self.get_data_path()
+
+        if data_path is None: # still
+            print('Error: data_path is None')
+            return False
+        else:
+            if os.path.isfile(data_path):
+                with open(self._data_path, 'rb') as f:
+                    dw_data_dict = pkl.load(f)
+                    # full_data = pkl.load(f)
+                    # ds_train = pkl.load(f)
+                    # ds_val = pkl.load(f)
+                    # ds_test = pkl.load(f)
+                    # dl_train = pkl.load(f)
+                    # dl_val = pkl.load(f)
+                    # dl_test = pkl.load(f)
+                return dw_data_dict
+
+            else:
+                print('Error: data_path is not a file')
+                print(f'data_path = {data_path}')
+                return False
+
+
+    def show_image(self,
+                   img,
+                   lbl=None,
+                   pred=None,
+                   pred_class=None,
+                   img_name=None,
+                   save_dir=None,
+                   save_img=False):
+        """ show image with label and confidence """
+        # TODO if pred, then show pred
+        # TODO saving image, name and directory
+        # TODO why flip-flop between matplotlib and opencv? chose one.
+
+        font_scale = 1
+        font_thick = 1
+        pred_color_right = [0, 200, 0] # RGB
+        pred_color_wrong = [255, 0, 0] # RGB
+        pred_color_neutral = [200, 200, 200]
+
+        # if not isinstance(img, np.ndarray):
+        #     raise TypeError(img, 'invalid image input type (want np.ndarray)')
+        # if not isinstance(lbl, np.integer):
+        #     raise TypeError(lbl, 'invalid label input type (want int)')
+        # if not isinstance(weed_name, str):
+        #     raise TypeError(weed_name, 'invalid type (want str)')
+
+        # show image
+        # plt.imshow(img)
+        # xy = (5, img.shape[1]/20)  # annotation offset from top-left corner
+        # # also add confidence score
+        # ann = str(lbl)  # + ': ' + weed_name
+        # plt.annotate(ann, xy, color=(1, 0, 0))
+        # plt.pause(0.001)
+
+        # assuming input image is a tensor
+        img_out = img.cpu().numpy()
+        # BGR as opposed to RGB
+        img_out = np.transpose(img_out, (1,2,0))
+        img_out = cv.normalize(img_out, None, 0, 255, cv.NORM_MINMAX, cv.CV_8U)
+
+        # annotate groundtruth label
+        if lbl is not None:
+            cv.putText(img_out,
+                       'label: {}'.format(CLASS_NAMES[lbl]),
+                       (int(5), int(img.shape[1]/20)),
+                       fontFace=cv.FONT_HERSHEY_COMPLEX,
+                       fontScale=font_scale,
+                       color=CLASS_COLOR_ARRAY[lbl],
+                       thickness=font_thick)
+
+        if (pred is not None) and (pred_class is not None):
+            pred_sc = format(pred * 100.0, '.0f') # prediction score %, no decimals
+            if lbl is not None:
+                if pred_class == lbl:
+                    text_color = pred_color_right
+                else:
+                    text_color = pred_color_wrong
+            else:
+                text_color = pred_color_neutral
+
+            cv.putText(img_out,
+                       'pred: {}, {}'.format(CLASS_NAMES[pred_class], pred_sc),
+                       (int(5), int(img.shape[1]/20 + 30)),
+                       fontfACE=cv.FONT_HERSHEY_COMPLEX,
+                       fontScale=font_scale,
+                       color=text_color,
+                       thickness=font_thick)
+
+        if save_img:
+            if save_dir is None:
+                save_dir = os.path.join('output')
+            save_img_name = os.path.join(save_dir, img_name + '_pred.png')
+            img_out_bgr = cv.cvtColor(img_out, cv.COLOR_RGB2BGR)
+            cv.imwrite(save_img_name, img_out_bgr)
+
+        return img_out
+
+
+    def infer_images(self, imgs):
+        """ generates predictions and corresponding confidence scores from
+        trained network and list of images"""
+
+        self._model.eval()
+        with torch.no_grad():
+            outs = self._model(imgs)
+
+        # convert output confidences to predicted classes
+        _, preds = torch.max(outs, 1)
+        preds = np.squeeze(preds.cpu().numpy())
+
+        # classes
+        pred_classes = [torchf.softmax(el, dim=0)[i].item() for i, el in zip(preds, outs)]
+
+        return preds, pred_classes
+
+
+    def infer_data(self, dataset):
+        """ method to take a dataset, output images/predictions """
+        # TODO should do for dataloader --> faster
+
+        print('number of images to infer: {}'.format(len(dataset)))
+        predictions = []
+        for sample in dataset:
+            img, lbl, id = sample['image'], sample['label'], sample['image_id']
+            img_name = dataset.dataset.get_image_name()
+
+            # get predictions on image
+            pred, pred_class = self.infer_images(img)
+
+            # annotate image with predictions
+            img_out = self.show_image(img, lbl, pred, pred_class)
+
+            # write/save image
+            if save_dir is None:
+                save_dir = os.path.dirname(self._model_path)
+
+
+            predictions.append(pred)
+        return predictions
+
+
+# -----------------------------------------------------------------------------
+if __name__ == "__main__":
+
+    # main code
+    model_name = 'deepweeds_r50_2021-09-22-14-30'
+    model_path = os.path.join('output',
+                              model_name,
+                              'development_labels_trim',
+                              model_name + '.pth')
+    data_path = os.path.join(os.path.dirname(model_path), 'development_labels_trim.pkl')
+    img_dir = 'images'
+
+    # init object
+    DW = DeepweedsPlotModel(model_name=model_name,
+                            model_path=model_path,
+                            data_path=data_path,
+                            img_dir=img_dir)
+
+    # test loading data
+    dw_data = DW.load_data()
+
+    import code
+    code.interact(local=dict(globals(), **locals()))
+
+

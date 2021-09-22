@@ -5,11 +5,8 @@
 
 # conversion to script from early notebook exploration
 
-from __future__ import print_function, division
-from math import degrees
 import os
 
-import cv2 as cv
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -22,8 +19,7 @@ import pickle
 
 import code
 
-from PIL import Image
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import DataLoader
 from torchvision import utils, models
 
 # use tensorboard to see training in progress
@@ -39,26 +35,7 @@ torch.manual_seed(42)
 
 
 
-
-
 ############# functions #################
-
-
-def show_image(image, label):
-    """ show image with label """
-    if not isinstance(image, np.ndarray):
-        raise TypeError(image, 'invalid image input type (want np.ndarray)')
-    if not isinstance(label, np.integer):
-        raise TypeError(label, 'invalid label input type (want int)')
-    # if not isinstance(weed_name, str):
-    #     raise TypeError(weed_name, 'invalid type (want str)')
-
-    # show image
-    plt.imshow(image)
-    xy = (5, image.shape[1]/20)  # annotation offset from top-left corner
-    ann = str(label)  # + ': ' + weed_name
-    plt.annotate(ann, xy, color=(1, 0, 0))
-    plt.pause(0.001)
 
 
 # helper function to show a batch
@@ -180,6 +157,7 @@ def train_model(model,
     """
     start = time.time()
 
+    # how long/size of dataset
     if train_size is None:
         # a very rough approximation, but should hit the right ballpark
         train_size = len(train_dl) * train_dl.batch_size
@@ -361,61 +339,46 @@ if __name__ == "__main__":
     # save results
     # test on whole dataset
     # print final things
+    # TODO snapshots/checkpoints
 
+    # =========================================================================
+    # set folders/files
+    # =========================================================================
     # folder settings
-    model_folder = './models'
-    images_folder = './images'
-    labels_folder = './labels'
-    # save_path = './saved_model/testtraining/deepweeds_resnet50_train0.pth'
+    images_folder = 'images'
+    labels_folder = 'labels'
 
     # read labels
-    # labels_file = os.path.join(labels_folder, 'nonnegative_labels.csv')
     lbls_file = 'development_labels_trim.csv'
-    labels_file = os.path.join(labels_folder, lbls_file)
+    lbls_path = os.path.join(labels_folder, lbls_file)
 
-    # labels = pd.read_csv(labels_file)
+    # create unique name folder folder/model based on time of running this code
+    now = str(datetime.datetime.now())
+    nowstr = now[0:10] + '-' + now[11:13] + '-' + now[14:16]
+    model_name = 'deepweeds_r50_' + nowstr
+    model_folder = os.path.join('output', model_name)
+    os.makedirs(model_folder, exist_ok=True)
 
-    # classes
-    # see global?
-
-    # hyperparameters -->now taken from the DeepWeeds Paper
+    # =========================================================================
+    # set hyperparameters
+    # =========================================================================
+    # roughly taken from the DeepWeeds Paper
     num_epochs = 500
-    learning_rate = 0.001 # LR halved if val loss did not decrease after 16 epochs
-    momentum = 0.9
-    batch_size = 32 # TODO use batch size 32
+    learning_rate = 0.001 # originally 0.001, LR 1/2 if val loss did not decrease after 16 epochs
+    momentum = 0.9 # not specified
+    batch_size = 150 # 32 in paper can probably get away with more, 90 = 12/24 GB
     shuffle = True
     num_workers = 10
-    expsuffix = 'tbplots'
+    expsuffix = 'dev'
     acc_step_size = 5
     # TODO early stopping if val loss did not decrease after 32 epochs
 
-    # assuming an even class distribution, if we want training size of X/class, then we need
-    # X*8 images
-    print('classes: {}'.format(len(CLASSES)))
-    train_test_split = 0.9
+    # =========================================================================
+    # create datasets
+    # =========================================================================
 
-    # max images = 8403 * 0.8 / 8 = 840.3
-    # ntrain]  # last number should be ntrain
-    train_sizes = [500 * len(CLASSES)]
-    print('train size = {}'.format(train_sizes))
-
-    ntrain_times = 1
-
-    folder_num = 1  # folder number for training - sub-folder ID
-
-    # TODO could have also used the random_split()
-    # train_label_file = os.path.join(labels_folder, 'train_subset0.csv')
-    # val_label_file = os.path.join(labels_folder, 'val_subset0.csv')  # perhaps join these?
-    # test_label_file = os.path.join(labels_folder, 'test_subset0.csv')
-
-    # tforms = transforms.Compose([
-    #                             Rescale(256),
-    #                             RandomCrop(224),
-    #                             ToTensor()
-    #                             ])
-
-    # TODO actually, I think I have to write classes for each, because they return sample, rather than just image...
-    tforms = Compose([
+    # transforms
+    tforms_train = Compose([
         Rescale(256),
         RandomRotate(360),
         RandomResizedCrop(size=(224, 224), scale=(0.5, 1.0)),
@@ -425,259 +388,157 @@ if __name__ == "__main__":
         RandomHorizontalFlip(prob=0.5),
         ToTensor()
     ])
-    # full dataset
-    full_dataset = DeepWeedsDataset(csv_file=labels_file,
-                                    root_dir=images_folder,
-                                    transform=tforms)
-    nimg = len(full_dataset)
-    print('full_dataset length =', nimg)
 
-    # edit the dataset - remove the negative class:
-    # go through the csv file, make a new csv file with no labels from the negative class
-    # save the corresponding images
-    # copy over new set of images to a new folder?
+    full_data = DeepWeedsDataset(lbls_path, images_folder, tforms_train)
+    nimg = len(full_data)
+    print('full dataset length =', nimg)
 
-    # use random_split to break up train/val/test sets
-    # then further use random_split to break train into smaller and smaller sets
+    # set train/val/test split ratio
+    data_split = [0.6, 0.2, 0.2] # TODO ensure sums to 1
 
-    # first, take the largest training size, and split it into training and testing:
-    # choose ratio of 80/20 % for training/testing
+    nimg_train = int(round(nimg * data_split[0]))
+    nimg_val = int(round(nimg * data_split[1]))
+    nimg_test = nimg - nimg_train - nimg_val
 
-    ntrain = round(nimg * train_test_split)
+    print('n_train {}'.format(nimg_train))
+    print('n_test {}'.format(nimg_val))
+    print('n_val {}'.format(nimg_test))
 
-    train_dataset, test_dataset = torch.utils.data.random_split(
-        full_dataset, [ntrain, nimg - ntrain])
+    ds_train, ds_val, ds_test = torch.utils.data.random_split(full_data, [nimg_train, nimg_val, nimg_test])
 
-    # now we split up the original train_dataset into subdatasets
-    # each needs their training and validation datasets
-    train_val_split = 0.7
-    train_dataset_list = []
-    val_dataset_list = []
-    train_dataloader_list = []
-    val_dataloader_list = []
-    for i, ts in enumerate(train_sizes):
-        # first, we need to split the original train_dataset into train_sizes[i]
-        tsd = torch.utils.data.random_split(train_dataset,
-                                            [train_sizes[i], len(train_dataset) - train_sizes[i]])[0]
+    # csv files that dictate train/test/val
+    # lbls_train_file = lbls_file[:-4] + '_train.csv'
+    # lbls_val_file = lbls_file[:-4] + '_val.csv'
+    # lbls_test_file = lbls_file[:-4] + '_test.csv'
 
-        nt = round(train_sizes[i] * train_val_split)
-        nv = train_sizes[i] - nt
-        print(len(train_dataset))
-        print(train_sizes[i])
-        print(nt)
-        print(nv)
-        td, vd = torch.utils.data.random_split(tsd, [nt, nv])
+    # since we don't want to randomise the test set, just rescale to 224 and make a tensor
+    tforms_test = Compose([
+        Rescale(224),
+        ToTensor()
+    ])
+    ds_test.dataset.set_transform(tforms_test)
 
-        train_dataset_list.append(td)
-        val_dataset_list.append(vd)
-
-        # make dataloaders for each dataset
-        tdl = DataLoader(td,
+    # make dataloaders for each dataset
+    dl_train = DataLoader(ds_train,
+                     batch_size=batch_size,
+                     shuffle=True,
+                     num_workers=num_workers)
+    dl_val = DataLoader(ds_val,
+                     batch_size=batch_size,
+                     shuffle=True,
+                     num_workers=num_workers)
+    dl_test = DataLoader(ds_test,
                          batch_size=batch_size,
-                         shuffle=True,
-                         num_workers=num_workers)
-        vdl = DataLoader(vd,
-                         batch_size=batch_size,
-                         shuffle=True,
+                         shuffle=False,
                          num_workers=num_workers)
 
-        train_dataloader_list.append(tdl)
-        val_dataloader_list.append(vdl)
-
-    # testing
-    test_loader = DataLoader(test_dataset,
-                             batch_size=batch_size,
-                             shuffle=shuffle,
-                             num_workers=num_workers)
-    print('test_dataset length =', len(test_dataset))
-    print(f'validation dataset length = {len(vd)}')
-    print(f'traininh dataset length = {len(td)}')
     # save datasets and dataloader objects for future use:
-    save_dataset_objects = os.path.join('dataset_objects', lbls_file[:-4])
-    os.makedirs(save_dataset_objects, exist_ok=True)
-    save_dataset_path = os.path.join(
-        save_dataset_objects, lbls_file[:-4] + '.pkl')
-    with open(save_dataset_path, 'wb') as f:
-        # TODO should save the entire dataset as well
-        # pickle.dump(full_dataset, f)
-        pickle.dump(td, f)
-        pickle.dump(vd, f)
-        pickle.dump(test_dataset, f)
-        pickle.dump(tdl, f)
-        pickle.dump(vdl, f)
-        pickle.dump(test_loader, f)
+    save_data_dir = os.path.join(model_folder, lbls_file[:-4])
+    os.makedirs(save_data_dir, exist_ok=True)
+    save_data_path = os.path.join(save_data_dir, lbls_file[:-4] + '.pkl')
+    with open(save_data_path, 'wb') as f:
+        pickle.dump(full_data, f)
+        pickle.dump(ds_train, f)
+        pickle.dump(ds_val, f)
+        pickle.dump(ds_test, f)
+        pickle.dump(dl_train, f)
+        pickle.dump(dl_val, f)
+        pickle.dump(dl_test, f)
 
-    # code to iterate through dataset samples
-    # for i in range(len(train_dataset)):
-    #     sample = train_dataset[i]
-    #     img, lbl = sample['image'], sample['label']
-    #     print(i, img.shape, lbl)
-    #     print(type(img))
-    #     print(type(lbl))
-    #     print()
-    #     if i == 3:
-    #         break
-
-    # code to iterate through dataset using dataloader (converted to tensors)
-    # print('test label')
-    # for epoch in range(num_epochs):
-    #     print('epoch {}'.format(epoch))
-    #     running_loss = 0.0
-    #     for i, sample_batch in enumerate(train_loader):
-    #         imgs, lbls = sample_batch['image'].float(), sample_batch['label']
-
-    #         print('  ', i)
-    #         print('  imgs size =', imgs.size())
-    #         # print('  imgs type =', type(imgs))
-    #         print('  lbls =', lbls)
-    #         # print('  lbls type = ', type(lbls))
-
-    #         if i == 2:
-    #             break
+    # =========================================================================
+    # create datasets
+    # =========================================================================
 
     # define model
-    # try replacing the last layer by first removing the last layer
-    # short_model= nn.Sequential(*(list(original_model.children())[:-1]))
-    # print(short_model)
-    # classifier = nn.Sequential(OrderedDict([('fc1', nn.Linear(n_inputs, 8))]))
     train_loss_sizes = []
     val_loss_sizes = []
     save_paths = []
     model_acc_sizes = []
 
-    for i, training_step_size in enumerate(train_sizes):
-        train_loss_times = []
-        val_loss_times = []
-        model_acc_times = []
+    train_loss_times = []
+    val_loss_times = []
+    model_acc_times = []
 
-        for j in range(ntrain_times):
+    # define model (resnet 50, random initialised weights)
+    model = models.resnet50(pretrained=False)
+    model.fc = nn.Linear(in_features=2048, out_features=len(CLASSES), bias=True)
 
-            # define model (resnet 50, random initialised weights)
-            model = models.resnet50(pretrained=False)
-            model.fc = nn.Linear(in_features=2048, out_features=len(CLASSES), bias=True)
+    # model fron deep weeds, which was converted from keras to pytorch
+    # keras_model_path =
+    # model.load_state_dict()
 
-            # model fron deep weeds, which was converted from keras to pytorch
-            # keras_model_path =
-            # model.load_state_dict()
+    # select loss function and optimizer
+    # TODO consider adding weights to classes (eg Negative class?)
+    criterion = nn.CrossEntropyLoss()
+    optimizer = optim.SGD(model.parameters(), lr=learning_rate, momentum=momentum)
 
-            # select loss function and optimizer
-            # TODO consider adding weights to classes (eg Negative class)
-            criterion = nn.CrossEntropyLoss()
-            optimizer = optim.SGD(model.parameters(),
-                                  lr=learning_rate, momentum=momentum)
+    # generate save_path/name for each one
+    save_path = os.path.join(model_folder, model_name + '.pth')
 
-            # generate save_path/name for each one
-            # save_path = './saved_model/testtraining/deepweeds_resnet50_train0.pth'
-            save_folder = os.path.join(
-                'saved_model', 'development_training' + str(folder_num))
-            # if not os.path.isdir(save_folder):
-            #     os.mkdir(save_folder)
-            os.makedirs(save_folder, exist_ok=True)
-            save_path = os.path.join(save_folder, 'dw_r50_s' + str(
-                round(training_step_size/len(CLASSES))) + '_i' + str(j) + '_finetuned.pth')
+    # generate run name (for tensorboard)
+    expname = nowstr + '-' + expsuffix
+    # NOTE: model saved at end of train_model using save_path
+    train_loss, val_loss = train_model(model,
+                                       dl_train,
+                                       dl_val,
+                                       criterion,
+                                       optimizer,
+                                       acc_metric,
+                                       train_size=len(ds_train),
+                                       val_size=len(ds_val),
+                                       num_epochs=num_epochs,
+                                       save_path=save_path,
+                                       expname=expname,
+                                       acc_step_size=acc_step_size)
 
-            print(save_path)
+    # evaluate model using the test set:
+    model.eval()
 
-            # generate run name (for tensorboard)
-            now = str(datetime.datetime.now())
-            expname = now[0:10] + '_' + now[11:13] + \
-                '-' + now[14:16] + '-' + expsuffix
-            # NOTE: model saved at end of train_model using save_path
-            train_loss_i, val_loss_i = train_model(model,
-                                                   train_dataloader_list[i],
-                                                   val_dataloader_list[i],
-                                                   criterion,
-                                                   optimizer,
-                                                   acc_metric,
-                                                   train_size=len(
-                                                       train_dataset_list[i]),
-                                                   val_size=len(
-                                                       val_dataset_list[i]),
-                                                   num_epochs=num_epochs,
-                                                   save_path=save_path,
-                                                   expname=expname,
-                                                   acc_step_size=acc_step_size)
+    dataiter = next(iter(dl_test))
+    images, labels = dataiter['image'], dataiter['label']
+    nimg = len(images)
+    print(images.size())
+    print(labels)
+    print('Groundtruth: ', ' '.join('%5s' %
+            CLASSES[labels[j]] for j in range(nimg)))
 
-            # evaluate model using the test set:
-            model.eval()
+    outputs = model(images.float().cuda())
+    _, predicted = torch.max(outputs, 1)
+    print('Predicted: ', ' '.join('%5s' %
+            CLASSES[predicted[j]] for j in range(nimg)))
 
-            dataiter = next(iter(test_loader))
-            images, labels = dataiter['image'], dataiter['label']
-            nimg = len(images)
-            print(images.size())
-            print(labels)
-            print('Groundtruth: ', ' '.join('%5s' %
-                  CLASSES[labels[j]] for j in range(nimg)))
+    # plot to tensorboard
+    # create grid of images
+    # img_grid = torchvision.utils.make_grid(images)
+    # write to tensorboard
+    # show_image_grid(images, labels, predicted)
+    # test entire network:
+    correct = 0
+    total = 0
 
-            outputs = model(images.float().cuda())
-            _, predicted = torch.max(outputs, 1)
-            print('Predicted: ', ' '.join('%5s' %
-                  CLASSES[predicted[j]] for j in range(nimg)))
+    # use gpu if available
+    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    # assume that model.to(device) already on the GPU from training
 
-            # plot to tensorboard
-            # create grid of images
-            # img_grid = torchvision.utils.make_grid(images)
-            # write to tensorboard
-            # show_image_grid(images, labels, predicted)
-            # test entire network:
-            correct = 0
-            total = 0
+    with torch.no_grad():
+        for data in dl_test:
+            images, labels = data['image'].float(), data['label']
+            if torch.cuda.is_available():
+                images = images.to(device)
+                labels = labels.to(device)
+            outputs = model(images)
+            _, predicted = torch.max(outputs.data, 1)
+            total += labels.size(0)
+            correct += (predicted == labels).sum().item()
+    model_acc = 100 * correct / total
+    print('Accuracy of network on {} test images: {}'.format(total, model_acc))
 
-            # use gpu if available
-            device = torch.device(
-                'cuda:0' if torch.cuda.is_available() else 'cpu')
-            # print(device)
-            # if torch.cuda.is_available():
-            #     model.to(device)
-            # assume that model.to(device) already on the GPU from training
-
-            with torch.no_grad():
-                for data in test_loader:
-                    images, labels = data['image'].float(), data['label']
-                    if torch.cuda.is_available():
-                        images = images.to(device)
-                        labels = labels.to(device)
-                    outputs = model(images)
-                    _, predicted = torch.max(outputs.data, 1)
-                    total += labels.size(0)
-                    correct += (predicted == labels).sum().item()
-            model_acc = 100 * correct / total
-            print('Accuracy of network on {} test images: {}'.format(
-                total, model_acc))
-
-            # save the training and loss numbers
-            train_loss_times.append(train_loss_i)
-            val_loss_times.append(val_loss_i)
-            save_paths.append(save_path)
-            model_acc_times.append(model_acc)
-
-            # del model
-
-            # import code
-            # code.interact(local=dict(globals(), **locals()))
-
-        train_loss_sizes.append(train_loss_times)
-        val_loss_sizes.append(val_loss_times)
-        model_acc_sizes.append(model_acc_times)
-
-    # save train_loss_sizes and val_loss_sizes just in case:
-    save_tv_path = os.path.join('.', 'saved_model', 'training' + str(
-        folder_num), 'dw_train_val_losses' + str(folder_num) + '.pkl')
+     # save train_loss_sizes and val_loss_sizes just in case:
+    save_tv_path = os.path.join(model_folder, model_name + '_losses.pkl')
     with open(save_tv_path, 'wb') as f:
         pickle.dump(train_loss_sizes, f)
         pickle.dump(val_loss_sizes, f)
         pickle.dump(model_acc_sizes, f)
-
-    # load model, assuming it has been saved in save_path
-    # TODO put an "if it exists statement"
-    # TODO load from save_paths[i]
-    # model.load_state_dict(torch.load(save_path))
-
-    # print out size of all variables in bytes:
-    # we are looking for ones outrageously large
-    # local_vars = list(locals().items())
-    # for var, obj in local_vars:
-    #     print(var, sys.getsizeof(obj))
 
     import code
     code.interact(local=dict(globals(), **locals()))

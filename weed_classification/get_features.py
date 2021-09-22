@@ -9,7 +9,7 @@ Attempt to get featurees out of deep weeds classifier model using register hooks
 # feature extractor
 # run model forward pass
 
-# from show_class_distribution import CLASS_COLOURS
+# from show_class_distribution import CLASS_COLORS
 import torch
 import os
 import numpy as np
@@ -24,8 +24,9 @@ from PIL import Image
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils, models
 
-from classifier_deepweeds import DeepWeedsDataset as DWD
-from classifier_deepweeds import Rescale, RandomCrop, ToTensor
+from deepweeds_dataset import DeepWeedsDataset, Rescale, RandomAffine, RandomColorJitter, RandomPixelIntensityScaling
+from deepweeds_dataset import RandomHorizontalFlip, RandomRotate, RandomResizedCrop, ToTensor, Compose
+from deepweeds_dataset import CLASSES, CLASS_NAMES
 
 from typing import Dict, Iterable, Callable
 
@@ -90,7 +91,7 @@ class FeatureExtractor(nn.Module):
 def scale_to_range(x):
     # compute distribution range
     value_range = (np.max(x) - np.min(x))
-    
+
     # move distribution start zero
     starts_zero = x - np.min(x)
 
@@ -100,41 +101,33 @@ def scale_to_range(x):
 
 
 
-########### classes #############
-CLASSES = (0, 1, 2, 3, 4, 5, 6, 7)
-CLASS_NAMES = ('Chinee apple',
-                'Lantana',
-                'Parkinsonia',
-                'Parthenium',
-                'Prickly acacia',
-                'Rubber vine',
-                'Siam weed',
-                'Snake weed')
-CLASS_DICT = {i: CLASS_NAMES[i] for i in range(0, len(CLASSES))}
-# set colours for histogram based on ones used in paper
+# set colors for histogram based on ones used in paper
     # RGB
-pink = np.r_[255, 105,180]/255
-blue = np.r_[0, 0, 255]/255
-green = np.r_[0, 255, 0]/255
-yellow = np.r_[255, 255, 0]/255
-cyan = np.r_[0, 255, 255]/255
-red = np.r_[255, 0, 0]/255
-purple = np.r_[128, 0, 128]/255
-orange = np.r_[255, 127, 80]/255
-CLASS_COLOURS = [pink,
-                blue,
-                green,
-                yellow,
-                cyan,
-                red,
-                purple,
-                orange]
+
+# pink = np.r_[255, 105,180]/255
+# blue = np.r_[0, 0, 255]/255
+# green = np.r_[0, 255, 0]/255
+# yellow = np.r_[255, 255, 0]/255
+# cyan = np.r_[0, 255, 255]/255
+# red = np.r_[255, 0, 0]/255
+# purple = np.r_[128, 0, 128]/255
+# orange = np.r_[255, 127, 80]/255
+# grey = np.r_[175, 175, 175]/255
+# CLASS_COLORS = [pink,
+#                 blue,
+#                 green,
+#                 yellow,
+#                 cyan,
+#                 red,
+#                 purple,
+#                 orange,
+#                 grey]
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
 # load model
-model_location = os.path.join('saved_model', 'training1')
-model_name = 'dw_r50_s200_i0.pth'
+model_location = os.path.join('saved_model', 'development_training1')
+model_name = 'dw_r50_s500_i0.pth'
 model_path = os.path.join(model_location, model_name)
 
 model = models.resnet50(pretrained=False)
@@ -146,17 +139,17 @@ model.eval()
 # verbose_resnet = VerboseExecution(model())
 
 # for now, run it on everything
-img_dir = 'nonnegative_images'
+img_dir = 'images'
 img_list = os.listdir(img_dir)
 lbl_dir = 'labels'
-labels_file = os.path.join(lbl_dir, 'nonnegative_labels.csv')
+labels_file = os.path.join(lbl_dir, 'development_labels_trim.csv')
 
 # i = 0
 # img_name = img_list[i]
 # img_path = os.path.join(img_dir, img_name)
 
-tforms = transforms.Compose([Rescale(256), RandomCrop(224), ToTensor()])
-dataset = DWD(labels_file, img_dir, tforms)
+tforms = Compose([Rescale(256), RandomResizedCrop(size=(224, 224)), ToTensor()])
+dataset = DeepWeedsDataset(labels_file, img_dir, tforms)
 nimg = len(dataset)
 print('dataset length =', nimg)
 
@@ -210,7 +203,7 @@ with torch.no_grad():
 features = np.array(features)
 
 # get tsne
-n_components = 2
+n_components = 3
 tsne = TSNE(n_components=n_components).fit_transform(features)
 
 # print({name: output.shape for name, output in features.items()})
@@ -224,6 +217,8 @@ elif n_components == 3:
 else:
     print('error: more n_components not yet implemented')
 
+colors = ['pink', 'blue', 'green', 'yellow', 'cyan', 'red', 'purple', 'orange', 'grey']
+
 if TWO_DIM:
     # extract x, y coords representing image position on tsne plot
     tx = tsne[:, 0]
@@ -236,7 +231,7 @@ if TWO_DIM:
     fig = plt.figure()
     ax = fig.add_subplot(111)
 
-    for cls in CLASSES:
+    for cls in CLASSES[::-1]:
         # find samples in current class
         idx = [i for i, l in enumerate(lbls) if l == cls]
 
@@ -244,17 +239,17 @@ if TWO_DIM:
         current_tx = np.take(tx, idx)
         current_ty = np.take(ty, idx)
 
-        # convert class color to matplotlib format
-        colour = CLASS_COLOURS[cls]
-
         # add scatter plot
-        ax.scatter(current_tx, current_ty, c=colour, label=CLASS_NAMES[cls])
+        if CLASS_NAMES[cls] == 'Negative':
+            ax.scatter(current_tx, current_ty, c=colors[cls], label=CLASS_NAMES[cls], alpha=0.1)
+        else:
+            ax.scatter(current_tx, current_ty, c=colors[cls], label=CLASS_NAMES[cls], alpha=0.5)
 
     # build legend
     ax.legend(loc='best')
 
     # show
-    plt.show()
+    # plt.show()
 
 elif THREE_DIM:
     # extract x, y coords representing image position on tsne plot
@@ -279,17 +274,21 @@ elif THREE_DIM:
         current_ty = np.take(ty, idx)
         current_tz = np.take(tz, idx)
 
-        # convert class color to matplotlib format
-        colour = CLASS_COLOURS[cls]
-
         # add scatter plot
-        ax.scatter(current_tx, current_ty, current_tz, c=colour, label=CLASS_NAMES[cls])
+        if CLASS_NAMES[cls] == 'Negative':
+            ax.scatter(current_tx, current_ty, current_tz, c=colors[cls], label=CLASS_NAMES[cls], alpha=0.1)
+        else:
+            ax.scatter(current_tx, current_ty, current_tz, c=colors[cls], label=CLASS_NAMES[cls])
 
     # build legend
     ax.legend(loc='best')
 
     # show
-    plt.show()
+    # plt.show()
+
+base_name = os.path.basename(labels_file)
+save_img_path = os.path.join('output', base_name[:-4] + '_features3D.png')
+plt.savefig(save_img_path)
 
 import code
 code.interact(local=dict(globals(), **locals()))

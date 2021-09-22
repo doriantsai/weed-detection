@@ -21,7 +21,7 @@ class DeepWeedsDataset(Dataset):
         # csv_file (string): Path to csv file with labels
         # root_dir (string): Directory with all images
         # transform (callable, opt): Transform to be applied to sample
-
+        print(csv_file)
         self.weed_frame = pd.read_csv(csv_file)
         self.root_dir = root_dir
         self.transform = transform
@@ -32,7 +32,7 @@ class DeepWeedsDataset(Dataset):
     def __getitem__(self, idx):
         if torch.is_tensor(idx):
             idx = idx.tolist()
-        img_name = os.path.join(self.root_dir, self.weed_frame.iloc[idx, 0])
+        img_name = self.get_image_name()
         image = Image.open(img_name)
         label = self.weed_frame.iloc[idx, 1]
 
@@ -44,6 +44,16 @@ class DeepWeedsDataset(Dataset):
             sample = self.transform(sample)
 
         return sample
+
+    def get_image_name(self, idx):
+        return os.path.join(self.root_dir, self.weed_frame.iloc[idx, 0])
+
+    # getter/setter for transforms
+    def set_transform(self, transform=None):
+        self.transform = transform
+
+    def get_transform(self):
+        return self.transform
 
 
 class Rescale(object):
@@ -128,7 +138,7 @@ class RandomResizedCrop(object):
 
 
 class RandomColorJitter(object):
-    """ randomly jitter colour """
+    """ randomly jitter color """
 
     def __init__(self, brightness=0, hue=0, contrast=0, saturation=0):
         self._brightness = brightness
@@ -138,7 +148,7 @@ class RandomColorJitter(object):
 
     def __call__(self, sample):
         image, label, id = sample['image'], sample['label'], sample['image_id']
-        ColorJitter = transforms.ColorJitter(brightness=self._brightness, 
+        ColorJitter = transforms.ColorJitter(brightness=self._brightness,
                                              contrast=self._contrast,
                                              saturation=self._saturation,
                                              hue=self._hue)
@@ -195,19 +205,19 @@ class RandomPixelIntensityScaling(object):
         # else
         # just return normal
         # if random.random() >= self.prob:
-            
-            
+
+
             # random scale factor between the two min/max values
         scale = random.uniform(self.scale_min, self.scale_max)
         # scale image data
         img = tvtransfunc.adjust_brightness(img, scale)
         # img = np.array(img, np.float32) * float(scale)
-        # # fix min/max, since 
+        # # fix min/max, since
         # img = Image.fromarray(img)
         return {'image': img, 'label': label, 'image_id': id}
 
 
-# TODO rotation, then  scaled horz/vert, each colour channel shifted
+# TODO rotation, then  scaled horz/vert, each color channel shifted
 # can't we just call torchvision.transforms.RandomX?
 # class RandomHorizontalFlip(object):
 #     """ random horizontal flip """
@@ -221,7 +231,7 @@ class RandomPixelIntensityScaling(object):
 #         self.prob = prob
 
 # class RandomColourJitter(object):
-#     """ randomly shift pixel intensity, colour"""
+#     """ randomly shift pixel intensity, color"""
 #     # sere torchvision.transforms.ColorJitter(brightness)
 #     def __init__(self, prob):
 #         self.prob = prob
@@ -277,3 +287,25 @@ CLASS_NAMES = ('Chinee apple',
                 'Snake weed',
                 'Negative')
 CLASS_DICT = {i: CLASS_NAMES[i] for i in range(0, len(CLASSES))}
+
+CLASS_COLORS = ['pink', 'blue', 'green', 'yellow', 'cyan', 'red', 'purple', 'orange', 'grey']
+
+pink = np.r_[255, 105, 180]/255
+blue = np.r_[0, 0, 255]/255
+green = np.r_[0, 255, 0]/255
+yellow = np.r_[255, 255, 0]/255
+cyan = np.r_[0, 255, 255]/255
+red = np.r_[255, 0, 0]/255
+purple = np.r_[135, 0, 135]/255
+orange = np.r_[255, 127, 80]/255
+grey = np.r_[175, 175, 175]/255
+CLASS_COLOR_ARRAY = [pink,
+                      blue,
+                      green,
+                      yellow,
+                      cyan,
+                      red,
+                      purple,
+                      orange,
+                      grey]
+

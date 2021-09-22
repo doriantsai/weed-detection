@@ -55,7 +55,7 @@ CLASS_NAMES = ('Chinee apple',
 CLASSES = np.arange(0, len(CLASS_NAMES))
 CLASS_DICT = {i: CLASS_NAMES[i] for i in range(0, len(CLASSES))}
 
-# set colours for histogram based on ones used in paper
+# set colors for histogram based on ones used in paper
     # RGB
 pink = np.r_[255, 105,180]/255
 blue = np.r_[0, 0, 255]/255
@@ -66,7 +66,7 @@ red = np.r_[255, 0, 0]/255
 purple = np.r_[135, 0, 135]/255
 orange = np.r_[255, 127, 80]/255
 grey = np.r_[100, 100, 100]/255
-CLASS_COLOURS = [pink,
+CLASS_COLORS = [pink,
                 blue,
                 green,
                 yellow,
@@ -122,14 +122,14 @@ N1, bins1, patches1 = ax1.hist(dev_arr, bins=binboundary)
 N2, bins2, patches2 = ax2.hist(dep_arr, bins=binboundary)
 
 for i, thispatch in enumerate(patches1):
-    thispatch.set_facecolor(CLASS_COLOURS[i])
+    thispatch.set_facecolor(CLASS_COLORS[i])
 
 ax1.set_xlabel('classes')
 ax1.set_ylabel('image count')
 ax1.set_title('class distribution: development')
 
 for i, thispatch in enumerate(patches2):
-    thispatch.set_facecolor(CLASS_COLOURS[i])
+    thispatch.set_facecolor(CLASS_COLORS[i])
 ax2.set_xlabel('classes')
 ax2.set_ylabel('image count')
 ax2.set_title('class distribution: deployment')
@@ -206,14 +206,14 @@ N1, bins1, patches1 = ax1.hist(dev_ex_arr, bins=binboundary)
 N2, bins2, patches2 = ax2.hist(dep_ex_arr, bins=binboundary)
 
 for i, thispatch in enumerate(patches1):
-    thispatch.set_facecolor(CLASS_COLOURS[i])
+    thispatch.set_facecolor(CLASS_COLORS[i])
 
 ax1.set_xlabel('classes')
 ax1.set_ylabel('image count')
 ax1.set_title('class distribution: development')
 
 for i, thispatch in enumerate(patches2):
-    thispatch.set_facecolor(CLASS_COLOURS[i])
+    thispatch.set_facecolor(CLASS_COLORS[i])
 ax2.set_xlabel('classes')
 ax2.set_ylabel('image count')
 ax2.set_title('class distribution: deployment')

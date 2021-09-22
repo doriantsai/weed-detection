@@ -27,7 +27,7 @@ CLASS_NAMES = ('Chinee apple',
 CLASSES = np.arange(0, len(CLASS_NAMES))
 CLASS_DICT = {i: CLASS_NAMES[i] for i in range(0, len(CLASSES))}
 
-# set colours for histogram based on ones used in paper
+# set colors for histogram based on ones used in paper
     # RGB
 pink = np.r_[255, 105,180]/255
 blue = np.r_[0, 0, 255]/255
@@ -38,7 +38,7 @@ red = np.r_[255, 0, 0]/255
 purple = np.r_[135, 0, 135]/255
 orange = np.r_[255, 127, 80]/255
 grey = np.r_[100, 100, 100]/255
-CLASS_COLOURS = [pink,
+CLASS_COLORS = [pink,
                 blue,
                 green,
                 yellow,
@@ -64,7 +64,7 @@ fig, ax = plt.subplots(1, 1, tight_layout=True)
 N, bins, patches = ax.hist(lbls_arr, bins=np.arange(0, len(CLASSES)+1))
 
 for i, thispatch in enumerate(patches):
-    thispatch.set_facecolor(CLASS_COLOURS[i])
+    thispatch.set_facecolor(CLASS_COLORS[i])
 plt.xlabel('classes')
 plt.ylabel('image count')
 plt.title('class distribution before trim: ' + lbl_file)
@@ -113,7 +113,7 @@ for i, c in enumerate(CLASSES): # here, we do not trim the negative class cases
         print(f'trimmed idx len: {len(idx_trim_class)}')
         idxs_trim_by_class.append(idx_trim_class)
 
-    
+
 
 
 
