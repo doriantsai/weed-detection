@@ -886,7 +886,7 @@ class WeedModel:
                 # for each prediction, if there is a sample, then there is a
                 # known outcome being an array from 1-4:
                 outcome_list = ['TP', 'FP', 'FN', 'TN']
-                # choose colour scheme default: blue is groundtruth default: red
+                # choose color scheme default: blue is groundtruth default: red
                 # is detection -> red is false negative green is true positive
                 # yellow is false positive
                 outcome_color = [(0, 255, 0),   # TP - green
@@ -1074,18 +1074,18 @@ class WeedModel:
 
 
     def show_mask(self,
-                    image,
-                    sample=None,
-                    predictions=None,
-                    outcomes=None,
-                    sample_color=(0, 0, 255), # RGB
-                    predictions_color=(255, 0, 0),
-                    iou_color=(255, 255, 255),
-                    transpose_image_channels=True,
-                    transpose_color_channels=False,
-                    resize_image=False,
-                    resize_height=(256),
-                    mask_threshold = 0.5):
+                  image,
+                  sample=None,
+                  predictions=None,
+                  outcomes=None,
+                  sample_color=(0, 0, 255),  # RGB
+                  predictions_color=(255, 0, 0),
+                  iou_color=(255, 255, 255),
+                  transpose_image_channels=True,
+                  transpose_color_channels=False,
+                  resize_image=False,
+                  resize_height=(256),
+                  mask_threshold=0.5):
         """ show image, sample/groundtruth, model predictions, outcomes
         (TP/FP/etc) """
         # TODO rename "show" to something like "create_plot" or "markup", as we
@@ -1182,7 +1182,7 @@ class WeedModel:
                     # code.interact(local=dict(globals(), **locals()))
                     # mask = np.transpose(mask, (1, 2, 0))
                     # image_overlay = image_out.copy()
-                    # make mask a coloured image, as opposed to a binary thing
+                    # make mask a colored image, as opposed to a binary thing
                     # mask2 = cv.cvtColor(mask, cv.COLOR_GRAY2BGR)
 
                     # mask2[:,:,0] = mask2[:,:,0] * sample_mask_color[0] # BGR
@@ -1307,7 +1307,7 @@ class WeedModel:
                 # for each prediction, if there is a sample, then there is a
                 # known outcome being an array from 1-4:
                 outcome_list = ['TP', 'FP', 'FN', 'TN']
-                # choose colour scheme default: blue is groundtruth default: red
+                # choose color scheme default: blue is groundtruth default: red
                 # is detection -> red is false negative green is true positive
                 # yellow is false positive
                 outcome_color = [(0, 255, 0),   # TP - green
