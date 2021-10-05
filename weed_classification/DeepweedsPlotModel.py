@@ -157,7 +157,7 @@ class DeepweedsPlotModel(object):
                    img,
                    lbl=None,
                    pred=None,
-                   pred_class=None,
+                   pred_conf=None,
                    img_name=None,
                    save_dir=None,
                    save_img=False):
@@ -203,10 +203,10 @@ class DeepweedsPlotModel(object):
                        color=CLASS_COLOR_ARRAY[lbl],
                        thickness=font_thick)
 
-        if (pred is not None) and (pred_class is not None):
-            pred_sc = format(pred * 100.0, '.0f') # prediction score %, no decimals
+        if (pred is not None) and (pred_conf is not None):
+            pred_sc = format(pred_conf * 100.0, '.0f') # prediction score %, no decimals
             if lbl is not None:
-                if pred_class == lbl:
+                if pred == lbl:
                     text_color = pred_color_right
                 else:
                     text_color = pred_color_wrong
@@ -214,9 +214,9 @@ class DeepweedsPlotModel(object):
                 text_color = pred_color_neutral
 
             cv.putText(img_out,
-                       'pred: {}, {}'.format(CLASS_NAMES[pred_class], pred_sc),
+                       'pred: {}, {}'.format(CLASS_NAMES[pred], pred_sc),
                        (int(5), int(img.shape[1]/20 + 30)),
-                       fontfACE=cv.FONT_HERSHEY_COMPLEX,
+                       fontFace=cv.FONT_HERSHEY_COMPLEX,
                        fontScale=font_scale,
                        color=text_color,
                        thickness=font_thick)
@@ -224,11 +224,13 @@ class DeepweedsPlotModel(object):
         if save_img:
             if save_dir is None:
                 save_dir = os.path.join('output')
-            save_img_name = os.path.join(save_dir, img_name + '_pred.png')
+            save_img_name = os.path.join(save_dir, os.path.basename(img_name)[:-4] + '_pred.png')
+            print(save_img_name)
             img_out_bgr = cv.cvtColor(img_out, cv.COLOR_RGB2BGR)
             cv.imwrite(save_img_name, img_out_bgr)
 
         return img_out
+
 
     def infer_images(self, imgs):
         """ generates predictions and corresponding confidence scores from
@@ -259,26 +261,22 @@ class DeepweedsPlotModel(object):
         self._model.eval()
 
         with torch.no_grad():
-            imgs_batch.to(self._device)
+            imgs_batch = imgs_batch.to(self._device)
             self._model.to(self._device)
-            print('debug at infer_images_batch before inference')
-            import code
-            code.interact(local=dict(globals(), **locals()))
+            
             outs = self._model(imgs_batch)
 
-        # convert output confidences to predicted classes
-        _, preds = torch.max(outs, 1)
-        preds = np.squeeze(preds.cpu().numpy())
+            # convert output confidences to predicted classes
+            _, preds = torch.max(outs, 1)
+            preds = np.squeeze(preds.cpu().numpy())
 
-        # classes
-        pred_classes = [torchf.softmax(el, dim=0)[i].item() for i, el in zip(preds, outs)]
-
-        return preds, pred_classes
+            # classes
+            pred_confidences = [torchf.softmax(el, dim=0)[i].item() for i, el in zip(preds, outs)]
+        return preds, pred_confidences
 
 
     def infer_data(self, dataloader, save_dir=None):
         """ method to take a dataset, output images/predictions """
-        # TODO should iterate over dataloader --> faster
 
         print('number of batches of images to infer: {}'.format(len(dataloader)))
         predictions = []
@@ -287,7 +285,7 @@ class DeepweedsPlotModel(object):
             img_names = [dataloader.dataset.dataset.get_image_name(i.item()) for i in ids]
 
             # get predictions on image
-            pred, pred_class = self.infer_images_batch(imgs)
+            pred, pred_conf = self.infer_images_batch(imgs)
 
             # annotate image with predictions
             if save_dir is None:
@@ -296,18 +294,13 @@ class DeepweedsPlotModel(object):
                 save_img = True
 
             for i, img in enumerate(imgs):
-                lbl = lbls[i]
-                img_name = img_names[i]
                 _ = self.show_image(img, 
-                                    lbl, 
-                                    pred, 
-                                    pred_class, 
+                                    lbls[i], 
+                                    pred[i], 
+                                    pred_conf[i], 
                                     save_dir=save_dir, 
                                     save_img=save_img, 
-                                    img_name=img_name)
-
-            # write/save image
-            # handled in show_image()
+                                    img_name=img_names[i])
 
             predictions.append(pred)
         return predictions
@@ -317,7 +310,8 @@ class DeepweedsPlotModel(object):
 if __name__ == "__main__":
 
     # main code
-    model_name = 'deepweeds_r50_2021-09-22-14-30'
+    # model_name = 'deepweeds_r50_2021-09-22-14-30'\
+    model_name = 'deepweeds_r50_2021-10-05-21-19'
     model_path = os.path.join('output',
                               model_name,
                               model_name + '.pth')
@@ -338,7 +332,8 @@ if __name__ == "__main__":
 
     # test loading data
     dw_data = DW.load_data()
-    pred = DW.infer_data(dw_data['dl_train'])
+    print(os.path.dirname(model_path))
+    pred = DW.infer_data(dw_data['dl_train'], save_dir=os.path.dirname(model_path))
 
 
     import code
