@@ -32,7 +32,7 @@ class DeepWeedsDataset(Dataset):
     def __getitem__(self, idx):
         if torch.is_tensor(idx):
             idx = idx.tolist()
-        img_name = self.get_image_name()
+        img_name = self.get_image_name(idx)
         image = Image.open(img_name)
         label = self.weed_frame.iloc[idx, 1]
 

@@ -16,6 +16,7 @@ import torch
 import torch.nn.functional as torchf
 import pickle as pkl
 import cv2 as cv
+from torchvision import utils, models
 
 
 class DeepweedsPlotModel(object):
@@ -29,18 +30,27 @@ class DeepweedsPlotModel(object):
                  lbl_file=None,
                  device=None):
 
+        if device is None:
+            device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+        self._device = device
+
         self._model_name = model_name
         self._model_path = model_path
+
+
+        # load model
+        if model is None and model_path is not None:
+            self.load_model()
+        else:
+            self._model = model
 
         # TODO load the model?
         self._data_path = data_path
         self._img_dir = img_dir
         self._lbl_file = lbl_file
-        self._model = model
+        
 
-        if device is None:
-            device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-        self._device = device
+        
 
     # getters
     def get_model_name(self):
@@ -67,8 +77,7 @@ class DeepweedsPlotModel(object):
         self._model_name = model_name
 
     def set_model_path(self, model_path):
-        # todo make sure is path
-        self._model_path = model_path
+        self._model_path = os.path.join(model_path)
         # todo automatically load the model?
 
     def set_model(self, model):
@@ -83,6 +92,7 @@ class DeepweedsPlotModel(object):
     def set_lbl_file(self, lbl_file):
         self._lbl_file = lbl_file
 
+
     def load_data(self, data_path=None):
         """ loads data path"""
 
@@ -95,21 +105,53 @@ class DeepweedsPlotModel(object):
         else:
             if os.path.isfile(data_path):
                 with open(self._data_path, 'rb') as f:
-                    dw_data_dict = pkl.load(f)
-                    # full_data = pkl.load(f)
-                    # ds_train = pkl.load(f)
-                    # ds_val = pkl.load(f)
-                    # ds_test = pkl.load(f)
-                    # dl_train = pkl.load(f)
-                    # dl_val = pkl.load(f)
-                    # dl_test = pkl.load(f)
-                return dw_data_dict
+                    # dw_data_dict = pkl.load(f)
+                    full_data = pkl.load(f)
+                    ds_train = pkl.load(f)
+                    ds_val = pkl.load(f)
+                    ds_test = pkl.load(f)
+                    dl_train = pkl.load(f)
+                    dl_val = pkl.load(f)
+                    dl_test = pkl.load(f)
+
+                    dw_data = {'full_data': full_data,
+                                'ds_train': ds_train,
+                                'ds_val': ds_val,
+                                'ds_test': ds_test,
+                                'dl_train': dl_train,
+                                'dl_val': dl_val,
+                                'dl_test': dl_test}
+                return dw_data
 
             else:
                 print('Error: data_path is not a file')
                 print(f'data_path = {data_path}')
                 return False
 
+
+    def build_model(self, in_features=2048, out_features=len(CLASSES), bias=True):
+        model = models.resnet50(pretrained=True)
+        model.fc = torch.nn.Linear(in_features=in_features, out_features=out_features, bias=bias)
+        # self._model = model
+        self.set_model(model)
+
+
+    def load_model(self, model_path=None, model_name='resnet50'):
+        """ load model path """
+        if model_path is None and self._model_path is None:
+            print('Error: no valid model path')
+            return False
+        elif model_path is None:
+            model_path = self._model_path
+        else:
+            model_path = model_path
+
+        self.build_model()
+        self._model.load_state_dict(torch.load(model_path))
+        print('loaded model: {}'.format(model_path))
+        self._model.to(self._device)
+        self._model_name = model_name
+        
 
     def show_image(self,
                    img,
@@ -188,13 +230,16 @@ class DeepweedsPlotModel(object):
 
         return img_out
 
-
     def infer_images(self, imgs):
         """ generates predictions and corresponding confidence scores from
         trained network and list of images"""
+        # TODO doesn't work yet 
 
         self._model.eval()
         with torch.no_grad():
+            print('debug at infer_image')
+            import code
+            code.interact(local=dict(globals(), **locals()))
             outs = self._model(imgs)
 
         # convert output confidences to predicted classes
@@ -207,26 +252,62 @@ class DeepweedsPlotModel(object):
         return preds, pred_classes
 
 
-    def infer_data(self, dataset):
-        """ method to take a dataset, output images/predictions """
-        # TODO should do for dataloader --> faster
+    def infer_images_batch(self, imgs_batch):
+        """ generates predictions and corresponding confidence scores from
+        trained network and batch of images """
 
-        print('number of images to infer: {}'.format(len(dataset)))
+        self._model.eval()
+
+        with torch.no_grad():
+            imgs_batch.to(self._device)
+            self._model.to(self._device)
+            print('debug at infer_images_batch before inference')
+            import code
+            code.interact(local=dict(globals(), **locals()))
+            outs = self._model(imgs_batch)
+
+        # convert output confidences to predicted classes
+        _, preds = torch.max(outs, 1)
+        preds = np.squeeze(preds.cpu().numpy())
+
+        # classes
+        pred_classes = [torchf.softmax(el, dim=0)[i].item() for i, el in zip(preds, outs)]
+
+        return preds, pred_classes
+
+
+    def infer_data(self, dataloader, save_dir=None):
+        """ method to take a dataset, output images/predictions """
+        # TODO should iterate over dataloader --> faster
+
+        print('number of batches of images to infer: {}'.format(len(dataloader)))
         predictions = []
-        for sample in dataset:
-            img, lbl, id = sample['image'], sample['label'], sample['image_id']
-            img_name = dataset.dataset.get_image_name()
+        for data in dataloader:
+            imgs, lbls, ids = data['image'], data['label'], data['image_id']            
+            img_names = [dataloader.dataset.dataset.get_image_name(i.item()) for i in ids]
 
             # get predictions on image
-            pred, pred_class = self.infer_images(img)
+            pred, pred_class = self.infer_images_batch(imgs)
 
             # annotate image with predictions
-            img_out = self.show_image(img, lbl, pred, pred_class)
+            if save_dir is None:
+                save_img = False
+            else:
+                save_img = True
+
+            for i, img in enumerate(imgs):
+                lbl = lbls[i]
+                img_name = img_names[i]
+                _ = self.show_image(img, 
+                                    lbl, 
+                                    pred, 
+                                    pred_class, 
+                                    save_dir=save_dir, 
+                                    save_img=save_img, 
+                                    img_name=img_name)
 
             # write/save image
-            if save_dir is None:
-                save_dir = os.path.dirname(self._model_path)
-
+            # handled in show_image()
 
             predictions.append(pred)
         return predictions
@@ -239,9 +320,12 @@ if __name__ == "__main__":
     model_name = 'deepweeds_r50_2021-09-22-14-30'
     model_path = os.path.join('output',
                               model_name,
-                              'development_labels_trim',
                               model_name + '.pth')
-    data_path = os.path.join(os.path.dirname(model_path), 'development_labels_trim.pkl')
+
+
+    data_path = os.path.join(os.path.dirname(model_path), 
+                            'development_labels_trim', 
+                            'development_labels_trim.pkl')
     img_dir = 'images'
 
     # init object
@@ -250,8 +334,12 @@ if __name__ == "__main__":
                             data_path=data_path,
                             img_dir=img_dir)
 
+    
+
     # test loading data
     dw_data = DW.load_data()
+    pred = DW.infer_data(dw_data['dl_train'])
+
 
     import code
     code.interact(local=dict(globals(), **locals()))
