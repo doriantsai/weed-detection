@@ -367,12 +367,12 @@ if __name__ == "__main__":
     # set hyperparameters
     # =========================================================================
     # roughly taken from the DeepWeeds Paper
-    num_epochs = 3
+    num_epochs = 500
     learning_rate = 0.001 # originally 0.001, LR 1/2 if val loss did not decrease after 16 epochs
     momentum = 0.9 # not specified
-    batch_size = 32 # 150 # 32 in paper can probably get away with more, 90 = 12/24 GB
+    batch_size = 150 # 32 in paper can probably get away with more, 90 = 12/24 GB
     shuffle = True
-    num_workers = 5 # 10
+    num_workers = 10
     expsuffix = 'dev'
     acc_step_size = 5
     # TODO early stopping if val loss did not decrease after 32 epochs

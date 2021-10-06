@@ -288,7 +288,15 @@ CLASS_NAMES = ('Chinee apple',
                 'Negative')
 CLASS_DICT = {i: CLASS_NAMES[i] for i in range(0, len(CLASSES))}
 
-CLASS_COLORS = ['pink', 'blue', 'green', 'yellow', 'cyan', 'red', 'purple', 'orange', 'grey']
+CLASS_COLORS = ['pink',
+            'blue',
+            'green',
+            'yellow',
+            'cyan',
+            'red',
+            'purple',
+            'orange',
+            'grey']
 
 pink = np.r_[255, 105, 180]/255
 blue = np.r_[0, 0, 255]/255
