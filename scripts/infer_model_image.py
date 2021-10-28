@@ -121,19 +121,19 @@ Tussock.set_snapshot(20)
 # bs = 10 # hp_test['batch_size']
 # for i in range(bs):
 for image, sample in ds_infer:
-    import code
-    code.interact(local=dict(globals(), **locals()))
+    # import code
+    # code.interact(local=dict(globals(), **locals()))
     # image = images[i]
     # sample = samples[i]
     image_id = sample['image_id'].item()
     start_time = time.time()
     image_out, pred = Tussock.infer_image(image,
                                           sample=sample,
-                                          imshow=True,
+                                          imshow=False,
                                           imsave=True,
-                                          conf_thresh=0.2,
+                                          conf_thresh=0.5,
                                           image_name = str(image_id))
-    print('{}: {}'.format(i, image_id))
+    print('image_id: {}'.format(image_id))
     print('   pred = {}'.format(pred))
     end_time = time.time()
     sec = end_time - start_time

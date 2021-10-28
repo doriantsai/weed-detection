@@ -1,25 +1,24 @@
 #! /usr/bin/env python
 
 """
-weed model class for weed detection class to package model-related
+Title: WeedModel.py
+Purpose: Weed model class for weed detection class to package model-related
 functionality, such as training, inference, evaluation
+Author: Dorian Tsai
+Date: 28 October 2021
+Email: dorian.tsai@gmail.com
 """
 
 import os
-# from jedi.inference.gradual import annotation
-# from weed_detection.WeedDatasetPoly import WeedDatasetPoly
-
 import torch
 import torchvision
 import re
-
 import time
 import datetime
 import pickle
 import numpy as np
 import cv2 as cv
 import matplotlib.pyplot as plt
-import PIL
 
 # TODO replace tensorboard with weightsandbiases
 from torch.utils.tensorboard import SummaryWriter
@@ -29,13 +28,11 @@ from torchvision.transforms import functional as tv_transform
 from scipy.interpolate import interp1d
 from shapely.geometry import Polygon
 
-
+# custom imports
 from weed_detection.engine_st import train_one_epoch
-# from weed_detection.WeedDataset import *
 import weed_detection.WeedDataset as WD
 import weed_detection.WeedDatasetPoly as WDP
 from weed_detection.PreProcessingToolbox import PreProcessingToolbox as PT
-
 # from webcam import grab_webcam_image
 
 
@@ -53,24 +50,43 @@ class WeedModel:
                  epoch=None,
                  note=None,
                  annotation_type='poly'):
+        """ initialise weed model object """
 
+        # TODO maybe save model type/architecture (eg, mask vs fast rcnn)
+        # weed_name is a string of the name of the weed that the detector is
+        # trained for
+        # NOTE for multiclass detector, this will be upgraded to a list of
+        # strings
+        assert (isinstance(weed_name, str), "weed_name must be of type str")
         self._weed_name = weed_name
-        # TODO maybe save model type/architecture also, hyper parameters?
+
+        # model itself, the Pytorch model object that is used for training and
+        # image inference
+        # TODO assert model type
         self._model = model
+
+        assert (isinstance(model_path, str) or model_path is None, "model_path must be of type str")
+        self._model_path = model_path
+        # TODO if model_path is not None load model, model name, weed_name, etc
+
+        # name of the model, an arbitrary string of text
+        assert (isinstance(model_name, str) or model_name is None, "model_name must be of type str")
         self._model_name = model_name
+        if model_name is None and model_path is not None:
+            self._model_name = os.path.basename(model_path)
+
+        assert (isinstance(model_folder, str) or model_folder is None, "model_folder must be of type str")
         if model_folder is None:
             self._model_folder = model_name
         else:
             self._model_folder = model_folder
-        self._model_path = model_path
-
-        # TODO if model_path is not None load model, model name, weed_name, etc
-        # everything possible
 
         if device is None:
             device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
             # device = torch.device('cpu')
-        self._device = device
+        else:
+            assert( isinstance(device, torch.device), "device must be of type torch.device")
+            self._device = device
 
         self._hp = hyper_parameters
         # TODO consider expanding hp from dictionary into actual
@@ -214,6 +230,7 @@ class WeedModel:
             return ds_train, ds_test, ds_val, dl_train, dl_test, dl_val, \
                 hp_train, hp_test, dataset_name
 
+
     def create_dataset_dataloader(self,
                                 root_dir,
                                 json_file,
@@ -252,7 +269,6 @@ class WeedModel:
 
     def collate_fn(self, batch):
         return tuple(zip(*batch))
-
 
 
     def create_train_test_val_datasets(self,
@@ -513,7 +529,7 @@ class WeedModel:
         self._model = model
         self._model_name = model_name
         self._model_folder = save_folder
-        self._model_path = model_save_path
+        self.set_model_path(model_save_path)
         self._epoch = epoch
 
         return model, model_save_path
@@ -538,9 +554,9 @@ class WeedModel:
         model.load_state_dict(torch.load(model_path, map_location=map_location))
         print('loaded model: {}'.format(model_path))
         model.to(self._device)
-        self._model = model
-        self._model_path = model_path
-        self._model_folder = os.path.dirname(model_path)
+        self.set_model(model)
+        self.set_model_path(model_path)
+        self.set_model_folder(os.path.dirname(model_path))
 
         return model
 
@@ -662,10 +678,10 @@ class WeedModel:
             pred_bin_boxes = []
             pred_box_centroids = []
             pred_poly_centroids = []
+            pred_poly = []
             if len(pred_masks) > 0:
                 for mask in pred_masks:
-                    # import code
-                    # code.interact(local=dict(globals(), **locals()))
+
                     mask = np.transpose(mask, (1,2,0))
                     bin_mask, ctr, hier, ctr_sqz, poly  = self.binarize_confidence_mask(mask, threshold=mask_threshold)
                     # get bounding box for bin_mask
@@ -677,12 +693,13 @@ class WeedModel:
                     bin_bbox = [xmin, ymin, xmax, ymax]
                     pred_bin_boxes.append(bin_bbox)
 
+                    # import code
+                    # code.interact(local=dict(globals(), **locals()))
+
+                    pred_poly.append(ctr_sqz)
                     pred_box_centroids.append(self.box_centroid(bin_bbox))  # should overwrite original box centroids
                     cen_poly = self.polygon_centroid(ctr_sqz)
                     pred_poly_centroids.append(cen_poly)
-
-        # import code
-        # code.interact(local=dict(globals(), **locals()))
 
         # package
         pred_final = {}
@@ -696,6 +713,7 @@ class WeedModel:
             pred_final['bin_masks'] = pred_bin_masks
             pred_final['bin_boxes'] = pred_bin_boxes
             pred_final['poly_centroids'] = pred_poly_centroids
+            pred_final['polygons'] = pred_poly
 
         # apply confidence threshold
         pred_final = self.threshold_predictions(pred_final, conf_thresh, annotation_type)
@@ -716,6 +734,7 @@ class WeedModel:
             pred_bin_masks = pred['bin_masks']
             pred_bin_boxes = pred['bin_boxes']
             pred_poly_centroids = pred['poly_centroids']
+            pred_poly = pred['polygons']
 
 
         if len(pred_score) > 0:
@@ -730,6 +749,7 @@ class WeedModel:
                     pred_bin_masks = []
                     pred_bin_boxes = []
                     pred_poly_centroids = []
+                    pred_poly = []
             else:
                 pred_thresh = [pred_score.index(x) for x in pred_score if x > thresh][-1]
                 pred_boxes = pred_boxes[:pred_thresh+1]
@@ -741,6 +761,7 @@ class WeedModel:
                     pred_bin_boxes = pred_bin_boxes[:pred_thresh+1]
                     pred_bin_masks = pred_bin_masks[:pred_thresh+1]
                     pred_poly_centroids = pred_poly_centroids[:pred_thresh+1]
+                    pred_poly = pred_poly[:pred_thresh+1]
         else:
             pred_thresh = []
             pred_boxes = []
@@ -752,6 +773,7 @@ class WeedModel:
                 pred_bin_masks = []
                 pred_bin_boxes = []
                 pred_poly_centroids = []
+                pred_poly = []
 
         predictions = {}
         predictions['boxes'] = pred_boxes
@@ -764,6 +786,7 @@ class WeedModel:
             predictions['bin_masks'] = pred_bin_masks
             predictions['bin_boxes'] = pred_bin_boxes
             predictions['poly_centroids'] = pred_poly_centroids
+            predictions['polygons'] = pred_poly
 
         return predictions
 
@@ -1404,7 +1427,7 @@ class WeedModel:
     def infer_image(self,
                     image,
                     sample=None,
-                    imshow=True,
+                    imshow=False,
                     imsave=False,
                     save_dir=None,
                     image_name=None,
@@ -1420,6 +1443,7 @@ class WeedModel:
         # if invalid type, convert to valid type and do normal operation
         # if valid type, do normal operations
         # else if invalid image, return error
+
 
         if isinstance(image, np.ndarray):
             c, h, w = self.get_image_tensor_size()
