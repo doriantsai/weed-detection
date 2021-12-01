@@ -37,7 +37,8 @@ from weed_detection.PreProcessingToolbox import PreProcessingToolbox as PT
 
 
 class WeedModel:
-    """ collection of functions for model's weed detection """
+    """ collection of functions for model's weed training, detection and inference
+    """
 
     def __init__(self,
                  weed_name='serrated tussock',
@@ -48,57 +49,73 @@ class WeedModel:
                  device=None,
                  hyper_parameters=None,
                  epoch=None,
-                 note=None,
-                 annotation_type='poly'):
-        """ initialise weed model object """
+                 annotation_type='poly',
+                 detector_type='maskrcnn'):
+        """ initialise single-class detector object """
 
-        # TODO maybe save model type/architecture (eg, mask vs fast rcnn)
         # weed_name is a string of the name of the weed that the detector is
-        # trained for
-        # NOTE for multiclass detector, this will be upgraded to a list of
-        # strings
-        assert (isinstance(weed_name, str), "weed_name must be of type str")
-        self._weed_name = weed_name
+        if not isinstance(weed_name, str):
+            raise TypeError(weed_name, "weed_name must be type str")
+        else:
+            self._weed_name = weed_name
 
         # model itself, the Pytorch model object that is used for training and
         # image inference
-        # TODO assert model type
+        # TODO check for Pytorch model type
         self._model = model
 
-        assert (isinstance(model_path, str) or model_path is None, "model_path must be of type str")
-        self._model_path = model_path
-        # TODO if model_path is not None load model, model name, weed_name, etc
+        # model path is the absolute file path to the .pth detector model
+        if (isinstance(model_path, str) or (model_path is None)):
+            self._model_path = model_path
+        else:
+            raise TypeError(model_path, "model_path must be of type str or None")
+        # TODO if model_path is not None, then call load_model
 
         # name of the model, an arbitrary string of text
-        assert (isinstance(model_name, str) or model_name is None, "model_name must be of type str")
-        self._model_name = model_name
+        if (isinstance(model_name, str) or (model_name is None)):
+            self._model_name = model_name
+        else:
+            raise TypeError(model_name, "model_name must be of type str or None")
         if model_name is None and model_path is not None:
             self._model_name = os.path.basename(model_path)
 
-        assert (isinstance(model_folder, str) or model_folder is None, "model_folder must be of type str")
-        if model_folder is None:
-            self._model_folder = model_name
+        # model_folder is the folder of the model, which should be
+        # taken from os.path.dirname(model_path)
+        if (isinstance(model_folder, str) or (model_folder is None)):
+            if model_folder is None:
+                self._model_folder = model_name
+            else:
+                self._model_folder = model_folder
         else:
-            self._model_folder = model_folder
+            raise TypeError(model_folder, "model_folder must be of type str or None")
 
+        # device, whether computation happens on cpu or gpu
         if device is None:
-            device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+            device = torch.device(
+                'cuda') if torch.cuda.is_available() else torch.device('cpu')
             # device = torch.device('cpu')
         else:
-            assert( isinstance(device, torch.device), "device must be of type torch.device")
-            self._device = device
+            # TODO check device type
+            print('TODO: check device type')
+        self._device = device
 
         self._hp = hyper_parameters
-        # TODO consider expanding hp from dictionary into actual
-        # properties/attributes for more readability
+        # TODO use parse arges library to convey hyper parameters
         # TODO should get image height/width automatically from PIL images
-        self._image_height = int(2056/2) # rescale_size
-        self._image_width = int(2464 /2)  # should be computed based on aspect ratio
+        self._image_height = int(2056 / 2)  # rescale_size
+        self._image_width = int(2464 / 2)
 
+        if epoch is None:
+            epoch = 0
+        if isinstance(epoch, int) or isinstance(epoch, float):
+            self._epoch = int(epoch)
+        else:
+            raise TypeError(epoch, "epoch must be type int or float")
 
-        self._note = note # just a capture-all string TEMP
-        self._epoch = epoch
-        self._annotation_type = annotation_type
+        if annotation_type == "box" or annotation_type == "poly":
+            self._annotation_type = annotation_type
+        else:
+            raise TypeError(annotation_type, "annotation_type must be either 'box' or 'poly'")
 
 
     @property
@@ -108,7 +125,6 @@ class WeedModel:
     # getters and setters
     def set_model(self, model):
         self._model = model
-
 
     def get_model(self):
         return self._model
@@ -125,67 +141,60 @@ class WeedModel:
     def set_model_name(self, name):
         self._model_name = name
 
-
     def get_model_name(self):
         return self._model_name
-
 
     def set_weed_name(self, name):
         self._weed_name = name
 
-
     def get_weed_name(self):
         return self._weed_name
-
 
     def set_model_path(self, path):
         self._model_path = path
 
-
     def get_model_path(self):
         return self._model_path
-
 
     def set_model_epoch(self, epoch):
         self._epoch = epoch
 
-
     def get_model_epoch(self):
         return self._epoch
-
 
     def set_hyper_parameters(self, hp):
         self._hp = hp
 
-
     def get_hyper_parameters(self):
         return self._hp
-
 
     def build_fasterrcnn_model(self, num_classes):
         """ build fasterrcnn model for set number of classes """
 
         # load instance of model pre-trained on coco:
-        model = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=True)
+        model = torchvision.models.detection.fasterrcnn_resnet50_fpn(
+            pretrained=True)
         # get number of input features for the classifier
         in_features = model.roi_heads.box_predictor.cls_score.in_features
         # replace pre-trained head with new one
-        model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
+        model.roi_heads.box_predictor = FastRCNNPredictor(
+            in_features, num_classes)
         self._annotation_type = 'box'
         return model
-
 
     def build_maskrcnn_model(self, num_classes):
         """ build maskrcnn model for set number of classes """
 
         # load instance segmentation model pre-trained on COCO
-        model = torchvision.models.detection.maskrcnn_resnet50_fpn(pretrained=True)
+        model = torchvision.models.detection.maskrcnn_resnet50_fpn(
+            pretrained=True)
 
         # get number of input features for the classifier
         in_features = model.roi_heads.box_predictor.cls_score.in_features
 
         # replace pretrained head with new one
-        model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
+        model.roi_heads.box_predictor = FastRCNNPredictor(
+            in_features, num_classes)
 
         # now get number of input features for mask classifier
         in_features_mask = model.roi_heads.mask_predictor.conv5_mask.in_channels
@@ -198,7 +207,6 @@ class WeedModel:
         self._annotation_type = 'poly'
 
         return model
-
 
     def load_dataset_objects(self, dataset_path, return_dict=True):
         """ load dataset objects given path """
@@ -217,41 +225,40 @@ class WeedModel:
         # save as a dictionary
         if return_dict:
             dso = {'ds_train': ds_train,
-                'ds_test': ds_test,
-                'ds_val': ds_val,
-                'dl_train': dl_train,
-                'dl_test': dl_test,
-                'dl_val': dl_val,
-                'hp_train': hp_train,
-                'hp_test': hp_test,
-                'dataset_name': dataset_name}
+                   'ds_test': ds_test,
+                   'ds_val': ds_val,
+                   'dl_train': dl_train,
+                   'dl_test': dl_test,
+                   'dl_val': dl_val,
+                   'hp_train': hp_train,
+                   'hp_test': hp_test,
+                   'dataset_name': dataset_name}
             return dso
         else:
             return ds_train, ds_test, ds_val, dl_train, dl_test, dl_val, \
                 hp_train, hp_test, dataset_name
 
-
     def create_dataset_dataloader(self,
-                                root_dir,
-                                json_file,
-                                transforms,
-                                hp,
-                                annotation_type='poly',
-                                mask_dir=None,
-                                img_dir=None):
+                                  root_dir,
+                                  json_file,
+                                  transforms,
+                                  hp,
+                                  annotation_type='poly',
+                                  mask_dir=None,
+                                  img_dir=None):
         # assume tforms already defined outside of this function
         batch_size = hp['batch_size']
         num_workers = hp['num_workers']
-        shuffle= hp['shuffle']
+        shuffle = hp['shuffle']
         if img_dir is None:
             img_dir = root_dir
 
         if annotation_type == 'poly':
             dataset = WDP.WeedDatasetPoly(root_dir,
-                                      json_file,
-                                      transforms,
-                                      img_dir=img_dir,
-                                      mask_dir=mask_dir)
+                                          json_file,
+                                          transforms,
+                                          img_dir=img_dir,
+                                          mask_dir=mask_dir)
         else:
             dataset = WD.WeedDataset(root_dir,
                                      json_file,
@@ -266,10 +273,8 @@ class WeedModel:
                                                  collate_fn=self.collate_fn)
         return dataset, dataloader
 
-
     def collate_fn(self, batch):
         return tuple(zip(*batch))
-
 
     def create_train_test_val_datasets(self,
                                        img_folders,
@@ -314,23 +319,22 @@ class WeedModel:
         if annotation_type == 'poly':
             print('creating poly transforms')
             tform_train = WDP.Compose([WDP.Rescale(rescale_size),
-                            WDP.RandomBlur(5, (0.5, 2.0)),
-                            WDP.RandomHorizontalFlip(0),
-                            WDP.RandomVerticalFlip(0),
-                            WDP.ToTensor()])
+                                       WDP.RandomBlur(5, (0.5, 2.0)),
+                                       WDP.RandomHorizontalFlip(0),
+                                       WDP.RandomVerticalFlip(0),
+                                       WDP.ToTensor()])
             tform_test = WDP.Compose([WDP.Rescale(rescale_size),
-                            WDP.ToTensor()])
+                                      WDP.ToTensor()])
         else:
             # import code
             # code.interact(local=dict(globals(), **locals()))
             tform_train = WD.Compose([WD.Rescale(rescale_size),
-                            WD.RandomBlur(5, (0.5, 2.0)),
-                            WD.RandomHorizontalFlip(0.5),
-                            WD.RandomVerticalFlip(0.5),
-                            WD.ToTensor()])
+                                      WD.RandomBlur(5, (0.5, 2.0)),
+                                      WD.RandomHorizontalFlip(0.5),
+                                      WD.RandomVerticalFlip(0.5),
+                                      WD.ToTensor()])
             tform_test = WD.Compose([WD.Rescale(rescale_size),
-                            WD.ToTensor()])
-
+                                     WD.ToTensor()])
 
         # create dataset and dataloader objects for each set of images
         ds_train, dl_train = self.create_dataset_dataloader(train_folder,
@@ -357,7 +361,8 @@ class WeedModel:
         # save datasets/dataloaders for later use TODO dataset_name default?
         save_dataset_folder = os.path.join('dataset_objects', dataset_name)
         os.makedirs(save_dataset_folder, exist_ok=True)
-        save_dataset_path = os.path.join(save_dataset_folder, dataset_name + '.pkl')
+        save_dataset_path = os.path.join(
+            save_dataset_folder, dataset_name + '.pkl')
         with open(save_dataset_path, 'wb') as f:
             pickle.dump(ds_train, f)
             pickle.dump(ds_test, f)
@@ -373,7 +378,6 @@ class WeedModel:
         print('dataset saved as: {}'.format(save_dataset_path))
 
         return save_dataset_path
-
 
     def get_now_str(self):
         """ get a string of yyyymmdd_hh_mm or something similar """
@@ -486,7 +490,8 @@ class WeedModel:
                                      val_epoch,
                                      print_freq=10)
 
-            writer.add_scalar('Detector/Training_Loss', mt.loss.median, epoch + 1)
+            writer.add_scalar('Detector/Training_Loss',
+                              mt.loss.median, epoch + 1)
             # other loss types from metric logger mt.loss.value
             # mt.loss_classifier.median mt.loss_classifier.max
             # mt.loss_box_reg.value mt.loss_objectness.value
@@ -497,17 +502,19 @@ class WeedModel:
 
             # evaluate on test dataset ever val_epoch epochs
             if (epoch % val_epoch) == (val_epoch - 1):
-                writer.add_scalar('Detector/Validation_Loss', mv.loss.median, epoch + 1)
+                writer.add_scalar('Detector/Validation_Loss',
+                                  mv.loss.median, epoch + 1)
 
             # save snapshot every snapshot_epochs
             if (epoch % snapshot_epoch) == (snapshot_epoch - 1):
                 print('saving snapshot at epoch: {}'.format(epoch))
 
                 # save epoch
-                os.makedirs(os.path.join(save_folder, 'snapshots'), exist_ok=True)
+                os.makedirs(os.path.join(
+                    save_folder, 'snapshots'), exist_ok=True)
                 snapshot_name = os.path.join(save_folder,
-                                            'snapshots',
-                                            model_name + '_epoch' + str(epoch + 1) + '.pth')
+                                             'snapshots',
+                                             model_name + '_epoch' + str(epoch + 1) + '.pth')
                 torch.save(model.state_dict(), snapshot_name)
                 # print('snapshot name: {}',format(snapshot_name))
 
@@ -534,7 +541,6 @@ class WeedModel:
 
         return model, model_save_path
 
-
     def load_model(self,
                    model_path=None,
                    num_classes=2,
@@ -551,7 +557,8 @@ class WeedModel:
         else:
             print('loading fasterrcnn')
             model = self.build_fasterrcnn_model(num_classes)
-        model.load_state_dict(torch.load(model_path, map_location=map_location))
+        model.load_state_dict(torch.load(
+            model_path, map_location=map_location))
         print('loaded model: {}'.format(model_path))
         model.to(self._device)
         self.set_model(model)
@@ -559,7 +566,6 @@ class WeedModel:
         self.set_model_folder(os.path.dirname(model_path))
 
         return model
-
 
     def set_snapshot(self,
                      epoch,
@@ -601,12 +607,12 @@ class WeedModel:
         print('corresponding epoch number: {}'.format(e[i_emin]))
 
         # set object model and model path and epoch number
-        self._model_path = os.path.join(snapshot_folder, snapshot_files[i_emin])
+        self._model_path = os.path.join(
+            snapshot_folder, snapshot_files[i_emin])
         self._epoch = e[i_emin]
         self.load_model(annotation_type=self._annotation_type)
 
         return True
-
 
     def find_file(self, file_pattern, folder):
         """
@@ -631,7 +637,6 @@ class WeedModel:
 
         return file_find
 
-
     def get_predictions_image(self,
                               image,
                               conf_thresh,
@@ -642,11 +647,13 @@ class WeedModel:
         scores > threshold """
 
         # image incoming is a tensor, since it is from a dataloader object
-        self._model.eval()  # TODO could call self.model.eval(), but for now, just want to port the scripts/functions
+        # TODO could call self.model.eval(), but for now, just want to port the scripts/functions
+        self._model.eval()
 
         if torch.cuda.is_available():
             image = image.to(self._device)
-            self._model.to(self._device) # added, unsure if this will cause errors
+            # added, unsure if this will cause errors
+            self._model.to(self._device)
 
         # do model inference on single image
         # start_time = time.time()
@@ -657,11 +664,13 @@ class WeedModel:
 
         # apply non-maxima suppression
         # TODO nms based on iou, what about masks?
-        keep = torchvision.ops.nms(pred[0]['boxes'], pred[0]['scores'], nms_iou_thresh)
+        keep = torchvision.ops.nms(
+            pred[0]['boxes'], pred[0]['scores'], nms_iou_thresh)
 
         pred_class = [i for i in list(pred[0]['labels'][keep].cpu().numpy())]
         # bbox in form: [xmin, ymin, xmax, ymax]?
-        pred_boxes = [[bb[0], bb[1], bb[2], bb[3]] for bb in list(pred[0]['boxes'][keep].detach().cpu().numpy())]
+        pred_boxes = [[bb[0], bb[1], bb[2], bb[3]]
+                      for bb in list(pred[0]['boxes'][keep].detach().cpu().numpy())]
         # TODO get centre of bounding boxes
         pred_box_centroids = []
         if len(pred_boxes) > 0:
@@ -682,8 +691,9 @@ class WeedModel:
             if len(pred_masks) > 0:
                 for mask in pred_masks:
 
-                    mask = np.transpose(mask, (1,2,0))
-                    bin_mask, ctr, hier, ctr_sqz, poly  = self.binarize_confidence_mask(mask, threshold=mask_threshold)
+                    mask = np.transpose(mask, (1, 2, 0))
+                    bin_mask, ctr, hier, ctr_sqz, poly = self.binarize_confidence_mask(
+                        mask, threshold=mask_threshold)
                     # get bounding box for bin_mask
                     pred_bin_masks.append(bin_mask)
                     xmin = min(ctr_sqz[:, 0])
@@ -697,7 +707,8 @@ class WeedModel:
                     # code.interact(local=dict(globals(), **locals()))
 
                     pred_poly.append(ctr_sqz)
-                    pred_box_centroids.append(self.box_centroid(bin_bbox))  # should overwrite original box centroids
+                    # should overwrite original box centroids
+                    pred_box_centroids.append(self.box_centroid(bin_bbox))
                     cen_poly = self.polygon_centroid(ctr_sqz)
                     pred_poly_centroids.append(cen_poly)
 
@@ -716,11 +727,10 @@ class WeedModel:
             pred_final['polygons'] = pred_poly
 
         # apply confidence threshold
-        pred_final = self.threshold_predictions(pred_final, conf_thresh, annotation_type)
-
+        pred_final = self.threshold_predictions(
+            pred_final, conf_thresh, annotation_type)
 
         return pred_final
-
 
     def threshold_predictions(self, pred, thresh, annotation_type='poly'):
         """ apply confidence threshold to predictions """
@@ -736,9 +746,8 @@ class WeedModel:
             pred_poly_centroids = pred['poly_centroids']
             pred_poly = pred['polygons']
 
-
         if len(pred_score) > 0:
-            if max(pred_score) < thresh: # none of pred_score > thresh, then return empty
+            if max(pred_score) < thresh:  # none of pred_score > thresh, then return empty
                 pred_thresh = []
                 pred_boxes = []
                 pred_class = []
@@ -751,7 +760,8 @@ class WeedModel:
                     pred_poly_centroids = []
                     pred_poly = []
             else:
-                pred_thresh = [pred_score.index(x) for x in pred_score if x > thresh][-1]
+                pred_thresh = [pred_score.index(
+                    x) for x in pred_score if x > thresh][-1]
                 pred_boxes = pred_boxes[:pred_thresh+1]
                 pred_class = pred_class[:pred_thresh+1]
                 pred_score = pred_score[:pred_thresh+1]
@@ -790,7 +800,6 @@ class WeedModel:
 
         return predictions
 
-
     def cv_imshow(self, image, win_name, wait_time=2000, close_window=True):
         """ show image with win_name for wait_time """
         img = cv.cvtColor(image, cv.COLOR_RGB2BGR)
@@ -800,13 +809,12 @@ class WeedModel:
         if close_window:
             cv.destroyWindow(win_name)
 
-
     def show(self,
              image,
              sample=None,
              predictions=None,
              outcomes=None,
-             sample_color=(0, 0, 255), # RGB
+             sample_color=(0, 0, 255),  # RGB
              predictions_color=(255, 0, 0),
              iou_color=(255, 255, 255),
              transpose_image_channels=True,
@@ -823,7 +831,7 @@ class WeedModel:
         gt_box_thick = 12   # groundtruth bounding box
         dt_box_thick = 6    # detection bounding box
         out_box_thick = 3   # outcome bounding box/overlay
-        font_scale = 2 # font scale should be function of image size
+        font_scale = 2  # font scale should be function of image size
         font_thick = 2
 
         if transpose_color_channels:
@@ -840,7 +848,8 @@ class WeedModel:
             image_out = np.transpose(image_out, (1, 2, 0))
 
         # normalize image from 0,1 to 0,255
-        image_out = cv.normalize(image_out, None, 0, 255, cv.NORM_MINMAX, cv.CV_8U)
+        image_out = cv.normalize(
+            image_out, None, 0, 255, cv.NORM_MINMAX, cv.CV_8U)
 
         # ----------------------------------- #
         # first plot groundtruth boxes
@@ -850,13 +859,14 @@ class WeedModel:
             if len(boxes_gt) > 0:
                 n_gt, _ = boxes_gt.size()
                 for i in range(n_gt):
-                    bb = np.array(boxes_gt[i, :].cpu(), dtype=np.float32) # TODO just specify int8 or imt16?
+                    # TODO just specify int8 or imt16?
+                    bb = np.array(boxes_gt[i, :].cpu(), dtype=np.float32)
                     # overwrite the original image with groundtruth boxes
                     image_out = cv.rectangle(image_out,
-                                            (int(bb[0]), int(bb[1])),
-                                            (int(bb[2]), int(bb[3])),
-                                            color=sample_color,
-                                            thickness=gt_box_thick)
+                                             (int(bb[0]), int(bb[1])),
+                                             (int(bb[2]), int(bb[3])),
+                                             color=sample_color,
+                                             thickness=gt_box_thick)
 
         # ----------------------------------- #
         # second, plot predictions
@@ -866,18 +876,21 @@ class WeedModel:
 
             if len(boxes_pd) > 0:
                 for i in range(len(boxes_pd)):
-                    bb = np.array(boxes_pd[i], dtype=np.float32) # TODO just specify int8 or imt16?
+                    # TODO just specify int8 or imt16?
+                    bb = np.array(boxes_pd[i], dtype=np.float32)
                     image_out = cv.rectangle(image_out,
-                                            (int(bb[0]), int(bb[1])),
-                                            (int(bb[2]), int(bb[3])),
-                                            color=predictions_color,
-                                            thickness=dt_box_thick)
+                                             (int(bb[0]), int(bb[1])),
+                                             (int(bb[2]), int(bb[3])),
+                                             color=predictions_color,
+                                             thickness=dt_box_thick)
 
                     # add text to top left corner of bbox
-                    sc = format(scores[i] * 100.0, '.0f') # no decimals, just x100 for percent
+                    # no decimals, just x100 for percent
+                    sc = format(scores[i] * 100.0, '.0f')
                     cv.putText(image_out,
                                '{}: {}'.format(i, sc),
-                               (int(bb[0] + 10), int(bb[1] + 30)), # buffer numbers should be function of font scale
+                               # buffer numbers should be function of font scale
+                               (int(bb[0] + 10), int(bb[1] + 30)),
                                fontFace=cv.FONT_HERSHEY_COMPLEX,
                                fontScale=font_scale,
                                color=predictions_color,
@@ -894,7 +907,7 @@ class WeedModel:
                         bb = np.array(boxes_pd[i], dtype=np.float32)
                         # print in top/left corner of bbox underneath bbox # and
                         # score
-                        iou_str = format(iou[i], '.2f') # max 2 decimal places
+                        iou_str = format(iou[i], '.2f')  # max 2 decimal places
                         cv.putText(image_out,
                                    'iou: {}'.format(iou_str),
                                    (int(bb[0] + 10), int(bb[1] + 60)),
@@ -913,9 +926,9 @@ class WeedModel:
                 # is detection -> red is false negative green is true positive
                 # yellow is false positive
                 outcome_color = [(0, 255, 0),   # TP - green
-                                (255, 255, 0), # FP - yellow
-                                (255, 0, 0),   # FN - red
-                                (0, 0, 0)]     # TN - black
+                                 (255, 255, 0),  # FP - yellow
+                                 (255, 0, 0),   # FN - red
+                                 (0, 0, 0)]     # TN - black
                 # structure of the outcomes dictionary outcomes = {'dt_outcome':
                 # dt_outcome, # detections, integer index for tp/fp/fn
                 # 'gt_outcome': gt_outcome, # groundtruths, integer index for fn
@@ -932,14 +945,15 @@ class WeedModel:
                         # replot detection boxes based on outcome
                         bb = np.array(boxes_pd[i], dtype=np.float32)
                         image_out = cv.rectangle(image_out,
-                                                (int(bb[0]), int(bb[1])),
-                                                (int(bb[2]), int(bb[3])),
-                                                color=outcome_color[dt_outcome[i]],
-                                                thickness=out_box_thick)
+                                                 (int(bb[0]), int(bb[1])),
+                                                 (int(bb[2]), int(bb[3])),
+                                                 color=outcome_color[dt_outcome[i]],
+                                                 thickness=out_box_thick)
                         # add text top/left corner including outcome type prints
                         # over existing text, so needs to be the same starting
                         # string
-                        sc = format(scores[i] * 100.0, '.0f') # no decimals, just x100 for percent
+                        # no decimals, just x100 for percent
+                        sc = format(scores[i] * 100.0, '.0f')
                         ot = format(outcome_list[dt_outcome[i]])
                         cv.putText(image_out,
                                    '{}: {}/{}'.format(i, sc, ot),
@@ -956,20 +970,21 @@ class WeedModel:
                     for j in range(len(boxes_gt)):
                         # gt boxes already plotted, so only replot them if false
                         # negatives
-                        if fn_gt[j]: # if True
-                            bb = np.array(boxes_gt[j,:].cpu(), dtype=np.float32)
+                        if fn_gt[j]:  # if True
+                            bb = np.array(
+                                boxes_gt[j, :].cpu(), dtype=np.float32)
                             image_out = cv.rectangle(image_out,
-                                                (int(bb[0]), int(bb[1])),
-                                                (int(bb[2]), int(bb[3])),
-                                                color=outcome_color[2],
-                                                thickness=out_box_thick)
+                                                     (int(bb[0]), int(bb[1])),
+                                                     (int(bb[2]), int(bb[3])),
+                                                     color=outcome_color[2],
+                                                     thickness=out_box_thick)
                             cv.putText(image_out,
-                                '{}: {}'.format(j, outcome_list[2]),
-                                (int(bb[0]+ 10), int(bb[1]) + 30),
-                                fontFace=cv.FONT_HERSHEY_COMPLEX,
-                                fontScale=font_scale,
-                                color=outcome_color[2], # index for FN
-                                thickness=font_thick)
+                                       '{}: {}'.format(j, outcome_list[2]),
+                                       (int(bb[0] + 10), int(bb[1]) + 30),
+                                       fontFace=cv.FONT_HERSHEY_COMPLEX,
+                                       fontScale=font_scale,
+                                       color=outcome_color[2],  # index for FN
+                                       thickness=font_thick)
 
         # resize image to save space
         if resize_image:
@@ -984,9 +999,9 @@ class WeedModel:
     def binarize_confidence_mask(self,
                                  img_gray,
                                  threshold,
-                                 ksize = None,
-                                 MAX_KERNEL_SIZE = 11,
-                                 MIN_KERNEL_SIZE = 3):
+                                 ksize=None,
+                                 MAX_KERNEL_SIZE=11,
+                                 MIN_KERNEL_SIZE=3):
         """ given confidence mask, apply threshold to turn mask into binary image, return binary image and contour"""
         # input mask ranging from 0 to 1, assume mask is a tensor? operation is trivial if numpy array
         # lets first assume a numpy array
@@ -997,16 +1012,17 @@ class WeedModel:
             # import code
             # code.interact(local=dict(globals(), **locals()))
             ret, mask_bin = cv.threshold(img_gray,
-                                        threshold,
-                                        maxval=1.0,
-                                        type=cv.THRESH_BINARY)
+                                         threshold,
+                                         maxval=1.0,
+                                         type=cv.THRESH_BINARY)
 
             # do morphological operations on mask to smooth it out?
             # open followed by close
             h, w = mask_bin.shape
             imsize = min(h, w)
             if ksize is None:
-                ksize = np.floor(0.01 * imsize)  # kernel size, some vague function of minimum image size
+                # kernel size, some vague function of minimum image size
+                ksize = np.floor(0.01 * imsize)
 
                 if ksize % 2 == 0:
                     ksize += 1  # if even, make it odd
@@ -1016,14 +1032,16 @@ class WeedModel:
                     ksize = MIN_KERNEL_SIZE
             ksize = int(ksize)
             kernel = np.ones((ksize, ksize), np.uint8)
-            mask_open = cv.morphologyEx(mask_bin.astype(np.uint8), cv.MORPH_OPEN, kernel)
+            mask_open = cv.morphologyEx(
+                mask_bin.astype(np.uint8), cv.MORPH_OPEN, kernel)
             mask_close = cv.morphologyEx(mask_open, cv.MORPH_CLOSE, kernel)
 
             # minor erosion then dilation by the same amount
 
             # find bounding polygon of binary image
             # convert images to cv_8u
-            contours, hierarchy = cv.findContours(mask_close, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
+            contours, hierarchy = cv.findContours(
+                mask_close, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
 
             # import code
             # code.interact(local=dict(globals(), **locals()))
@@ -1032,14 +1050,17 @@ class WeedModel:
             # TODO this iterates, so need to stack these somehow (probably as list?)
             # not sure about stacking the images
 
-            contours.sort(key=len, reverse=True) # make sure we sort the contour list in case there are multiple, and we take the largest/longest contour
-            ctr = contours[0]  # NOTE should only be one contour from the confidence mask
+            # make sure we sort the contour list in case there are multiple, and we take the largest/longest contour
+            contours.sort(key=len, reverse=True)
+            # NOTE should only be one contour from the confidence mask
+            ctr = contours[0]
             ctrs_sqz = np.squeeze(ctr)
             all_x, all_y = [], []
             for c in ctrs_sqz:
                 all_x.append(c[0])
                 all_y.append(c[1])
-            polygon = {'name': 'polygon', 'all_points_x': all_x, 'all_points_y': all_y}
+            polygon = {'name': 'polygon',
+                       'all_points_x': all_x, 'all_points_y': all_y}
 
         else:
             print('mask type not ndarray')
@@ -1051,26 +1072,25 @@ class WeedModel:
 
         return mask_bin, contours, hierarchy, ctrs_sqz, polygon
 
-
     def simplify_polygon(self, polygon_in, tolerance=None, preserve_topology=False):
         """ simplify polygon, 2D ndarray in, 2D array out """
 
         polygon = Polygon(polygon_in)
         if tolerance is None:
             scale_rate = 0.01
-            tolerance = int(np.floor(scale_rate * len(polygon_in)) + 1)  # scale the tolerance wrt number of points in polygon
+            # scale the tolerance wrt number of points in polygon
+            tolerance = int(np.floor(scale_rate * len(polygon_in)) + 1)
             if tolerance > 10:
-                tolerance = 10 # tolerance bounded to 10
-        polygon_out = polygon.simplify(tolerance=tolerance, preserve_topology=preserve_topology)
+                tolerance = 10  # tolerance bounded to 10
+        polygon_out = polygon.simplify(
+            tolerance=tolerance, preserve_topology=preserve_topology)
         polygon_out_coords = np.array(polygon_out.exterior.coords)
         return polygon_out_coords
-
 
     def polygon_area(self, polygon_in):
         """ compute area of polygon using Shapely"""
         poly = Polygon(polygon_in)
-        return poly.area # units of pixels
-
+        return poly.area  # units of pixels
 
     def polygon_centroid(self, polygon_in):
         """ compute centroid of polygon using Shapely polygon """
@@ -1080,7 +1100,6 @@ class WeedModel:
         cx = cen.coords[0][0]
         cy = cen.coords[0][1]
         return (cx, cy)
-
 
     def box_centroid(self, box_in):
         """ compute box centroid """
@@ -1094,7 +1113,6 @@ class WeedModel:
         cx = xmin + w / 2.0
         cy = ymin + h / 2.0
         return ([cx, cy])
-
 
     def show_mask(self,
                   image,
@@ -1119,12 +1137,12 @@ class WeedModel:
         gt_box_thick = 6   # groundtruth bounding box
         dt_box_thick = 3    # detection bounding box
         out_box_thick = 2   # outcome bounding box/overlay
-        font_scale = 1 # TODO font scale should be function of image size
+        font_scale = 1  # TODO font scale should be function of image size
         font_thick = 1
-        sample_mask_color = [0, 0, 255] # RGB
+        sample_mask_color = [0, 0, 255]  # RGB
         # sample_mask_alpha = 0.25
 
-        pred_mask_color = [255, 0, 0] # RGB
+        pred_mask_color = [255, 0, 0]  # RGB
         # pred_mask_alpha = 0.25
 
         if transpose_color_channels:
@@ -1141,7 +1159,8 @@ class WeedModel:
             image_out = np.transpose(image_out, (1, 2, 0))
 
         # normalize image from 0,1 to 0,255
-        image_out = cv.normalize(image_out, None, 0, 255, cv.NORM_MINMAX, cv.CV_8U)
+        image_out = cv.normalize(
+            image_out, None, 0, 255, cv.NORM_MINMAX, cv.CV_8U)
 
         # ----------------------------------- #
         # first plot groundtruth boxes
@@ -1151,13 +1170,14 @@ class WeedModel:
             if len(boxes_gt) > 0:
                 n_gt, _ = boxes_gt.size()
                 for i in range(n_gt):
-                    bb = np.array(boxes_gt[i, :].cpu(), dtype=np.float32) # TODO just specify int8 or imt16?
+                    # TODO just specify int8 or imt16?
+                    bb = np.array(boxes_gt[i, :].cpu(), dtype=np.float32)
                    # overwrite the original image with groundtruth boxes
                     image_out = cv.rectangle(image_out,
-                                            (int(bb[0]), int(bb[1])),
-                                            (int(bb[2]), int(bb[3])),
-                                            color=sample_color,
-                                            thickness=gt_box_thick)
+                                             (int(bb[0]), int(bb[1])),
+                                             (int(bb[2]), int(bb[3])),
+                                             color=sample_color,
+                                             thickness=gt_box_thick)
             points_gt = sample['points']
             if len(points_gt) > 0:
                 for p in points_gt:
@@ -1185,22 +1205,23 @@ class WeedModel:
                     # NOTE binarize confidence mask is meant to take in a nonbinary image and make it binary
                     # in this case... we probably don't need this full functionality, also opening/closing
                     # shouldn't, but might affect the original gt mask?
-                    mask_bin, ctr, hier, ctr_sqz, poly = self.binarize_confidence_mask(mask, mask_threshold)
+                    mask_bin, ctr, hier, ctr_sqz, poly = self.binarize_confidence_mask(
+                        mask, mask_threshold)
                     # note: poly here is just for dictionary output, ctr is the 2D numpy array we want!
 
-                    ## CONTOUR CODE - CURRENT
+                    # CONTOUR CODE - CURRENT
                     # polycoord = self.simplify_polygon(ctr)
 
                     image_out = cv.drawContours(image_out,
                                                 ctr,
-                                                0, # show the biggest contour
+                                                0,  # show the biggest contour
                                                 color=sample_color,
                                                 thickness=gt_box_thick,
                                                 lineType=cv.LINE_8,
                                                 hierarchy=hier,
                                                 maxLevel=0)
 
-                    ## ADDWEIGHTED CODE - DEPRACATED
+                    # ADDWEIGHTED CODE - DEPRACATED
                     # import code
                     # code.interact(local=dict(globals(), **locals()))
                     # mask = np.transpose(mask, (1, 2, 0))
@@ -1222,7 +1243,6 @@ class WeedModel:
                 # plt.imshow(image_out2)
                 # plt.show()
 
-
         # ----------------------------------- #
         # second, plot predictions
         if predictions is not None:
@@ -1235,18 +1255,21 @@ class WeedModel:
 
             if len(boxes_pd) > 0:
                 for i in range(len(boxes_pd)):
-                    bb = np.array(boxes_pd[i], dtype=np.float32) # TODO just specify int8 or imt16?
+                    # TODO just specify int8 or imt16?
+                    bb = np.array(boxes_pd[i], dtype=np.float32)
                     image_out = cv.rectangle(image_out,
-                                            (int(bb[0]), int(bb[1])),
-                                            (int(bb[2]), int(bb[3])),
-                                            color=predictions_color,
-                                            thickness=dt_box_thick)
+                                             (int(bb[0]), int(bb[1])),
+                                             (int(bb[2]), int(bb[3])),
+                                             color=predictions_color,
+                                             thickness=dt_box_thick)
 
                     # add text to top left corner of bbox
-                    sc = format(scores[i] * 100.0, '.0f') # no decimals, just x100 for percent
+                    # no decimals, just x100 for percent
+                    sc = format(scores[i] * 100.0, '.0f')
                     cv.putText(image_out,
                                '{}: {}'.format(i, sc),
-                               (int(bb[0] + 10), int(bb[1] + 30)), # buffer numbers should be function of font scale
+                               # buffer numbers should be function of font scale
+                               (int(bb[0] + 10), int(bb[1] + 30)),
                                fontFace=cv.FONT_HERSHEY_COMPLEX,
                                fontScale=font_scale,
                                color=predictions_color,
@@ -1257,10 +1280,11 @@ class WeedModel:
                     mask = masks[i]
                     # mask = np.transpose(mask, (1, 2, 0))
 
-                    mask_bin, ctr, hier, ctr_qz, poly = self.binarize_confidence_mask(mask, mask_threshold)
+                    mask_bin, ctr, hier, ctr_qz, poly = self.binarize_confidence_mask(
+                        mask, mask_threshold)
                     # note: poly here is just for dictionary output, ctr is the 2D numpy array we want!
 
-                    ## CONTOUR CODE - CURRENT
+                    # CONTOUR CODE - CURRENT
                     # polycoord = self.simplify_polygon(ctr)
 
                     image_out = cv.drawContours(image_out,
@@ -1315,10 +1339,11 @@ class WeedModel:
                         bb = np.array(boxes_pd[i], dtype=np.float32)
                         # print in top/left corner of bbox underneath bbox # and
                         # score
-                        iou_str = format(iou[i], '.2f') # max 2 decimal places
+                        iou_str = format(iou[i], '.2f')  # max 2 decimal places
                         cv.putText(image_out,
                                    'iou: {}'.format(iou_str),
-                                   (int(bb[0] + 10), int(bb[1] + 60)), # TODO should place text on mask contour
+                                   # TODO should place text on mask contour
+                                   (int(bb[0] + 10), int(bb[1] + 60)),
                                    fontFace=cv.FONT_HERSHEY_COMPLEX,
                                    fontScale=font_scale,
                                    color=iou_color,
@@ -1334,9 +1359,9 @@ class WeedModel:
                 # is detection -> red is false negative green is true positive
                 # yellow is false positive
                 outcome_color = [(0, 255, 0),   # TP - green
-                                (255, 255, 0), # FP - yellow
-                                (255, 0, 0),   # FN - red
-                                (0, 0, 0)]     # TN - black
+                                 (255, 255, 0),  # FP - yellow
+                                 (255, 0, 0),   # FN - red
+                                 (0, 0, 0)]     # TN - black
                 # structure of the outcomes dictionary outcomes = {'dt_outcome':
                 # dt_outcome, # detections, integer index for tp/fp/fn
                 # 'gt_outcome': gt_outcome, # groundtruths, integer index for fn
@@ -1353,14 +1378,15 @@ class WeedModel:
                         # replot detection boxes based on outcome
                         bb = np.array(boxes_pd[i], dtype=np.float32)
                         image_out = cv.rectangle(image_out,
-                                                (int(bb[0]), int(bb[1])),
-                                                (int(bb[2]), int(bb[3])),
-                                                color=outcome_color[dt_outcome[i]],
-                                                thickness=out_box_thick)
+                                                 (int(bb[0]), int(bb[1])),
+                                                 (int(bb[2]), int(bb[3])),
+                                                 color=outcome_color[dt_outcome[i]],
+                                                 thickness=out_box_thick)
                         # add text top/left corner including outcome type prints
                         # over existing text, so needs to be the same starting
                         # string
-                        sc = format(scores[i] * 100.0, '.0f') # no decimals, just x100 for percent
+                        # no decimals, just x100 for percent
+                        sc = format(scores[i] * 100.0, '.0f')
                         ot = format(outcome_list[dt_outcome[i]])
                         cv.putText(image_out,
                                    '{}: {}/{}'.format(i, sc, ot),
@@ -1377,20 +1403,21 @@ class WeedModel:
                     for j in range(len(boxes_gt)):
                         # gt boxes already plotted, so only replot them if false
                         # negatives
-                        if fn_gt[j]: # if True
-                            bb = np.array(boxes_gt[j,:].cpu(), dtype=np.float32)
+                        if fn_gt[j]:  # if True
+                            bb = np.array(
+                                boxes_gt[j, :].cpu(), dtype=np.float32)
                             image_out = cv.rectangle(image_out,
-                                                (int(bb[0]), int(bb[1])),
-                                                (int(bb[2]), int(bb[3])),
-                                                color=outcome_color[2],
-                                                thickness=out_box_thick)
+                                                     (int(bb[0]), int(bb[1])),
+                                                     (int(bb[2]), int(bb[3])),
+                                                     color=outcome_color[2],
+                                                     thickness=out_box_thick)
                             cv.putText(image_out,
-                                '{}: {}'.format(j, outcome_list[2]),
-                                (int(bb[0]+ 10), int(bb[1]) + 30),
-                                fontFace=cv.FONT_HERSHEY_COMPLEX,
-                                fontScale=font_scale,
-                                color=outcome_color[2], # index for FN
-                                thickness=font_thick)
+                                       '{}: {}'.format(j, outcome_list[2]),
+                                       (int(bb[0] + 10), int(bb[1]) + 30),
+                                       fontFace=cv.FONT_HERSHEY_COMPLEX,
+                                       fontScale=font_scale,
+                                       color=outcome_color[2],  # index for FN
+                                       thickness=font_thick)
 
         # resize image to save space
         if resize_image:
@@ -1401,7 +1428,6 @@ class WeedModel:
                                   (resize_width, resize_height),
                                   interpolation=cv.INTER_CUBIC)
         return image_out
-
 
     def is_valid_image(self, image):
         """ check if image is valid type """
@@ -1424,6 +1450,16 @@ class WeedModel:
 
         return check
 
+
+    def check_image(self, image):
+        """ check valid image input (numpy array or tensor) """
+        # TODO: check for valid array size/shape
+        if isinstance(image, np.ndarray) or torch.is_tensor(image):
+            return True
+        else:
+            return False
+
+
     def infer_image(self,
                     image,
                     sample=None,
@@ -1438,12 +1474,9 @@ class WeedModel:
         # assume image comes in as a tensor for now (eg, from image, sample in
         # dataset)
 
-        # TODO check image
-        # if invalid size, rescale/reshape and do normal operation
-        # if invalid type, convert to valid type and do normal operation
-        # if valid type, do normal operations
-        # else if invalid image, return error
-
+        if not self.check_image(image):
+            print(f'image type: {type(image)}')
+            raise TypeError(image, 'image must be numpy array or pytorch tensor')
 
         if isinstance(image, np.ndarray):
             c, h, w = self.get_image_tensor_size()
@@ -1464,7 +1497,6 @@ class WeedModel:
         #     print('image is PIL image, convert to tensor')
         #     image = torch.tensor(image)
 
-
         with torch.no_grad():
             self._model.to(self._device)
             image = image.to(self._device)
@@ -1474,26 +1506,24 @@ class WeedModel:
             # TODO accept different types of image input (tensor, numpy array,
             # PIL, filename?)
 
-
-
             if image_name is None:
                 image_name = self._model_name + '_image'
             # start_time = time.time()
-            pred = self.get_predictions_image(image, conf_thresh, iou_thresh, annotation_type)
+            pred = self.get_predictions_image(
+                image, conf_thresh, iou_thresh, annotation_type)
             # end_time = time.time()
             # time_infer = end_time - start_time
             # print(f'time to infer: {time_infer}')
 
-
             if imsave or imshow:
                 if annotation_type == 'poly':
                     image = self.show_mask(image,
-                                                sample=sample,
-                                                predictions=pred)
+                                           sample=sample,
+                                           predictions=pred)
                 else:
                     image = self.show(image,
-                                          sample=sample,
-                                          predictions=pred)
+                                      sample=sample,
+                                      predictions=pred)
             if imsave:
                 if save_dir is None:
                     save_dir = os.path.join('output', self._model_folder)
@@ -1508,7 +1538,6 @@ class WeedModel:
                 self.cv_imshow(image, win_name=str(image_name))
 
         return image, pred
-
 
     def infer_dataset(self,
                       dataset,
@@ -1530,7 +1559,8 @@ class WeedModel:
             predictions = []
 
             if save_folder is None:
-                save_folder = os.path.join('output', self._model_folder, save_subfolder)
+                save_folder = os.path.join(
+                    'output', self._model_folder, save_subfolder)
 
             if imsave:
                 os.makedirs(save_folder, exist_ok=True)
@@ -1542,36 +1572,36 @@ class WeedModel:
                 image_name = dataset.annotations[image_id]['filename'][:-4]
 
                 pred = self.get_predictions_image(image,
-                                                conf_thresh,
-                                                iou_thresh,
-                                                annotation_type)
+                                                  conf_thresh,
+                                                  iou_thresh,
+                                                  annotation_type)
 
                 if annotation_type == 'poly':
                     image_out = self.show_mask(image,
-                                                sample=sample,
-                                                predictions=pred)
+                                               sample=sample,
+                                               predictions=pred)
                 else:
-                    image_out = self.show(image, sample=sample, predictions=pred)
+                    image_out = self.show(
+                        image, sample=sample, predictions=pred)
 
                 if imsave:
                     if image_name_suffix is None:
                         save_image_name = os.path.join(save_folder,
-                                                    image_name + '.png')
+                                                       image_name + '.png')
                     else:
                         save_image_name = os.path.join(save_folder,
-                                                    image_name + image_name_suffix + '.png')
+                                                       image_name + image_name_suffix + '.png')
 
                     image_out_bgr = cv.cvtColor(image_out, cv.COLOR_RGB2BGR)
                     cv.imwrite(save_image_name, image_out_bgr)
 
                 if imshow:
-                    self.cv_imshow(image_out,image_name, wait_time=wait_time)
+                    self.cv_imshow(image_out, image_name, wait_time=wait_time)
 
                 # saving output out_tensor = model()
                 predictions.append(pred)
 
         return predictions
-
 
     def infer_video(self,
                     capture=None,
@@ -1595,7 +1625,8 @@ class WeedModel:
         print('original video capture resolution: width={}, height={}'.format(w, h))
         # images will get resized to what the model was trained for, so get the
         # output video size
-        print('resized video resolution: width={}, height={}'.format(self._image_width, self._image_height))
+        print('resized video resolution: width={}, height={}'.format(
+            self._image_width, self._image_height))
 
         # TODO set webcam exposure settings
 
@@ -1642,7 +1673,8 @@ class WeedModel:
                 frame.to(self._device)
 
                 # model inference
-                pred = self.get_predictions_image(frame, conf_thresh, iou_thresh, annotation_type)
+                pred = self.get_predictions_image(
+                    frame, conf_thresh, iou_thresh, annotation_type)
                 frame_out = self.show(frame, predictions=pred)
 
                 # write image to video
@@ -1650,7 +1682,8 @@ class WeedModel:
                 video_out.write(frame_out)
 
                 if vidshow:
-                    self.cv_imshow(frame_out, 'video', wait_key=0, close_window=False)
+                    self.cv_imshow(frame_out, 'video',
+                                   wait_key=0, close_window=False)
                     # NOTE not sure what wait time (ms) should be for video TODO
                     # check default, 0?
 
@@ -1678,7 +1711,6 @@ class WeedModel:
 
         return video_out_path
 
-
     def compute_iou_bbox(self, boxA, boxB):
         """
         compute intersection over union for bounding boxes box = [xmin, ymin,
@@ -1702,7 +1734,6 @@ class WeedModel:
 
         return iou
 
-
     def compute_match_cost(self, score, iou, weights=None):
         """ compute match cost metric """
         # compute match cost based on score and iou this is the arithmetic mean,
@@ -1715,7 +1746,6 @@ class WeedModel:
         # cost = weights[0] * score + weights[1] * iou # classic weighting
         cost = np.sqrt(score * iou)
         return cost
-
 
     def compute_outcome_image(self,
                               pred,
@@ -1758,7 +1788,6 @@ class WeedModel:
                     gt_iou.append(iou)
                 gt_iou_all[i, :] = np.array(gt_iou)
 
-
                 # NOTE finding the max may be insufficient dt_score also
                 # important consideration find max iou from gt_iou list
                 idx_max = gt_iou.index(max(gt_iou))
@@ -1772,7 +1801,8 @@ class WeedModel:
         for i in range(ndt):
             if ngt > 0:
                 for j in range(ngt):
-                    cost[i,j] = self.compute_match_cost(dt_scores[i], gt_iou_all[i, j])
+                    cost[i, j] = self.compute_match_cost(
+                        dt_scores[i], gt_iou_all[i, j])
             # else:
                 # import code code.interact(local=dict(globals(), **locals()))
                 # cost[i,j] = 0
@@ -1790,7 +1820,7 @@ class WeedModel:
                 for i in i_dt_cost_srt:
                     if (not dt_match[i]) and \
                         (dt_scores[i] >= DECISION_CONF_THRESH) and \
-                            (gt_iou_all[i,j] >= DECISION_IOU_THRESH):
+                            (gt_iou_all[i, j] >= DECISION_IOU_THRESH):
                         # if the detection box in question is not already
                         # matched
                         dt_match[i] = True
@@ -1801,7 +1831,6 @@ class WeedModel:
                         break
                         # stop iterating once the highest-scoring detection
                         # satisfies the criteria\
-
 
         tp = np.zeros((ndt,), dtype=bool)
         fp = np.zeros((ndt,), dtype=bool)
@@ -1823,8 +1852,8 @@ class WeedModel:
 
         # TP: if dt_match True, also, scores above certain threshold
         tp = np.logical_and(dt_match, dt_scores >= DECISION_CONF_THRESH)
-        fp = np.logical_or(np.logical_not(dt_match) , \
-            np.logical_and(dt_match, dt_scores < DECISION_CONF_THRESH))
+        fp = np.logical_or(np.logical_not(dt_match),
+                           np.logical_and(dt_match, dt_scores < DECISION_CONF_THRESH))
         fn_gt = np.logical_not(gt_match)
         fn_dt = np.logical_and(dt_match, dt_scores < DECISION_CONF_THRESH)
 
@@ -1846,28 +1875,27 @@ class WeedModel:
                     gt_outcome = 1
 
         # package outcomes
-        outcomes = {'dt_outcome': dt_outcome, # detections, integer index for tp/fp/fn
-                    'gt_outcome': gt_outcome, # groundtruths, integer index for fn
-                    'dt_match': dt_match, # detections, boolean matched or not
-                    'gt_match': gt_match, # gt, boolean matched or not
-                    'fn_gt': fn_gt, # boolean for gt false negatives
-                    'fn_dt': fn_dt, # boolean for dt false negatives
-                    'tp': tp, # true positives for detections
-                    'fp': fp, # false positives for detections
-                    'dt_iou': dt_iou, # intesection over union scores for detections
+        outcomes = {'dt_outcome': dt_outcome,  # detections, integer index for tp/fp/fn
+                    'gt_outcome': gt_outcome,  # groundtruths, integer index for fn
+                    'dt_match': dt_match,  # detections, boolean matched or not
+                    'gt_match': gt_match,  # gt, boolean matched or not
+                    'fn_gt': fn_gt,  # boolean for gt false negatives
+                    'fn_dt': fn_dt,  # boolean for dt false negatives
+                    'tp': tp,  # true positives for detections
+                    'fp': fp,  # false positives for detections
+                    'dt_iou': dt_iou,  # intesection over union scores for detections
                     'dt_scores': dt_scores,
                     'gt_iou_all': gt_iou_all,
                     'cost': cost}
         return outcomes
 
-
     def compute_pr_dataset(self,
-                            dataset,
-                            predictions,
-                            DECISION_CONF_THRESH,
-                            DECISION_IOU_THRESH,
-                            imsave=False,
-                            save_folder=None):
+                           dataset,
+                           predictions,
+                           DECISION_CONF_THRESH,
+                           DECISION_IOU_THRESH,
+                           imsave=False,
+                           save_folder=None):
         """ compute single pr pair for entire dataset, given the predictions """
         # note for pr_curve, see get_prcurve
 
@@ -1894,7 +1922,8 @@ class WeedModel:
 
             # get predictions
             pred = predictions[idx]
-            pred = self.threshold_predictions(pred, DECISION_CONF_THRESH, annotation_type='box')
+            pred = self.threshold_predictions(
+                pred, DECISION_CONF_THRESH, annotation_type='box')
 
             outcomes = self.compute_outcome_image(pred,
                                                   sample,
@@ -1914,15 +1943,16 @@ class WeedModel:
 
                 if save_folder is None:
                     save_folder = os.path.join('output',
-                                                self._model_folder,
-                                                'outcomes')
+                                               self._model_folder,
+                                               'outcomes')
 
                 conf_str = format(DECISION_CONF_THRESH, '.2f')
                 save_subfolder = 'conf_thresh_' + conf_str
                 save_path = os.path.join(save_folder, save_subfolder)
                 os.makedirs(save_path, exist_ok=True)
 
-                save_img_name = os.path.join(save_path, img_name + '_outcome.png')
+                save_img_name = os.path.join(
+                    save_path, img_name + '_outcome.png')
                 cv.imwrite(save_img_name, imgw)
 
             tp = outcomes['tp']
@@ -1964,11 +1994,9 @@ class WeedModel:
 
         return dataset_outcomes, prec, rec, f1score
 
-
     def compute_f1score(self, p, r):
         """ compute f1 score """
         return 2 * (p * r) / (p + r)
-
 
     def extend_pr(self,
                   prec,
@@ -1996,15 +2024,19 @@ class WeedModel:
 
         if PLOT:
             fig, ax = plt.subplots()
-            ax.plot(rec, prec, marker='o', linestyle='dashed', label='original')
-            ax.plot(rec, prec_new, marker='x', color='red', linestyle='solid', label='max-binned')
+            ax.plot(rec, prec, marker='o',
+                    linestyle='dashed', label='original')
+            ax.plot(rec, prec_new, marker='x', color='red',
+                    linestyle='solid', label='max-binned')
             plt.xlabel('recall')
             plt.ylabel('precision')
             plt.title('prec-rec, max-binned')
             ax.legend()
 
-            os.makedirs(os.path.join('output', self._model_folder), exist_ok=True)
-            save_plot_name = os.path.join('output', self._model_folder, save_name + '_test_pr_smooth.png')
+            os.makedirs(os.path.join(
+                'output', self._model_folder), exist_ok=True)
+            save_plot_name = os.path.join(
+                'output', self._model_folder, save_name + '_test_pr_smooth.png')
             plt.savefig(save_plot_name)
 
         # now, expand prec/rec values to extent of the whole precision/recall
@@ -2045,16 +2077,21 @@ class WeedModel:
 
         if PLOT:
             fig, ax = plt.subplots()
-            ax.plot(rec_temp, prec_temp, color='blue', linestyle='dashed', label='combined')
-            ax.plot(rec, prec_new, marker='x', color='red', linestyle='solid', label='max-binned')
-            ax.plot(rec_x, prec_x, color='green', linestyle='dotted', label='interp')
+            ax.plot(rec_temp, prec_temp, color='blue',
+                    linestyle='dashed', label='combined')
+            ax.plot(rec, prec_new, marker='x', color='red',
+                    linestyle='solid', label='max-binned')
+            ax.plot(rec_x, prec_x, color='green',
+                    linestyle='dotted', label='interp')
             plt.xlabel('recall')
             plt.ylabel('precision')
             plt.title('prec-rec, interpolated')
             ax.legend()
 
-            os.makedirs(os.path.join('output', self._model_folder), exist_ok=True)
-            save_plot_name = os.path.join('output', self._model_folder, save_name + '_test_pr_interp.png')
+            os.makedirs(os.path.join(
+                'output', self._model_folder), exist_ok=True)
+            save_plot_name = os.path.join(
+                'output', self._model_folder, save_name + '_test_pr_interp.png')
             plt.savefig(save_plot_name)
             # plt.show()
 
@@ -2064,13 +2101,11 @@ class WeedModel:
         c_out = conf_x
         return p_out, r_out, c_out
 
-
     def compute_ap(self, p, r):
         """ compute ap score """
         n = len(r) - 1
-        ap = np.sum( (r[1:n] - r[0:n-1]) * p[1:n] )
+        ap = np.sum((r[1:n] - r[0:n-1]) * p[1:n])
         return ap
-
 
     def get_confidence_from_pr(self, p, r, c, f1, pg=None, rg=None):
         """ interpolate confidence threshold from p, r and goal values. If no
@@ -2116,7 +2151,6 @@ class WeedModel:
         # we use r to interpolate with c
         return cg
 
-
     def get_prcurve(self,
                     dataset,
                     confidence_thresh,
@@ -2133,16 +2167,15 @@ class WeedModel:
 
         # infer on dataset with 0-decision threshold
         predictions = self.infer_dataset(dataset,
-                                        conf_thresh=0,
-                                        iou_thresh=nms_iou_thresh,
-                                        save_folder=save_folder,
-                                        save_subfolder=os.path.join('prcurve', 'detections'),
-                                        imshow=imshow,
-                                        imsave=imsave,
-                                        image_name_suffix='_prcurve_0',
-                                        annotation_type=annotation_type)
-
-
+                                         conf_thresh=0,
+                                         iou_thresh=nms_iou_thresh,
+                                         save_folder=save_folder,
+                                         save_subfolder=os.path.join(
+                                             'prcurve', 'detections'),
+                                         imshow=imshow,
+                                         imsave=imsave,
+                                         image_name_suffix='_prcurve_0',
+                                         annotation_type=annotation_type)
 
         # iterate over different decision thresholds
         prec = []
@@ -2173,7 +2206,6 @@ class WeedModel:
         rec = np.array(rec)
         prec = np.array(prec)
 
-
         # plot raw PR curve
         fig, ax = plt.subplots()
         ax.plot(rec, prec, marker='o', linestyle='dashed')
@@ -2181,7 +2213,8 @@ class WeedModel:
         plt.ylabel('precision')
         plt.title('precision-recall for varying confidence')
         os.makedirs(save_folder, exist_ok=True)
-        save_plot_name = os.path.join(save_folder, self._model_name + '_pr_raw.png')
+        save_plot_name = os.path.join(
+            save_folder, self._model_name + '_pr_raw.png')
         plt.savefig(save_plot_name)
         if PLOT:
             plt.show()
@@ -2198,7 +2231,8 @@ class WeedModel:
         # curve we do this by binning the recall values, and taking the max
         # precision from each bin
 
-        p_final, r_final, c_final, = self.extend_pr(prec, rec, confidence_thresh)
+        p_final, r_final, c_final, = self.extend_pr(
+            prec, rec, confidence_thresh)
         ap = self.compute_ap(p_final, r_final)
 
         # plot final pr curve
@@ -2206,9 +2240,11 @@ class WeedModel:
         ax.plot(r_final, p_final)
         plt.xlabel('recall')
         plt.ylabel('precision')
-        plt.title('prec-rec curve, iou={}, ap = {:.2f}'.format(decision_iou_thresh, ap))
+        plt.title(
+            'prec-rec curve, iou={}, ap = {:.2f}'.format(decision_iou_thresh, ap))
         # ax.legend()
-        save_plot_name = os.path.join(save_folder, self._model_name + '_pr.png')
+        save_plot_name = os.path.join(
+            save_folder, self._model_name + '_pr.png')
         plt.savefig(save_plot_name)
         if PLOT:
             plt.show()
@@ -2218,11 +2254,12 @@ class WeedModel:
 
         # save ap, f1score, precision, recall, etc
         res = {'precision': p_final,
-            'recall': r_final,
-            'ap': ap,
-            'f1score': f1score,
-            'confidence': c_final}
-        save_file = os.path.join(save_folder, self._model_name + '_prcurve.pkl')
+               'recall': r_final,
+               'ap': ap,
+               'f1score': f1score,
+               'confidence': c_final}
+        save_file = os.path.join(
+            save_folder, self._model_name + '_prcurve.pkl')
         with open(save_file, 'wb') as f:
             pickle.dump(res, f)
 
@@ -2230,7 +2267,8 @@ class WeedModel:
 
 # =========================================================================== #
 
+
 if __name__ == "__main__":
 
-      # two models
+    # two models
     print('WeedModel.py')
