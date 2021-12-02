@@ -13,16 +13,19 @@ output bounding contour and spraypoint (center of polygon)
 import os
 import cv2 as cv
 from weed_detection.WeedModel import WeedModel
+from subprocess import call
 
 # ---------------------------------------------------------------------------- #
 
+# download model to folder/file-path specified by model_path
+os.makedirs('models', exist_ok=True)
+model_path = os.path.join('models/detection_model.pth')
+url = 'https://cloudstor.aarnet.edu.au/plus/s/ZJQAKiOZFDBxDJc/download'
+call(['wget', '-O', model_path, url])
+# call(['mv', '*.pth', 'models']) # HACK moth pth to models
+
 # setup weed model
 Tussock = WeedModel()
-
-# TODO automated download of model file via wget from Cloudstor repo if not already downloaded
-# https://adamtheautomator.com/python-wget/
-# for now, manually download model: https://cloudstor.aarnet.edu.au/plus/s/ZJQAKiOZFDBxDJc/download
-model_path = os.path.join('/home/dorian/Code/weed-detection/examples/models/2021-03-25_MFS_Tussock_v0_2021-09-16_08_55_epoch25.pth')
 Tussock.load_model(model_path)
 
 # image name, note img_path must be precise path from working_example.py
