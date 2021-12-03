@@ -59,17 +59,27 @@ class WeedModel:
         else:
             self._weed_name = weed_name
 
+        # annotation type for bounding boxes or polygons
+        if annotation_type == "box" or annotation_type == "poly":
+            self._annotation_type = annotation_type
+        else:
+            raise TypeError(annotation_type, "annotation_type must be either 'box' or 'poly'")
+
         # model itself, the Pytorch model object that is used for training and
         # image inference
-        # TODO check for Pytorch model type
-        self._model = model
+        if not (isinstance(model, torchvision.models.detection.mask_rcnn.MaskRCNN) or
+            isinstance(model, torchvision.models.detection.faster_rcnn.FasterRCNN)):
+            raise TypeError(model, "model must be of type MaskRCNN or FasterRCNN")
+        else:
+            self._model = model
 
         # model path is the absolute file path to the .pth detector model
         if (isinstance(model_path, str) or (model_path is None)):
             self._model_path = model_path
         else:
             raise TypeError(model_path, "model_path must be of type str or None")
-        # TODO if model_path is not None, then call load_model
+        if model_path is not None:
+            self.load_model(model_path, annotation_type=annotation_type)
 
         # name of the model, an arbitrary string of text
         if (isinstance(model_name, str) or (model_name is None)):
@@ -111,11 +121,6 @@ class WeedModel:
             self._epoch = int(epoch)
         else:
             raise TypeError(epoch, "epoch must be type int or float")
-
-        if annotation_type == "box" or annotation_type == "poly":
-            self._annotation_type = annotation_type
-        else:
-            raise TypeError(annotation_type, "annotation_type must be either 'box' or 'poly'")
 
 
     @property

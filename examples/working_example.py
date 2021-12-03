@@ -64,5 +64,5 @@ for i, poly_cen in enumerate(pred['poly_centroids']):
     print(f'{i}: {poly_cen}')
 
 # handy debug code to examine output
-# import code
-# code.interact(local=dict(globals(), **locals()))
+import code
+code.interact(local=dict(globals(), **locals()))
