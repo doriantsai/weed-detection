@@ -345,9 +345,27 @@ class WeedModel:
                                        dataset_name,
                                        annotation_type='poly',
                                        mask_folders=None):
-        """ creates datasets and dataloader objects from train/test/val files
+        """ creates datasets and dataloader objects from train/test/val folders
+        and corresponding annotation files, saves these objects in
+        'save_dataset_path' (defined below, TODO should be an optional input),
+        outputs the string to the save_dataset_path
+
+        img_folders - a list of strings for each train/test/val folder
+        ann_files
+        - a list of strings for each annotation file, corresponding to
+        train/test/val
+        hp - hyperparameters dictionary
+        dataset_name - string,
+        name of the dataset
+        annotation_type - string, type of annotation
+        (poly/box)
+        mask_folders - for poly annotations, a list of strings for
+        each train/test/val folder of mask images
         """
-        # arguably, should be in WeedDataset class
+        # NOTE consider moving this to WeedDataset class
+
+        # check valid types
+        # TODO
 
         # unpack
         train_folder = img_folders[0]
