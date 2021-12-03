@@ -10,6 +10,7 @@ Email: dorian.tsai@gmail.com
 """
 
 import os
+from typing import Type
 import torch
 import torchvision
 import re
@@ -37,8 +38,9 @@ from weed_detection.PreProcessingToolbox import PreProcessingToolbox as PT
 
 
 class WeedModel:
-    """ collection of functions for model's weed training, detection and inference
-    """
+    """ a collection of methods for weed detection model training, detection,
+    inference and evaluation """
+    # TODO consider splitting into model training/inference/evaluation objects
 
     def __init__(self,
                  weed_name='serrated tussock',
@@ -60,7 +62,7 @@ class WeedModel:
             self._weed_name = weed_name
 
         # annotation type for bounding boxes or polygons
-        if annotation_type == "box" or annotation_type == "poly":
+        if self.check_annotation_type(annotation_type):
             self._annotation_type = annotation_type
         else:
             raise TypeError(annotation_type, "annotation_type must be either 'box' or 'poly'")
@@ -111,7 +113,7 @@ class WeedModel:
 
         self._hp = hyper_parameters
         # TODO use parse arges library to convey hyper parameters
-        # TODO should get image height/width automatically from PIL images
+        # TODO should get image height/width automatically from images
         self._image_height = int(2056 / 2)  # rescale_size
         self._image_width = int(2464 / 2)
 
@@ -173,22 +175,44 @@ class WeedModel:
     def get_hyper_parameters(self):
         return self._hp
 
+
+    def check_annotation_type(self, annotation_type):
+        """ checks for valid annotation type """
+        if not isinstance(annotation_type, str):
+            raise TypeError(annotation_type, 'annotation_type must be a str')
+        valid_ann_types = ['box', 'poly']
+        if not(annotation_type in valid_ann_types):
+            raise TypeError(annotation_type, f'annotation_type must be of valid annotation types: {valid_ann_types}')
+        return True
+
+
     def build_fasterrcnn_model(self, num_classes):
-        """ build fasterrcnn model for set number of classes """
+        """ build fasterrcnn model for set number of classes (int), loads pre-trained
+        on coco image database, sets annotation_type to 'box' """
+
+        if not isinstance(num_classes, int):
+            raise TypeError(num_classes, 'num_classes must be an int')
 
         # load instance of model pre-trained on coco:
         model = torchvision.models.detection.fasterrcnn_resnet50_fpn(
             pretrained=True)
+
         # get number of input features for the classifier
         in_features = model.roi_heads.box_predictor.cls_score.in_features
+
         # replace pre-trained head with new one
         model.roi_heads.box_predictor = FastRCNNPredictor(
             in_features, num_classes)
         self._annotation_type = 'box'
         return model
 
+
     def build_maskrcnn_model(self, num_classes):
-        """ build maskrcnn model for set number of classes """
+        """ build maskrcnn model for set number of classes (int), loads pre-trained
+        model on coco image database, sets annotation_type to 'poly' """
+
+        if not isinstance(num_classes, int):
+            raise TypeError(num_classes, 'num_classes must be an int')
 
         # load instance segmentation model pre-trained on COCO
         model = torchvision.models.detection.maskrcnn_resnet50_fpn(
@@ -210,11 +234,21 @@ class WeedModel:
                                                            hidden_layer,
                                                            num_classes)
         self._annotation_type = 'poly'
-
         return model
 
+
     def load_dataset_objects(self, dataset_path, return_dict=True):
-        """ load dataset objects given path """
+        """ load/unpackage dataset objects given path. dataset_path is a string
+        that is an absolute path to the dataset file object. The dataset file
+        object is a .pkl file from the self.create_train_test_val_datasets
+        method"""
+
+        if not isinstance(dataset_path, str):
+            TypeError(dataset_path, 'dataset_path must be a string')
+        if not isinstance(return_dict, bool):
+            TypeError(return_dict, 'return_dict must be a boolean')
+
+        # order is important
         if os.path.isfile(dataset_path):
             with open(dataset_path, 'rb') as f:
                 ds_train = pickle.load(f)
@@ -243,6 +277,7 @@ class WeedModel:
             return ds_train, ds_test, ds_val, dl_train, dl_test, dl_val, \
                 hp_train, hp_test, dataset_name
 
+
     def create_dataset_dataloader(self,
                                   root_dir,
                                   json_file,
@@ -251,13 +286,31 @@ class WeedModel:
                                   annotation_type='poly',
                                   mask_dir=None,
                                   img_dir=None):
-        # assume tforms already defined outside of this function
+        """ creates a pytorch dataset and dataloader object for given set of
+        data (root_dir, json_file, transforms, hyperparameters (hp), mask_dir,
+        img_dir). Typically iteratively by self.create_train_test_val_datasets()
+        to do the same operation for training/testing/validation data """
+
+        # check input variables
+        if not isinstance(root_dir, str):
+            raise TypeError(root_dir, 'root_dir must be a str')
+        if not isinstance(json_file, str):
+            raise TypeError(json_file, 'json_file must be a str')
+        # TODO check for transforms, list of transform objects?
+        if not isinstance(hp, dict):
+            raise TypeError(hp, 'hp must be a dict')
+        self.check_annotation_type(annotation_type)
+
+        # assume transforms  already defined outside of this function
         batch_size = hp['batch_size']
         num_workers = hp['num_workers']
         shuffle = hp['shuffle']
+
+        # default image directory specified as root directory, root_dir
         if img_dir is None:
             img_dir = root_dir
 
+        # different dataset objects for polygons vs boxes
         if annotation_type == 'poly':
             dataset = WDP.WeedDatasetPoly(root_dir,
                                           json_file,
@@ -278,8 +331,12 @@ class WeedModel:
                                                  collate_fn=self.collate_fn)
         return dataset, dataloader
 
+
     def collate_fn(self, batch):
+        """ collates batch of images together into a tuple for pytorch
+        dataloaders """
         return tuple(zip(*batch))
+
 
     def create_train_test_val_datasets(self,
                                        img_folders,
