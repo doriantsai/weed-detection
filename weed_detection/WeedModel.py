@@ -56,10 +56,10 @@ class WeedModel:
         """ initialise single-class detector object """
 
         # weed_name is a string of the name of the weed that the detector is
-        if not isinstance(weed_name, str):
-            raise TypeError(weed_name, "weed_name must be type str")
-        else:
+        if isinstance(weed_name, str):
             self._weed_name = weed_name
+        else:
+            raise TypeError(weed_name, "weed_name must be type str")
 
         # annotation type for bounding boxes or polygons
         if self.check_annotation_type(annotation_type):
@@ -69,11 +69,12 @@ class WeedModel:
 
         # model itself, the Pytorch model object that is used for training and
         # image inference
-        if not (isinstance(model, torchvision.models.detection.mask_rcnn.MaskRCNN) or
-            isinstance(model, torchvision.models.detection.faster_rcnn.FasterRCNN)):
-            raise TypeError(model, "model must be of type MaskRCNN or FasterRCNN")
-        else:
+        if (isinstance(model, torchvision.models.detection.mask_rcnn.MaskRCNN) or
+            isinstance(model, torchvision.models.detection.faster_rcnn.FasterRCNN) or
+            model is None):
             self._model = model
+        else:
+            raise TypeError(model, "model must be of type MaskRCNN or FasterRCNN")
 
         # model path is the absolute file path to the .pth detector model
         if (isinstance(model_path, str) or (model_path is None)):

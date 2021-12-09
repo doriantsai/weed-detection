@@ -17,12 +17,13 @@ from subprocess import call
 
 # ---------------------------------------------------------------------------- #
 
-# download model to folder/file-path specified by model_path
-os.makedirs('models', exist_ok=True)
-model_path = os.path.join('models/detection_model.pth')
-url = 'https://cloudstor.aarnet.edu.au/plus/s/ZJQAKiOZFDBxDJc/download'
-call(['wget', '-O', model_path, url])
-# call(['mv', '*.pth', 'models']) # HACK moth pth to models
+# check if model is in folder. If so, use it. Otherwise, download it
+model_path = os.path.join('models','detection_model.pth')
+if not os.path.exists(model_path):
+    # download model to folder/file-path specified by model_path
+    os.makedirs('models', exist_ok=True)
+    url = 'https://cloudstor.aarnet.edu.au/plus/s/ZJQAKiOZFDBxDJc/download'
+    call(['wget', '-O', model_path, url])
 
 # setup weed model
 Tussock = WeedModel()
@@ -47,7 +48,6 @@ print(f'img_out size = {img_out.shape}')
 print(f'img_out path = output/{os.path.basename(img_path)}') # assuming save_dir, image_name same as above
 
 # print predictions
-
 # print polygon/contour output
 print('polygons:')
 for i, poly in enumerate(pred['polygons']):
@@ -64,5 +64,5 @@ for i, poly_cen in enumerate(pred['poly_centroids']):
     print(f'{i}: {poly_cen}')
 
 # handy debug code to examine output
-import code
-code.interact(local=dict(globals(), **locals()))
+# import code
+# code.interact(local=dict(globals(), **locals()))

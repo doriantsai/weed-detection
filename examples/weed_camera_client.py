@@ -6,6 +6,7 @@ import numpy
 import os
 from weed_detection.WeedModel import WeedModel
 import time
+from subprocess import call
 
 #########################################################
 # Client to connect to the weed camera server using ZMQ
@@ -39,18 +40,22 @@ class WeedCameraClient:
 
 
 # setup weed model
+# model_name = '2021-03-25_MFS_Tussock_v0_2021-09-16_08_55'
+# model_path = os.path.join('/home/dorian/Code/weed-detection/scripts/output', model_name, model_name + '.pth')
+# Tussock.load_model(model_path)
+# Tussock.set_model_name(model_name)
+# Tussock.set_snapshot(25)
+# check if model is in folder. If so, use it. Otherwise, download it
+model_path = os.path.join('models','detection_model.pth')
+if not os.path.exists(model_path):
+    # download model to folder/file-path specified by model_path
+    os.makedirs('models', exist_ok=True)
+    url = 'https://cloudstor.aarnet.edu.au/plus/s/ZJQAKiOZFDBxDJc/download'
+    call(['wget', '-O', model_path, url])
+
+# setup weed model
 Tussock = WeedModel()
-
-model_name = '2021-03-25_MFS_Tussock_v0_2021-09-16_08_55'
-model_path = os.path.join('/home/dorian/Code/weed-detection/scripts/output', model_name, model_name + '.pth')
 Tussock.load_model(model_path)
-Tussock.set_model_name(model_name)
-Tussock.set_snapshot(25)
-
-
-
-# import code
-# code.interact(local=dict(globals(), **locals()))
 
 # Demonstration code to run as script
 # Create client using default arguments
@@ -67,9 +72,6 @@ while(i < MAX_COUNT):
     image = client.read_image()
 
     # TODO red blue green channels are mixed up!
-    # cv.namedWindow("PythonWeedCameraClientDebugWindow")
-    # cv.imshow("PythonWeedCameraClientDebugWindow", image)
-    # cv.waitKey(10)
     print('   model inference')
     img_name = 'image_' + str(i)
     img_out, pred = Tussock.infer_image(image,
@@ -83,10 +85,7 @@ while(i < MAX_COUNT):
 # print times
 end_time = time.time()
 sec = end_time - start_time
-print('training time: {} sec'.format(sec))
-# print('training time: {} min'.format(sec / 60.0))
-# print('training time: {} hrs'.format(sec / 3600.0))
-
 cycle_time = sec / i
+print('running time: {} sec'.format(sec))
 print('cycle time: {} sec/cycle'.format(cycle_time))
 print('cycle freq: {} Hz'.format(1.0/cycle_time))
