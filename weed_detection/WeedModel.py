@@ -460,25 +460,30 @@ class WeedModel:
 
         return save_dataset_path
 
+
     def get_now_str(self):
-        """ get a string of yyyymmdd_hh_mm or something similar """
-        # useful for creating unique folder/variable names
+        """ return a string of yyyymmdd_hh_mm to provide unique string in
+        filenames or model names"""
         now = str(datetime.datetime.now())
         now_str = now[0:10] + '_' + now[11:13] + '_' + now[14:16]
         return now_str
 
+
     def train(self,
               model_name,
-              dataset_path=None,
+              dataset_path,
               model_name_suffix=True,
               model_folder=None,
               annotation_type='poly'):
+        """ train detection model given dataset path, which has
+        dataset/dataloader objects, output the trained model and file location
+        to the saved model """
 
+        # TODO check input
         # TODO if dataset_path is None, call create_train_test_val_datasets for
         # now, we assume this has been done/dataset_path exists and is valid
-        if dataset_path is None:
-            print('TODO: call function to build dataset objects and return them')
-        # else:
+        if not isinstance(dataset_path, str):
+            raise ValueError(dataset_path, 'dataset_path must be valid file/string')
 
         # loading dataset, full path
         print('Loading dataset:' + dataset_path)
@@ -514,10 +519,6 @@ class WeedModel:
             save_folder = os.path.join('output', model_folder)
         os.makedirs(save_folder, exist_ok=True)
         print('Model saved in folder: {}'.format(save_folder))
-
-        # setup device, send to gpu if possible, otherwise cpu device =
-        # torch.device('cuda') if torch.cuda.is_available() else
-        # torch.device('cpu') shifted into object properties and init
 
         # build model setup number of classes (1 background, 1 class - weed
         # species)
