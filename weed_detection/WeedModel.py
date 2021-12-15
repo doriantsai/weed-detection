@@ -477,7 +477,16 @@ class WeedModel:
               annotation_type='poly'):
         """ train detection model given dataset path, which has
         dataset/dataloader objects, output the trained model and file location
-        to the saved model """
+        to the saved model
+
+        model_name - str to identify unique model name dataset_path - absolute
+        folder path to dataset object
+        model_name_suffix - boolean, if True,
+        append a "now_str" string to the end of model_name to make unique at the
+        time of running
+        model_folder - location to store final model and epochs
+        annotation_type - string, type of annotation (poly/box)
+        """
 
         # TODO check input
         # TODO if dataset_path is None, call create_train_test_val_datasets for
@@ -623,12 +632,19 @@ class WeedModel:
 
         return model, model_save_path
 
+
     def load_model(self,
                    model_path=None,
                    num_classes=2,
                    map_location="cuda:0",
                    annotation_type='poly'):
-        """ load model to self based on model_path """
+        """ load model to self based on model_path
+
+        model_path - absolute string path to .pth file of trained model
+        num_classes - number of classes + background class (eg, for a single-class detector, num_classes = 2)
+        map_location - where the model should be loaded (default directly onto gpu)
+        annotation_type - string, type of annotation (poly/box)
+        """
 
         if model_path is None:
             model_path = self._model_path
@@ -649,10 +665,26 @@ class WeedModel:
 
         return model
 
+
     def set_snapshot(self,
                      epoch,
                      snapshot_folder=None):
-        """ set snapshot for epoch, deals with early stopping """
+        """ set snapshot for epoch, deals with early stopping
+
+        As an alternative to early stopping, where we may not be 100% sure that
+        early stopping requirements have reached, we instead train to X number
+        of epochs, and at a specified interval, save a snapshot of the model. We
+        observe the performance of each model (via training and validation
+        loss), and can choose where the We can select the snapshot and replace the "final
+        model" at a later time via this function, set_snapshot()
+
+        input:
+        epoch - the desired epoch number
+        snapshot_folder - where snapshots are located
+        output:
+        True if found relevant snapshot and loaded model; otherwise, False
+
+        """
         # change the model_path and model of self to epoch given a model name
         # (.pth) and an epoch number find the .pth file of the model name find
         # all the snapshots in the snapshots folder from training replace said
@@ -667,40 +699,50 @@ class WeedModel:
         if snapshot_folder is None:
             snapshot_folder = os.path.join(self._model_folder, 'snapshots')
 
-        # find all filenames in snapshot folder
-        snapshot_files = os.listdir(snapshot_folder)
-        pattern = 'epoch'
-        e = []
-        for f in snapshot_files:
-            if f.endswith('.pth'):
-                # find the string that matches the pattern and split it
-                n = re.split(pattern, f, maxsplit=0, flags=0)
-                # take the second portion of the string (after epoch) to reclaim
-                # the epoch number from the snapshot file name
-                e.append(int(n[1][:-4]))
-        e = np.array(e)
+        try:
+            # find all filenames in snapshot folder
+            snapshot_files = os.listdir(snapshot_folder)
+            pattern = 'epoch'
+            e = []
+            for f in snapshot_files:
+                if f.endswith('.pth'):
+                    # find the string that matches the pattern and split it
+                    n = re.split(pattern, f, maxsplit=0, flags=0)
+                    # take the second portion of the string (after epoch) to reclaim
+                    # the epoch number from the snapshot file name
+                    e.append(int(n[1][:-4]))
+            e = np.array(e)
 
-        # find closest e[i] to epoch
-        diff_e = np.sqrt((e - epoch)**2)
-        i_emin = np.argmin(diff_e)
+            # find closest e[i] to epoch
+            diff_e = np.sqrt((e - epoch)**2)
+            i_emin = np.argmin(diff_e)
 
-        # closest snapshot index is indexed by i_emin
-        print('closest snapshot epoch: {}'.format(snapshot_files[i_emin]))
-        print('corresponding epoch number: {}'.format(e[i_emin]))
+            # closest snapshot index is indexed by i_emin
+            print('closest snapshot epoch: {}'.format(snapshot_files[i_emin]))
+            print('corresponding epoch number: {}'.format(e[i_emin]))
 
-        # set object model and model path and epoch number
-        self._model_path = os.path.join(
-            snapshot_folder, snapshot_files[i_emin])
-        self._epoch = e[i_emin]
-        self.load_model(annotation_type=self._annotation_type)
+            # set object model and model path and epoch number
+            self._model_path = os.path.join(
+                snapshot_folder, snapshot_files[i_emin])
+            self._epoch = e[i_emin]
 
-        return True
+            self.load_model(annotation_type=self._annotation_type)
+            return True
+        except:
+            print('Failed to set snapshot and load model')
+            return False
 
     def find_file(self, file_pattern, folder):
         """
-        find filename given file pattern in a folder
+        helper function to find filename given file pattern in a folder
         """
-        # TODO check valid inputs
+
+        if not isinstance(file_pattern, str):
+            raise TypeError(file_pattern, 'file_pattern must be of a str')
+        if not isinstance(folder, str):
+            raise TypeError(folder, 'folder must be a str')
+
+        # TODO check if folder is valid directory
 
         files = os.listdir(folder)
         file_find = []
@@ -726,10 +768,18 @@ class WeedModel:
                               annotation_type='poly',
                               mask_threshold=0.5):
         """ take in model, single image, thresholds, return bbox predictions for
-        scores > threshold """
+        scores > threshold
+
+        image - image tensor
+        conf_thresh - confidence threshold scalar (0-1)
+        nms_iou_thresh - non-maxima suppression interval-over-union threshold (0-1)
+        annotation_type - polygon or box (box/poly string)
+        mask_threshold - threshold to binarize mask output (which comes as 0-1 mapping)
+        """
+
+        # TODO check inputs
 
         # image incoming is a tensor, since it is from a dataloader object
-        # TODO could call self.model.eval(), but for now, just want to port the scripts/functions
         self._model.eval()
 
         if torch.cuda.is_available():
@@ -738,7 +788,9 @@ class WeedModel:
             self._model.to(self._device)
 
         # do model inference on single image
-        # start_time = time.time()
+        # TODO self._model(image) if image is
+        # TODO a list of tensors, should handle in batch, could be much faster for
+        # TODO large quantity of images start_time = time.time()
         pred = self._model([image])
         # end_time = time.time()
         # time_infer = end_time - start_time
@@ -815,7 +867,8 @@ class WeedModel:
         return pred_final
 
     def threshold_predictions(self, pred, thresh, annotation_type='poly'):
-        """ apply confidence threshold to predictions """
+        """ apply confidence threshold to predictions, returns predictions in
+        same dictionary """
 
         pred_boxes = pred['boxes']
         pred_class = pred['classes']
@@ -904,10 +957,25 @@ class WeedModel:
              resize_image=False,
              resize_height=(256)):
         """ show image, sample/groundtruth, model predictions, outcomes
-        (TP/FP/etc) """
-        # TODO rename "show" to something like "create_plot" or "markup", as we
-        # don't actually show the image assume image comes in as a tensor, as in
-        # the same format it was input into the model
+        (TP/FP/etc)
+
+        image - input as a tensor
+        sample - groundtruth information for given image
+        predictions - model inference results
+        outcomes - a string defining true/false positive/negative outcome for detection
+        sample_color - triplet RGB values for sample markup on input image
+        predictions_color - same as above for prediction markup
+        iou_color - same as above for iou with nearest bounding box
+        transpose_image_channels - boolean to transpose image channels from
+        tensor format [c, h, w] to numpy format [h, w, c], where c = channels, h
+        = height, w = width
+        transpose_color_channels - switch from RGB images (standard image format/order)
+        to BGR format (OpenCV)
+        resize_image - boolean, if true, resize image output to resize_height to save on image size
+        resize_height - int, image save height, aspect ratio is preserved
+        """
+
+        # TODO check input
 
         # set plotting parameters
         gt_box_thick = 12   # groundtruth bounding box
