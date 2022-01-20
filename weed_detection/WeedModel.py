@@ -1309,9 +1309,6 @@ class WeedModel:
             # if we were working with BGR as opposed to RGB
             image_out = np.transpose(image_out, (1, 2, 0))
 
-        import code
-        code.interact(local=dict(globals(), **locals()))
-
         # normalize image from 0,1 to 0,255
         image_out = cv.normalize(
             image_out, None, 0, 255, cv.NORM_MINMAX, cv.CV_8U)
@@ -1624,7 +1621,7 @@ class WeedModel:
                     conf_thresh=0.5,
                     iou_thresh=0.5,
                     annotation_type='poly',
-                    transpose_image_channels=True):
+                    image_color_format='RGB'):
         """ do inference on a single image """
         # assume image comes in as a tensor for now (eg, from image, sample in
         # dataset)
@@ -1634,6 +1631,10 @@ class WeedModel:
             raise TypeError(image, 'image must be numpy array or pytorch tensor')
 
         if isinstance(image, np.ndarray):
+            # adjust BGR to RGB
+            if image_color_format == 'BGR':
+                image = image[:, :, [2, 1, 0]] # given BGR(012), want RGB(210)
+
             c, h, w = self.get_image_tensor_size()
             [hi, wi, ci] = image.shape
 
@@ -1642,6 +1643,7 @@ class WeedModel:
                 # print('rescaling image to expected image size')
                 tform_rsc = WDP.Rescale(h)
                 image = tform_rsc(image)
+
 
             # check valid image size ()
             # convert np array to image tensor
@@ -1674,13 +1676,11 @@ class WeedModel:
                 if annotation_type == 'poly':
                     image = self.show_mask(image,
                                            sample=sample,
-                                           predictions=pred,
-                                           transpose_image_channels=transpose_image_channels)
+                                           predictions=pred)
                 else:
                     image = self.show(image,
                                       sample=sample,
-                                      predictions=pred,
-                                      transpose_image_channels=transpose_image_channels)
+                                      predictions=pred)
             if imsave:
                 if save_dir is None:
                     save_dir = os.path.join('output', self._model_folder)
