@@ -1190,8 +1190,9 @@ class WeedModel:
 
             # find bounding polygon of binary image
             # convert images to cv_8u
-            contours, hierarchy = cv.findContours(
+            contours_in, hierarchy = cv.findContours(
                 mask_close, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
+            contours = list(contours_in)
 
             # import code
             # code.interact(local=dict(globals(), **locals()))

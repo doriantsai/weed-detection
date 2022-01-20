@@ -3,20 +3,23 @@
 import zmq
 import cv2 as cv
 import numpy
+import flatbuffers
 import os
 from weed_detection.WeedModel import WeedModel
 import time
 from subprocess import call
+
+# Import generated flat buffer messages
+import agKelpieImage.AgKelpieImage as ImageMsg
+import agKelpieImage.Image
 
 #########################################################
 # Client to connect to the weed camera server using ZMQ
 # Currently only raw CVMat reading is supported in the Python version
 # The image height and width values will be sent as part of the protocol in the future
 class WeedCameraClient:
-    def __init__(self, address_string = "tcp://127.0.0.1:5556", img_height = 2056, img_width = 2464):
+    def __init__(self, address_string = "tcp://127.0.0.1:5556"):
         self.address_string = address_string
-        self.img_height = img_height
-        self.img_width = img_width
 
     # Subscribe to images
     def connect(self):
@@ -31,10 +34,19 @@ class WeedCameraClient:
     def read_image(self):
         # Grab image
         input_buffer = self.socket.recv()
-        # Convert buffer to numpy array
-        image = numpy.frombuffer(input_buffer, dtype=numpy.uint8).reshape((self.img_height, self.img_width, 3))
+        # Parse message
+        msg = ImageMsg.AgKelpieImage.GetRootAs(input_buffer, 0)
+        self.timestamp = time.localtime(msg.Timestamp() / 1000)
+        msg_image = msg.Image()
+        self.img_height = msg_image.YSize()
+        self.img_width = msg_image.XSize()
+        self.img_encoding = msg_image.Encoding()
+        self.img_compressed = msg_image.Compressed()
+        if self.img_compressed:
+            print("Compressed image not supported by this example!")
+        self.image = msg_image.DataAsNumpy().reshape((self.img_height, self.img_width, 3))
         # Return value
-        return image
+        return (self.timestamp, self.image)
 
 #########################################################
 
@@ -69,7 +81,7 @@ i = 0
 MAX_COUNT = 50
 while(i < MAX_COUNT):
     print(f'{i}: read image')
-    image = client.read_image()
+    image_time, image = client.read_image()
 
     # TODO red blue green channels are mixed up!
     print('   model inference')
@@ -77,7 +89,7 @@ while(i < MAX_COUNT):
     img_out, pred = Tussock.infer_image(image,
                                         imshow=False,
                                         imsave=True,
-                                        save_dir='.',
+                                        save_dir='output',
                                         image_name=img_name)
 
     i += 1
