@@ -33,14 +33,15 @@ Tussock.load_model(model_path)
 # img_path = os.path.join('../images', 'images_train', 'mako___2021-3-25___14-51-45-481.png')
 img_path = os.path.join('./images', 'mako___2021-3-26___10-53-40-932.png')
 
-# import image as a numpy array
+# import image as a numpy array, BGR style
 img = cv.imread(img_path, cv.IMREAD_COLOR)
+img_rgb = cv.cvtColor(img, cv.COLOR_BGR2RGB)
 
 # infer image
-img_out, pred = Tussock.infer_image(img,
+img_out, pred = Tussock.infer_image(img_rgb,
                                     imsave=True,
                                     save_dir='output',
-                                    image_name=os.path.basename(img_path))
+                                    image_name=os.path.basename(img_path)[:-4])
 
 # print where image is
 print(f'img_out type = {type(img_out)}')

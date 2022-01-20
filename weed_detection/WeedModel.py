@@ -1309,6 +1309,9 @@ class WeedModel:
             # if we were working with BGR as opposed to RGB
             image_out = np.transpose(image_out, (1, 2, 0))
 
+        import code
+        code.interact(local=dict(globals(), **locals()))
+
         # normalize image from 0,1 to 0,255
         image_out = cv.normalize(
             image_out, None, 0, 255, cv.NORM_MINMAX, cv.CV_8U)
@@ -1620,7 +1623,8 @@ class WeedModel:
                     image_name=None,
                     conf_thresh=0.5,
                     iou_thresh=0.5,
-                    annotation_type='poly'):
+                    annotation_type='poly',
+                    transpose_image_channels=True):
         """ do inference on a single image """
         # assume image comes in as a tensor for now (eg, from image, sample in
         # dataset)
@@ -1670,11 +1674,13 @@ class WeedModel:
                 if annotation_type == 'poly':
                     image = self.show_mask(image,
                                            sample=sample,
-                                           predictions=pred)
+                                           predictions=pred,
+                                           transpose_image_channels=transpose_image_channels)
                 else:
                     image = self.show(image,
                                       sample=sample,
-                                      predictions=pred)
+                                      predictions=pred,
+                                      transpose_image_channels=transpose_image_channels)
             if imsave:
                 if save_dir is None:
                     save_dir = os.path.join('output', self._model_folder)
