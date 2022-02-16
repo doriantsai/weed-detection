@@ -751,6 +751,10 @@ class PreProcessingToolbox:
                                mask_dir_out=None):
         """ create binary masks for given folder img_dir_in and ann_file, output
         to img_dir_out """
+        # TODO to reduce compute, a flag for positive/negative image status
+        # could be used so no mask need be generated for negative images, though
+        # depending on how mask images are handled later on down the pipeline
+        # (eg, training), one would need to further use the pos/neg image flag.
 
         # grab one image to get image width/height
         img_files = os.listdir(img_dir_in)
@@ -1095,6 +1099,7 @@ class PreProcessingToolbox:
         # take Y neg images, based on pos_neg_img_ratio
         # save this as a trim negative set
         # combine pos, neg image directories and respective json files into balanced json file/folder\
+        # TODO what if insufficient negative/positive images?
 
         img_dir_in = os.path.join(root_dir, 'images')
 
