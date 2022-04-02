@@ -81,6 +81,7 @@ img_dirs, ann_files, mask_dirs = ppt.split_image_data(root_dir,
 # setting hyper parameters
 # create datasets/dataloaders for training
 
+# TODO use library argparse for setting parameters, or json reader to store parameters
 # set hyper parameters of dataset
 batch_size = 10
 num_workers = 10
@@ -145,6 +146,9 @@ models={'name': model_names,
 
 dataset_names = [dataset_name]
 datasets = [os.path.join('dataset_objects', d, d + '.pkl') for d in dataset_names]
+
+import code
+code.interact(local=dict(globals(), **locals()))
 
 res = Tussock.compare_models(models,
                          datasets,
