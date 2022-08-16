@@ -6,7 +6,8 @@ conda env create -f agkelpie.yml
 # since running in conda, sometimes get Qt error associated with opencv,
 # so pip install opencv-python will work, but has errors popping up
 # current attempt does this, but build may take a while
-pip install --no-binary opencv-python opencv-python
+# UPDATE: removed, as now redundant with "dependencies: opencv" in the agkelpie.yml file
+# pip install --no-binary opencv-python opencv-python
 
 # for weed-camera interface, unsure if zeromq == zmq, stackoverflow seems
 # to imply they are different

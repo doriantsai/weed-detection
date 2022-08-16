@@ -18,14 +18,16 @@ dependencies:
   - scikit-image
   - scikit-learn
   - tensorboard
-  - pytorch
+  - pytorch::pytorch
   - torchvision
   - torchaudio
-  - cudatoolkit=11.1
+  - nvidia::cudatoolkit=11.3
   - shapely
   - pylint
   - autopep8
   - flake8
   - pytorch-lightning
   - wandb
+  - ipython
+  - opencv
   - python-flatbuffers
