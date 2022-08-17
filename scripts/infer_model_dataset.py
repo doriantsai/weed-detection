@@ -2,22 +2,20 @@
 
 """ script to infer from model for entire dataset """
 
-import os
-import pickle
-from weed_detection.WeedModel import WeedModel as WM
-from weed_detection.WeedDatasetPoly import Compose, Rescale, ToTensor
-
+# overview of script:
 # init WM object
 # load model
 # call inference functions
 
+import os
+from weed_detection.WeedModel import WeedModel as WM
+from weed_detection.WeedDatasetPoly import Compose, Rescale, ToTensor
+
 # init WM object
-Tussock = WM()
+WeedModel = WM()
 
 # load dataset objects
-# dataset_name = 'Tussock_v0_mini'
-# dataset_name = 'Tussock_v3_neg_train_test'
-dataset_name = '2021-03-26_MFS_Horehound'
+dataset_name = '2021-03-25_MFS_Multiclass_v0'
 
 DATASET_FILE_EXISTS = True
 if DATASET_FILE_EXISTS:
@@ -25,22 +23,17 @@ if DATASET_FILE_EXISTS:
                                 dataset_name,
                                 dataset_name + '.pkl')
     # load dataset files via unpacking the pkl file
-    dso = Tussock.load_dataset_objects(dataset_file)
-
-    # just choose which dataset object to use for this script
-    ds_infer = dso['ds_train']
-    dl_infer = dso['dl_train']
+    dso = WeedModel.load_dataset_objects(dataset_file)
 
 else:
     root_dir = os.path.join('/home',
-                            'dorian',
-                            'Data',
                             'agkelpie',
+                            'Data',
                             dataset_name)
-    img_dir = os.path.join(root_dir, 'Images', 'PolySubset')
-    mask_dir = os.path.join(root_dir, 'Masks', 'PolySubset')
-    ann_file = 'via_project_07Jul2021_08h00m_240_polysubset_bootstrap.json'
-    ann_path = os.path.join(root_dir, 'Annotations', ann_file)
+    img_dir = os.path.join(root_dir, 'images_test')
+    mask_dir = os.path.join(root_dir, 'masks_test')
+    ann_file = '2021-03-25_MFS_Multiclass_v0_balanced_test.json'
+    ann_path = os.path.join(root_dir, 'metadata', ann_file)
 
     # set hyper parameters of dataset
     batch_size = 10
@@ -79,31 +72,25 @@ else:
     ds_infer = dataset
 
 # load model
-# model_name = 'tussock_test_2021-05-16_16_13'
-# model_name = 'Tussock_v0_mini_2021-06-09_09_19'
-# model_name = 'Tussock_v4_poly286_2021-07-15_11_08'
-# model_name = '2021-03-25_MFS_Tussock_MaskRCNN_2021-08-31_19_33'
-# model_name = '2021-03-25_MFS_Tussock_FasterRCNN_2021-09-01_16_49'
-# model_name = '2021-03-26_MFS_Horehound_2021-09-09_18_08'
-model_name = '2021-03-26_MFS_Horehound_FasterRCNN_2021-09-09_20_17'
+model_name = '2021-03-25_MFS_Multiclass_v0_2022-08-17_12_28'
 
 # model_name = dataset_name
 save_model_path = os.path.join('output',
                                model_name,
                                model_name + '.pth')
-Tussock.load_model(save_model_path, annotation_type='box')
-Tussock.set_model_name(model_name)
-Tussock.set_model_path(save_model_path)
-Tussock.set_model_folder(model_name)
-Tussock.set_snapshot(20)
+WeedModel.load_model(save_model_path, annotation_type='poly', num_classes=3)
+WeedModel.set_model_name(model_name)
+WeedModel.set_model_path(save_model_path)
+WeedModel.set_model_folder(model_name)
+# WeedModel.set_snapshot(5)
 
 # run model inference on entire dataset
 print('infering dataset')
-pred = Tussock.infer_dataset(dso['ds_test'],
+pred = WeedModel.infer_dataset(dso['ds_test'],
                              imsave=True,
                              save_subfolder='infer_dataset_test',
-                             conf_thresh=0.19,
-                             annotation_type='box')
+                             conf_thresh=0.5,
+                             annotation_type='poly')
     # image_out, pred = Tussock.infer_image(image,
     #                                       sample=sample,
     #                                       imshow=True,

@@ -20,13 +20,11 @@ from weed_detection.PreProcessingToolbox import PreProcessingToolbox
 
 # setup file/folder locations
 dataserver_dir = os.path.join('/home/agkelpie/Data/03_Tagged')
-dataset_name = '2021-03-25_MFS_Multiclass_v0'
+dataset_name = '2021-03-26_MFS_Multiclass_v1'
 
 # glob string patterns to find the images and metadata (annotations) files, respectively
-img_dir_patterns=['/2021-03-25/*/images/',
-                  '/2021-03-26/*/images/']
-ann_dir_patterns=['/2021-03-25/*/metadata/',
-                  '/2021-03-26/*/metadata/']
+img_dir_patterns=['/2021-03-26/*/images/']
+ann_dir_patterns=['/2021-03-26/*/metadata/']
 
 ppt = PreProcessingToolbox()
 
@@ -113,22 +111,22 @@ hp['rescale_size'] = rescale_size
 
 # create dataset
 print('Creating dataset objects')
-Tussock = WeedModel(model_name=dataset_name)
-dataset_path = Tussock.create_train_test_val_datasets(img_dirs,
+MulticlassModel = WeedModel(model_name=dataset_name)
+dataset_path = MulticlassModel.create_train_test_val_datasets(img_dirs,
                                                         ann_files,
                                                         hp,
                                                         dataset_name,
                                                         annotation_type=model_type,
                                                         mask_folders=mask_dirs)
 # load dataset
-dso = Tussock.load_dataset_objects(dataset_path)
+dso = MulticlassModel.load_dataset_objects(dataset_path)
 
 
 # ======================================================================================
 # train model
 # ======================================================================================
 print('Training model')
-model, model_save_path = Tussock.train(model_name=dataset_name,
+model, model_save_path = MulticlassModel.train(model_name=dataset_name,
                                          dataset_path=dataset_path,
                                          model_name_suffix=True,
                                          num_classes=3) # num_classes = 2 + background = 3
@@ -136,27 +134,35 @@ print(f'finished training model: {model_save_path}')
 
 
 # ======================================================================================
+# demonstrate model on test set (infer)
+# ======================================================================================
+print('Model Demonstration on Test set')
+pred = MulticlassModel.infer_dataset(dataset=dso['ds_test'],
+                                     imsave=True)
+print('Model inference complete')
+
+# ======================================================================================
 # generate pr curve
 # ======================================================================================
-print('Computing PR curve')
-model_names = [Tussock.get_model_name()]
-model_descriptions = ['St_MaskRCNN']
-model_types = [model_type]
-model_epochs = [5]  # TODO find min. of validation curve and use nearest
-models={'name': model_names,
-        'folder': model_names,
-        'description': model_descriptions,
-        'type': model_types,
-        'epoch': model_epochs}
+# print('Computing PR curve')
+# model_names = [MulticlassModel.get_model_name()]
+# model_descriptions = ['Multiclass_MaskRCNN']
+# model_types = [model_type]
+# model_epochs = [5]  # TODO find min. of validation curve and use nearest
+# models={'name': model_names,
+#         'folder': model_names,
+#         'description': model_descriptions,
+#         'type': model_types,
+#         'epoch': model_epochs}
 
-dataset_names = [dataset_name]
-datasets = [os.path.join('dataset_objects', d, d + '.pkl') for d in dataset_names]
+# dataset_names = [dataset_name]
+# datasets = [os.path.join('dataset_objects', d, d + '.pkl') for d in dataset_names]
 
 # import code
 # code.interact(local=dict(globals(), **locals()))
 
 # TODO: need to update PR curve generation for multiclass object detction
-# res = Tussock.compare_models(models,
+# res = MulticlassModel.compare_models(models,
 #                          datasets,
 #                          load_prcurve=False,
 #                          show_fig=True)

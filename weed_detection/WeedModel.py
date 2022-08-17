@@ -780,7 +780,7 @@ class WeedModel:
 
         # TODO check inputs
         # TODO update for multiple classes
-        
+
         # image incoming is a tensor, since it is from a dataloader object
         self._model.eval()
 
@@ -1007,6 +1007,8 @@ class WeedModel:
         # first plot groundtruth boxes
         if sample is not None:
             # NOTE we assume sample is also a tensor
+
+            # plot groundtruth bounding box
             boxes_gt = sample['boxes']
             if len(boxes_gt) > 0:
                 n_gt, _ = boxes_gt.size()
@@ -1285,6 +1287,7 @@ class WeedModel:
         # TODO rename "show" to something like "create_plot" or "markup", as we
         # don't actually show the image assume image comes in as a tensor, as in
         # the same format it was input into the model
+        # TODO redundant with show() (which is limited to bounding boxes at the moment), should refactor to combine the two
 
         # set plotting parameters
         gt_box_thick = 6   # groundtruth bounding box
@@ -1316,13 +1319,18 @@ class WeedModel:
             image_out, None, 0, 255, cv.NORM_MINMAX, cv.CV_8U)
 
         # ----------------------------------- #
-        # first plot groundtruth boxes
+        # first plot groundtruth
         if sample is not None:
             # NOTE we assume sample is also a tensor
+            # plot groundtruth bounding boxes & label
             boxes_gt = sample['boxes']
+            class_gt = sample['labels']
+            # assume that if there is a box, there is a corresponding label
+            assert len(boxes_gt) == len(class_gt), "num groundtruth boxes != num labels"
             if len(boxes_gt) > 0:
                 n_gt, _ = boxes_gt.size()
                 for i in range(n_gt):
+                    lbl_gt = format(class_gt[i], '.0f')
                     # TODO just specify int8 or imt16?
                     bb = np.array(boxes_gt[i, :].cpu(), dtype=np.float32)
                    # overwrite the original image with groundtruth boxes
@@ -1331,6 +1339,16 @@ class WeedModel:
                                              (int(bb[2]), int(bb[3])),
                                              color=sample_color,
                                              thickness=gt_box_thick)
+                    # plot gt label
+                    cv.putText(image_out,
+                               '{}'.format(lbl_gt),
+                               (int(bb[0] + 10), int(bb[1] + 30)),
+                               fontFace=cv.FONT_HERSHEY_COMPLEX,
+                               fontScale=font_scale,
+                               color=sample_color,
+                               thickness=font_thick)                       
+
+            # plot groundtruth spraypoint
             points_gt = sample['points']
             if len(points_gt) > 0:
                 for p in points_gt:
@@ -1348,6 +1366,7 @@ class WeedModel:
                                           thickness=dt_box_thick,
                                           lineType=cv.LINE_8)
 
+            # plot groundtruth bounding contour
             masks = sample['masks']
             if len(masks) > 0:  # probably not necessary - "if there is a mask"
                 # mask = mask[(2, 0, 1), :, :] # mask is binary

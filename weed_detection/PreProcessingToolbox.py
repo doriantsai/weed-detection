@@ -923,7 +923,7 @@ class PreProcessingToolbox:
                           img_dir_patterns = None,
                           ann_dir_patterns = None,
                           img_pattern = '*.png',
-                          ann_pattern = '*labels_polygons.json',
+                          ann_pattern = '*labels_polygons_v1.json',
                           data_dir_out = None,
                           ann_file_out = None,
                           default_dir = '/home/agkelpie/Data'): # TODO make this general

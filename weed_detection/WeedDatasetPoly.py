@@ -19,10 +19,18 @@ from PIL import Image
 from torchvision.transforms import functional as tvtransfunc
 from torchvision.datasets.video_utils import VideoClips
 
+# CLASSES 
+# CLASSES = (0, 1, 2)
+# CLASS_NAMES = ('background', 'Tussock', 'Horehound')
+CLASS_DICT = {0: "background", 1:"Tussock", 2: "Horehound"}
+CLASS_COLORS = ('black', 'blue', 'orange')
+black = np.r_[0, 0, 0]/255
+purple = np.r_[135, 0, 135]/255
+orange = np.r_[255, 127, 80]/255
+CLASS_COLOR_ARRAY = [black, purple, orange]
 
 class WeedDatasetPoly(object):
     """ weed dataset object for polygons """
-
 
     # TODO maybe should actually hold the datasets/dataloader objects?
     def __init__(self,
@@ -153,7 +161,6 @@ class WeedDatasetPoly(object):
         if nobj > 0:
 
             reg = self.annotations[idx]['regions']
-            points = []
             for i, r in enumerate(reg):
                 if isinstance(self.annotations[idx]['regions'], dict):
                     j = str(i)
@@ -188,7 +195,27 @@ class WeedDatasetPoly(object):
         area = torch.as_tensor(area, dtype=torch.float32)
 
         # only one class + background:
-        labels = torch.ones((nobj,), dtype=torch.int64)
+        # TODO: update for multiclass case
+        # labels = torch.ones((nobj,), dtype=torch.int64)
+        # read in all region attributes to apply label based on class names:
+        labels = []
+        if nobj > 0:
+            reg = self.annotations[idx]['regions']
+            for i, r in enumerate(reg):
+                if isinstance(self.annotations[idx]['regions'], dict):
+                    j = str(i)
+                else:
+                    j = i
+                species_name = r['region_attributes']['species']
+                # find the value of the dictionary whose key equals weed_name
+                # NOTE: can fail if weed_name does not match any values from CLASS_DICT
+                # should probably run a pre-processing check that all json weed attributes match CLASS_DICT
+                if species_name == 'horehound':
+                    import code
+                    code.interact(local=dict(globals(), **locals()))
+                    
+                labels.append( list(CLASS_DICT.values()).index(species_name) )
+        labels = torch.as_tensor(labels, dtype=torch.int64)
 
         # TODO iscrowd?
         iscrowd = torch.zeros((nobj,), dtype=torch.int64)
