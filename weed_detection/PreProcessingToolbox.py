@@ -289,6 +289,7 @@ class PreProcessingToolbox:
         for i, ann in enumerate(ann_list):
             reg = ann['regions']
             # if regions is not empty, we have a positive image, otherwise, negative image
+            # NOTE: this applies for any classes, does not ensure balanced classes
             if bool(reg):
                 idx_pos.append(i)
             else:
@@ -925,7 +926,7 @@ class PreProcessingToolbox:
                           ann_pattern = '*labels_polygons.json',
                           data_dir_out = None,
                           ann_file_out = None,
-                          default_dir = '/home/dorian/Data/agkelpie'):
+                          default_dir = '/home/agkelpie/Data'): # TODO make this general
         """ generate symlinks from original data server directory
         given specific string patterns for image directory, annotation directories, based on GLOB patterns
         output symbolic links in data_dir_out and ann_file_out """
@@ -969,6 +970,7 @@ class PreProcessingToolbox:
             data_dir_out = os.path.join(default_dir, dataset_name)
         img_out_dir = os.path.join(data_dir_out, 'images')
         ann_out_dir = os.path.join(data_dir_out, 'metadata')
+
         os.makedirs(img_out_dir, exist_ok=True)
         os.makedirs(ann_out_dir, exist_ok=True)
 
@@ -1187,9 +1189,11 @@ class PreProcessingToolbox:
         img_out_list = os.listdir(img_out_dir)
         img_pos_list = os.listdir(img_pos_out_dir)
         img_neg_list = os.listdir(img_neg_trim_dir)
-        print(f'img_pos_list +  img_neg_list = {len(img_pos_list) + len(img_neg_list)}')
-        print(f'img_out_list = {len(img_out_list)}')
-        print('should be same')
+        if (len(img_pos_list) + len(img_neg_list)) != len(img_out_list):
+            print('warning: number of images in symbolically linked folder does not = num positive images + num negative images')
+            print(f'img_pos_list +  img_neg_list = {len(img_pos_list) + len(img_neg_list)}')
+            print(f'img_out_list = {len(img_out_list)}')
+            # TODO should replace this with an assert or error statement
 
         ann_out_dict = json.load(open(ann_out_file))
         print(f'len of ann_out_dict = {len(ann_out_dict)}')
@@ -1215,7 +1219,7 @@ if __name__ == "__main__":
     # ppt.create_masks_from_poly(img_dir_in, ann_file_path, img_dir_out)
 
     # testing: generate_symbolic_links
-    res = ppt.generate_symbolic_links(data_server_dir='/home/dorian/Data/agkelpie/03_Tagged',
+    res = ppt.generate_symbolic_links(data_server_dir='/home/agkelpie/Data/03_Tagged',
                                       dataset_name='2021-03-25_MFS_Tussock',
                                       img_dir_patterns=['/2021-03-25/*/images/', '/2021-03-26/Location_1/images/'],
                                       ann_dir_patterns=['/2021-03-25/*/metadata/', '/2021-03-26/Location_1/metadata/'])

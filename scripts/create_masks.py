@@ -11,8 +11,7 @@ import matplotlib.pyplot as plt
 
 # folder locations + database name
 dataset_name = '2021-03-25_MFS_Tussock'
-root_dir = os.path.join('/home', 'dorian', 'Data', 'agkelpie',
-                            dataset_name)
+root_dir = os.path.join('/home', 'Data', dataset_name)
 
 img_dir_in = os.path.join(root_dir, 'images')
 # ann_file_name = 'via_project_07Jul2021_08h00m_240_test_allpoly.json'

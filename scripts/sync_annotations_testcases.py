@@ -14,9 +14,7 @@ dataset_name = 'Tussock_v3_neg_train_test'
 
 # folder locations and file names
 root_dir = os.path.join('/home',
-                        'dorian',
                         'Data',
-                        'agkelpie',
                         dataset_name)
 
 # folder containing all images to be used for testing/training/validation

@@ -1,6 +1,6 @@
 #! /usr/bin/env python
 
-""" agkelpie weed pipeline,
+""" agkelpie multiclass weed pipeline,
     - create image folders from dataserver using symbolic links
     - create balanced image folders + annotation files
     - create masks
@@ -8,6 +8,10 @@
     - create dataset objects
     - call train model
     - generate pr curve
+
+    - NOTE: so far, just can it work on multiclass data
+    - TODO: balance multiple classes during preprocessing stage (as per LDROP)
+    - TODO: display of results for multiple classes
 """
 
 import os
@@ -16,15 +20,16 @@ from weed_detection.PreProcessingToolbox import PreProcessingToolbox
 
 # setup file/folder locations
 dataserver_dir = os.path.join('/home/agkelpie/Data/03_Tagged')
-dataset_name = '2021-03-25_MFS_Tussock_v0'
+dataset_name = '2021-03-25_MFS_Multiclass_v0'
 
 # glob string patterns to find the images and metadata (annotations) files, respectively
 img_dir_patterns=['/2021-03-25/*/images/',
-                  '/2021-03-26/Location_1/images/']
+                  '/2021-03-26/*/images/']
 ann_dir_patterns=['/2021-03-25/*/metadata/',
-                  '/2021-03-26/Location_1/metadata/']
+                  '/2021-03-26/*/metadata/']
 
 ppt = PreProcessingToolbox()
+
 
 # ======================================================================================
 # create symbolic links to image folders
@@ -35,12 +40,14 @@ ann_dataset_path, root_dir = ppt.generate_symbolic_links(dataserver_dir,
                                                         img_dir_patterns,
                                                         ann_dir_patterns)
 
+
 # ======================================================================================
 # create balanced image folder and annotation file from symbolic links
 # ======================================================================================
 print('Generating balanced image folder and annotation file')
 img_bal_dir, ann_bal_path = ppt.generate_dataset_from_symbolic_links(root_dir,
                                                              ann_dataset_path)
+
 
 # ======================================================================================
 # create masks
@@ -52,6 +59,7 @@ res, _ = ppt.create_masks_from_poly(img_bal_dir,
                                            ann_bal_path,
                                            mask_dir_out=mask_dir)
 
+
 # ======================================================================================
 # split image data
 # ======================================================================================
@@ -60,9 +68,6 @@ print('Splitting image data into train/test/val')
 ann_train_file = ann_bal_path[:-5] + '_train.json'
 ann_test_file = ann_bal_path[:-5] + '_test.json'
 ann_val_file = ann_bal_path[:-5] + '_val.json'
-
-# import code
-# code.interact(local=dict(globals(), **locals()))
 
 img_dirs, ann_files, mask_dirs = ppt.split_image_data(root_dir,
                                                     img_bal_dir,
@@ -74,6 +79,7 @@ img_dirs, ann_files, mask_dirs = ppt.split_image_data(root_dir,
                                                     annotation_type=model_type,
                                                     mask_folder=mask_dir,
                                                     ann_dir=False)
+
 
 # ======================================================================================
 # create dataset objects (pkl)
@@ -117,18 +123,17 @@ dataset_path = Tussock.create_train_test_val_datasets(img_dirs,
 # load dataset
 dso = Tussock.load_dataset_objects(dataset_path)
 
+
 # ======================================================================================
 # train model
 # ======================================================================================
 print('Training model')
 model, model_save_path = Tussock.train(model_name=dataset_name,
                                          dataset_path=dataset_path,
-                                         model_name_suffix=True)
+                                         model_name_suffix=True,
+                                         num_classes=3) # num_classes = 2 + background = 3
 print(f'finished training model: {model_save_path}')
 
-# python debug code
-# import code
-# code.interact(local=dict(globals(), **locals()))
 
 # ======================================================================================
 # generate pr curve
@@ -147,13 +152,14 @@ models={'name': model_names,
 dataset_names = [dataset_name]
 datasets = [os.path.join('dataset_objects', d, d + '.pkl') for d in dataset_names]
 
-import code
-code.interact(local=dict(globals(), **locals()))
+# import code
+# code.interact(local=dict(globals(), **locals()))
 
-res = Tussock.compare_models(models,
-                         datasets,
-                         load_prcurve=False,
-                         show_fig=True)
+# TODO: need to update PR curve generation for multiclass object detction
+# res = Tussock.compare_models(models,
+#                          datasets,
+#                          load_prcurve=False,
+#                          show_fig=True)
 
 # python debug code
 import code

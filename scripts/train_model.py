@@ -23,9 +23,8 @@ dataset_name = '2021-03-25_MFS_Tussock_MaskRCNN'
 
 # folder locations and file names
 root_dir = os.path.join('/home',
-                        'dorian',
-                        'Data',
                         'agkelpie',
+                        'Data',
                         dataset_name)
 
 # ann_dir = os.path.join(root_dir, 'metadata')

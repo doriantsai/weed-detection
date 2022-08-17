@@ -65,7 +65,7 @@ def unscale_polygon(polygon, output_size, input_size):
 
 # dataset name:
 dataset_name = 'Tussock_v4_poly286'
-dataset_path = os.path.join('/home', 'dorian', 'Data', 'agkelpie', dataset_name)
+dataset_path = os.path.join('/home', 'Data', dataset_name)
 # img_dir = os.path.join(dataset_path, 'Images', 'PolySubset')
 img_dir = os.path.join(dataset_path, 'Images','All_Unlabelled_v2')
 ann_dir = os.path.join(dataset_path, 'Annotations')

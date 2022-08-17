@@ -21,9 +21,7 @@ dataset_name = 'Tussock_v4_poly286'
 
 # folder locations and file names
 root_dir = os.path.join('/home',
-                        'dorian',
                         'Data',
-                        'agkelpie',
                         dataset_name)
 
 img_dir = os.path.join(root_dir, 'Images', 'Regions_Test')

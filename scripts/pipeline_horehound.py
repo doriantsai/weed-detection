@@ -15,7 +15,7 @@ from weed_detection.WeedModel import WeedModel
 from weed_detection.PreProcessingToolbox import PreProcessingToolbox
 
 # setup file/folder locations
-dataserver_dir = os.path.join('/home/dorian/Data/agkelpie/03_Tagged')
+dataserver_dir = os.path.join('/home/agkelpie/Data/agkelpie/03_Tagged')
 dataset_name = '2021-03-26_MFS_Horehound_v0'
 
 # glob string patterns to find the images and metadata (annotations) files, respectively

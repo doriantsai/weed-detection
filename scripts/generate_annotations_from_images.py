@@ -15,7 +15,7 @@ from weed_detection.PreProcessingToolbox import PreProcessingToolbox
 # get all annotations from master_anno that correspond to images_list
 # output them into single annotations file to out_dir
 
-data_dir = '/home/dorian/Data/agkelpie/Tussock_v4_poly'
+data_dir = '/home/Data/Tussock_v4_poly'
 
 # annotation master file, has all the latest annotations
 ann_master = 'annotations_tussock_21032526_G507_all1.json'

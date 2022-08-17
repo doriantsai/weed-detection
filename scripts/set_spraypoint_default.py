@@ -17,7 +17,7 @@ import os
 import json
 
 # folders and file names
-ann_dir = os.path.join('/home', 'dorian', 'Data', 'Horehound_v0', 'Annotations')
+ann_dir = os.path.join('/home', 'agkelpie', 'Data', 'Horehound_v0', 'Annotations')
 ann_file = '20210803-agkelpie-MFS-02-030_json.json'
 ann_filepath = os.path.join(ann_dir, ann_file)
 

@@ -95,14 +95,11 @@ class WeedDatasetPoly(object):
 
             nobj = len(obj_ids)
 
-
         else:
             # for a negative image, mask is all zeros, or just empty
             # masks = np.expand_dims(mask == 1, axis=1)
 
             nobj = 0
-
-
 
         if nobj > 0:
             masks = torch.as_tensor(masks, dtype=torch.uint8)
@@ -170,14 +167,13 @@ class WeedDatasetPoly(object):
             # for i in range(nobj):
             #     # find which regions has shape_attributes name == point
 
-            #     # import code
-                # code.interact(local=dict(globals(), **locals()))
-
                 # points.append()
-            if not len(points) == nobj:
-                print('WARNING: npoints not == nobj')
-                print(f'idx = {idx}, img_name = {img_name}')
+            # if not len(points) == nobj:
+            #     print('WARNING: npoints not == nobj')
+            #     print(f'idx = {idx}, img_name = {img_name}')
                 # TODO need to do a python script that checks for this ahead of time
+                # NOTE: not every polygon (nobj) should contain a spraypoint, because we don't want to spray every 
+                # polygon necessarily. 
 
             points = torch.as_tensor(points, dtype=torch.float32)
         else:

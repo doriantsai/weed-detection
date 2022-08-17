@@ -409,8 +409,6 @@ class WeedModel:
             tform_test = WDP.Compose([WDP.Rescale(rescale_size),
                                       WDP.ToTensor()])
         else:
-            # import code
-            # code.interact(local=dict(globals(), **locals()))
             tform_train = WD.Compose([WD.Rescale(rescale_size),
                                       WD.RandomBlur(5, (0.5, 2.0)),
                                       WD.RandomHorizontalFlip(0.5),
@@ -476,7 +474,8 @@ class WeedModel:
               dataset_path,
               model_name_suffix=True,
               model_folder=None,
-              annotation_type='poly'):
+              annotation_type='poly',
+              num_classes=2):
         """ train detection model given dataset path, which has
         dataset/dataloader objects, output the trained model and file location
         to the saved model
@@ -535,10 +534,10 @@ class WeedModel:
         # species)
         if annotation_type == 'poly':
             print('building maskrcnn model')
-            model = self.build_maskrcnn_model(num_classes=2)
+            model = self.build_maskrcnn_model(num_classes=num_classes)
         else:
             print('building fasterrcnn model')
-            model = self.build_fasterrcnn_model(num_classes=2)
+            model = self.build_fasterrcnn_model(num_classes=num_classes)
         model.to(self._device)
 
         # set optimizer
@@ -780,7 +779,8 @@ class WeedModel:
         """
 
         # TODO check inputs
-
+        # TODO update for multiple classes
+        
         # image incoming is a tensor, since it is from a dataloader object
         self._model.eval()
 
@@ -2448,6 +2448,8 @@ class WeedModel:
                     show_fig=False):
         """ compute pr curves of each model in models (a list of models)
             then plot prcurves together and save """
+
+        # TODO: update for multiple classes? currently only built for single class detection
 
         # model['model_type'] = 'box' or 'poly'
         # model['model_name'] = name of the model/pointer to model folder (normally the same)

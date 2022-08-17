@@ -41,9 +41,7 @@ for ds in dataset_names:
 
     # first, create datasets for the added images
     root_dir = os.path.join('/home',
-                            'dorian',
                             'Data',
-                            'agkelpie',
                             ds)
     img_folders = [os.path.join(root_dir, 'Images','Train'),
                 os.path.join(root_dir, 'Images', 'Test'),

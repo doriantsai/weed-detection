@@ -19,7 +19,7 @@ import shutil
 
 # dataset location
 # folder = os.path.join('/home', 'dt-cronus', 'Dropbox', 'QUT_WeedImaging')
-folder = os.path.join('/home', 'dorian', 'Data', 'agkelpie')
+folder = os.path.join('/home', 'Data')
 dataset_name = 'Tussock_v4_poly286'
 root_dir = os.path.join(folder, dataset_name)
 ann_dir = os.path.join(root_dir, 'Annotations')
