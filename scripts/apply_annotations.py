@@ -24,17 +24,17 @@
 
 import os
 import json
+from weed_detection.PreProcessingToolbox import PreProcessingToolbox
 
 # dataset location
-folder = os.path.join('/home', 'dt-cronus', 'Dropbox', 'QUT_WeedImaging')
-dataset_name = 'Tussock_v2'
-root_dir = os.path.join(folder, dataset_name)
-ann_dir = os.path.join(root_dir, 'Annotations')
-img_dir = os.path.join(root_dir, 'Images', 'All')
+root_dir = os.path.join('/home',  'agkelpie', 'Data', '03_Tagged', '2021-03-26', 'Location_2')
+ann_dir = os.path.join(root_dir, 'metadata')
 
 # location of json file + name
-json_name = 'via_project_07Jul2021_08h00m_240_test.json'
+json_name = 'Friday_26-03-21_G507_location2_positive-tags_labels_polygons.json'
 json_path = os.path.join(ann_dir, json_name)
+
+json_name_save = 'Friday_26-03-21_G507_location2_positive-tags_labels_polygons_v1.json'
 
 # load json as a list
 ann_dict = json.load(open(json_path))
@@ -48,28 +48,42 @@ for i, ann in enumerate(ann_list):
     # each region is an annotation, either a box, poly or pt
     if len(reg) > 0:
         for r in reg:
-            import code
-            code.interact(local=dict(globals(), **locals()))
+            # import code
+            # code.interact(local=dict(globals(), **locals()))
             name = r['shape_attributes']['name']
             if name == 'rect':
                 print('we have box')
                 # set region_attributes: STB
                 # TODO r['region_attributes'] = dict{'Weed': 'STB'} # should 'Weed'?
-                r['region_attributes'] = {'plant': 'STB'}
+                r['region_attributes'] = {'species': 'Horehound'}
             elif name == 'polygon':
                 print('we have polygon')
-                r['region_attributes'] = {'plant': 'STP'}
+                r['region_attributes'] = {'species': 'Horehound'}
                 # set region_attributes: STP
             elif name == 'point':
                 print('we have point')
-                r['region_attributes'] = {'plant': 'STS'}
+                r['region_attributes'] = {'species': 'Horehound'}
                 # set region_attributes: STS
             else:
                 print('uh oh, not a valid name, print name')
+
+        # TODO now update ann['regions'], maybe this happens automatically thanks to Python pointers?
+        ann['regions'] = reg
+
     else:
         # what do we do when no region properties?
         # could just be an image with no region properties, should just skip
         print(f'no annotations: {img_name}')
+
+PPT = PreProcessingToolbox()
+ann_dict_out = {}
+for i, ann in enumerate(ann_list):
+    sample = ann_list[i]
+    ann_dict_out = PPT.sample_dict(ann_dict_out, sample)
+
+# save json:
+PPT.make_annfile_from_dict(ann_dict_out, os.path.join(ann_dir, json_name_save))
+
 
 import code
 code.interact(local=dict(globals(), **locals()))
