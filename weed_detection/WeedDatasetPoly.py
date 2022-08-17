@@ -198,7 +198,12 @@ class WeedDatasetPoly(object):
         # TODO: update for multiclass case
         # labels = torch.ones((nobj,), dtype=torch.int64)
         # read in all region attributes to apply label based on class names:
-        labels = []
+        # NOTE: metadata/annotation files will often have multiple regions for a single label
+        # for now, we focus on the labels associated with polygons 
+        # TODO: need labels associated with each type of annotation!
+        labels_box = []
+        labels_pt = []
+        labels_poly = []
         if nobj > 0:
             reg = self.annotations[idx]['regions']
             for i, r in enumerate(reg):
@@ -206,16 +211,25 @@ class WeedDatasetPoly(object):
                     j = str(i)
                 else:
                     j = i
-                species_name = r['region_attributes']['species']
-                # find the value of the dictionary whose key equals weed_name
-                # NOTE: can fail if weed_name does not match any values from CLASS_DICT
-                # should probably run a pre-processing check that all json weed attributes match CLASS_DICT
-                if species_name == 'horehound':
-                    import code
-                    code.interact(local=dict(globals(), **locals()))
-                    
-                labels.append( list(CLASS_DICT.values()).index(species_name) )
-        labels = torch.as_tensor(labels, dtype=torch.int64)
+                name = r['shape_attributes']['name']
+                if name == 'rect':
+                    species_name = r['region_attributes']['species']
+                    labels_box.append( list(CLASS_DICT.values()).index(species_name) )
+
+                if name == 'point':
+                    species_name = r['region_attributes']['species']
+                    labels_pt.append( list(CLASS_DICT.values()).index(species_name) )
+
+                if name == 'polygon':
+                    species_name = r['region_attributes']['species']
+                    # find the value of the dictionary whose key equals weed_name
+                    # NOTE: can fail if weed_name does not match any values from CLASS_DICT
+                    # should probably run a pre-processing check that all json weed attributes match CLASS_DICT
+
+                    labels_poly.append( list(CLASS_DICT.values()).index(species_name) )
+
+        # for now, we don't care about point or box annotations, poly and box annotations should also be equivalent
+        labels = torch.as_tensor(labels_poly, dtype=torch.int64)
 
         # TODO iscrowd?
         iscrowd = torch.zeros((nobj,), dtype=torch.int64)

@@ -1326,7 +1326,12 @@ class WeedModel:
             boxes_gt = sample['boxes']
             class_gt = sample['labels']
             # assume that if there is a box, there is a corresponding label
-            assert len(boxes_gt) == len(class_gt), "num groundtruth boxes != num labels"
+            # assert len(boxes_gt) == len(class_gt), "num groundtruth boxes != num labels"
+            if len(boxes_gt) != len(class_gt):
+                print("num groundtruth boxes != num labels")
+                import code
+                code.interact(local=dict(globals(), **locals()))
+                
             if len(boxes_gt) > 0:
                 n_gt, _ = boxes_gt.size()
                 for i in range(n_gt):

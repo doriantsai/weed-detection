@@ -15,7 +15,7 @@ from weed_detection.WeedDatasetPoly import Compose, Rescale, ToTensor
 WeedModel = WM()
 
 # load dataset objects
-dataset_name = '2021-03-25_MFS_Multiclass_v0'
+dataset_name = '2021-03-26_MFS_Multiclass_v1'
 
 DATASET_FILE_EXISTS = True
 if DATASET_FILE_EXISTS:
@@ -72,7 +72,7 @@ else:
     ds_infer = dataset
 
 # load model
-model_name = '2021-03-25_MFS_Multiclass_v0_2022-08-17_12_28'
+model_name = '2021-03-26_MFS_Multiclass_v1_2022-08-17_16_19'
 
 # model_name = dataset_name
 save_model_path = os.path.join('output',
