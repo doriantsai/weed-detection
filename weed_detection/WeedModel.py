@@ -45,7 +45,7 @@ class WeedModel:
     # TODO consider splitting into model training/inference/evaluation objects
 
     def __init__(self,
-                 weed_name='serrated tussock',
+                 weed_name='serrated tussock', # TODO update for multiclass
                  model=None,
                  model_name=None,
                  model_folder=None,
