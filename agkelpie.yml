@@ -31,3 +31,5 @@ dependencies:
   - ipython
   - opencv
   - python-flatbuffers
+  - boto3
+  - onnx
