@@ -16,13 +16,11 @@ from weed_detection.PreProcessingToolbox import PreProcessingToolbox
 
 # setup file/folder locations
 dataserver_dir = os.path.join('/home/agkelpie/Data/03_Tagged')
-dataset_name = '2021-03-25_MFS_Tussock_v0'
+dataset_name = '2021_Tussock_v0'
 
 # glob string patterns to find the images and metadata (annotations) files, respectively
-img_dir_patterns=['/2021-03-25/*/images/',
-                  '/2021-03-26/Location_1/images/']
-ann_dir_patterns=['/2021-03-25/*/metadata/',
-                  '/2021-03-26/Location_1/metadata/']
+img_dir_patterns=['/2021-10-13/*/images/']
+ann_dir_patterns=['/2021-10-13/*/metadata/*Final.json']
 
 ppt = PreProcessingToolbox()
 

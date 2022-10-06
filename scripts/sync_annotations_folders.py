@@ -12,7 +12,7 @@ import json
 from weed_detection.PreProcessingToolbox import PreProcessingToolbox
 
 # folder locations and file names
-root_dir = os.path.join('/home/agkelpie/Data/agkelpie/03_Tagged/2021-03-25/Location_1')
+root_dir = os.path.join('/home/agkelpie/Data/03_Tagged/2021-10-13/Yellangelo/Serrated Tussock/')
 
 # folder containing all images to be used for development (testing/training/val) and deployment
 img_folder = os.path.join(root_dir, 'images')
@@ -21,13 +21,13 @@ print('img_dir = ' + img_folder)
 
 # annotation files Master (contains all images - we don't touch this file, just
 # use it as a reference/check)
-ann_master_dir = os.path.join('/home/agkelpie/Data/Tussock_v4_poly/Annotations')
-ann_master_file = 'annotations_tussock_21032526_G507_master1.json'  # has the polygons
+ann_master_dir = os.path.join('/home/agkelpie/Data/03_Tagged/2021-10-13/Yellangelo/Serrated Tussock/metadata')
+ann_master_file = 'Yellangelo-Final.json'  # has the polygons, now has is_processed
 ann_master_path = os.path.join(ann_master_dir, ann_master_file)
 print('ann_master_file = ' + ann_master_file)
 # annotation files out
 
-ann_file_out = 'Thursday_25-03-21_G507_location1_positive-tags_labels_polygons.json'
+ann_file_out = 'test.json'
 ann_path_out = os.path.join(ann_dir, ann_file_out)
 print('ann_file_out = ' + ann_file_out)
 
@@ -43,7 +43,17 @@ ann_dict = json.load(open(ann_path_out))
 n_ann_file = len(ann_dict)
 print(f'ann file count = {n_ann_file}')
 
-print('should be the same')
+print('exect the count to be different, due to DPI skipping images')
+
+print('TODO: count the is_processed tag, then compare')
+# start looking for is_processed==1 images:
+
+ann_list = list(ann_dict.values())
+
+# find all dictionary entries that match img_dir
+img_proc = [s['filename'] for s in ann_list if s['file_attributes']['is_processed'] == str(1) ]
+len(img_proc)
+
 
 import code
 code.interact(local=dict(globals(), **locals()))

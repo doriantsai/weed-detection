@@ -44,6 +44,8 @@ class PreProcessingToolbox:
                                        img_dir=None,
                                        ann_file=None):
         """ check if images match the annotations file """
+        # NOTE: depracated due to is_processed tag in images, should compare to count of images with is_processed == 1
+
         if img_dir is None:
             img_dir = self.image_dir
 
@@ -109,7 +111,6 @@ class PreProcessingToolbox:
 
             ann_list.append(json.load(open(ann_open)))
 
-
         # for now, assume unique key-value pairs, but should probably check length
         ann_all = {}
         n_img_all = []
@@ -141,14 +142,19 @@ class PreProcessingToolbox:
         # read in annotations master
         # create list out of dictionary values, so we have indexing
         ann_master = json.load(open(ann_master_file))
+        # access img metadata
+        # NOTE: previous datasets only saved the img_metadata
+        ann_master = ann_master["_via_img_metadata"] 
         ann_master = list(ann_master.values())
 
         # find all files in img_dir
         img_list = os.listdir(image_dir)
 
         # find all dictionary entries that match img_dir
-        master_filename_list = [s['filename'] for s in ann_master]
-
+        # master_filename_list = [s['filename'] for s in ann_master ]
+        # update: filter annotation list for images that have "1" for is_processed flag
+        master_filename_list = [s['filename'] for s in ann_master if s['file_attributes']['is_processed'] == str(1) ]
+        
         # create dictionary with keys: list entries, values: indices
         ind_dict = dict((k, i) for i, k in enumerate(master_filename_list))
 
@@ -157,9 +163,6 @@ class PreProcessingToolbox:
 
         # compile list of indices of the intersection
         indices = [ind_dict[x] for x in inter]
-
-        # import code
-        # code.interact(local=dict(globals(), **locals()))
 
         # for each index, we take the sample from ann_master and make a new dict
         ann_dict = {}
@@ -973,6 +976,9 @@ class PreProcessingToolbox:
 
         os.makedirs(img_out_dir, exist_ok=True)
         os.makedirs(ann_out_dir, exist_ok=True)
+
+        # we only want to create symlinks of the images that have been processed
+        
 
         # create symlinks
         print('Creating symbolic links')
