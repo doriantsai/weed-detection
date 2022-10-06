@@ -33,3 +33,5 @@ dependencies:
   - python-flatbuffers
   - boto3
   - onnx
+  - onnxruntime
+

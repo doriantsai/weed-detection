@@ -1,6 +1,6 @@
 # script to automatically make the conda environment defined in agkelpie.yml
 # cd to weed_detection
-conda env create -f agkelpie.yml
+mamba env create -f agkelpie.yml
 
 # since opencv-python doesn't seem to play nicely with conda install options
 # since running in conda, sometimes get Qt error associated with opencv,

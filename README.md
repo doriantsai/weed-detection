@@ -41,6 +41,15 @@ Use `us-east-1` as the region, and `json` as the output. I also had to use my fu
 - to activate new environment: ```conda activate agkelpie```
 - to deactivate the new environment: ```conda deactivate```
 
+# Extra Installation Notes:
+- for converting Pytorch model to Tensorflow, we convert Pytorch -> Onnx -> Tensorflow
+- install `onnx onnx-tf` using mamba install
+- install nvcc: sudo apt install nvcc
+- install tensorflow `pip install tensorflow'
+- may consider just making a new/separate virtual environment for the model conversion process
+- mamba install lib protobuf?
+- conda update -n base conda
+
 ## Alternatively (manual install)
 - alternatively, a more manual process is to create a new conda environment: ```conda create -n "agkelpie" python=3.8```
 - activate new environment: ```conda activate agkelpie```
@@ -53,4 +62,6 @@ Use `us-east-1` as the region, and `json` as the output. I also had to use my fu
 - Activate ```agkelpie``` environment
 - navigate to examples ```cd examples```
 - Run ```python working_example.py``` and see output in ```output``` folder
+
+
 
