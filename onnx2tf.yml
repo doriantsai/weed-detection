@@ -1,0 +1,21 @@
+# conda environment configuration file
+# for agkelpie project, work-around for converting onnx to tensorflow
+name: onnx2tf
+channels:
+  - conda-forge
+  - nvidia
+  - defaults
+dependencies:
+  - python=3.7
+  - numpy
+  - pip
+  - pillow
+  - pytorch::pytorch
+  - nvidia::cudatoolkit=11.3
+  - pylint
+  - opencv
+  - python-flatbuffers
+  - onnx
+  - packaging
+  - requests
+

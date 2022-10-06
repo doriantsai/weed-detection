@@ -44,7 +44,7 @@ torch.onnx.export(torch_model,
                   model_input, 
                   (model_name + ".onnx"), 
                   export_params=True,
-                  opset_version=11,
+                  opset_version=13, # worked with 11, trying 13
                   do_constant_folding=False,
                   input_names=['images'], 
                   output_names = ['predictions'])
