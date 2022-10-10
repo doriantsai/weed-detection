@@ -30,7 +30,7 @@ becomes
 
 '''
 # MY_S3_PATH = ['03_Tagged', '2021-10-13']
-MY_S3_PATH = ['02_Tag_in_progress', '2022-04-21']
+MY_S3_PATH = ['03_Tagged', '2022-10-13','Serrated Tussock']
 # MY_S3_PATH = ['01_Data_capture', 'Yellangelo',
             #   'Serrated Tussock', 'July 20 2022', 'July 20 2022']
 
