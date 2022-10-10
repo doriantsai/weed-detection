@@ -111,10 +111,16 @@ class PreProcessingToolbox:
 
             ann_list.append(json.load(open(ann_open)))
 
+        
+
         # for now, assume unique key-value pairs, but should probably check length
         ann_all = {}
         n_img_all = []
         for ann_i in ann_list:
+            # handle via project file (rather than just pure annotations file)
+            if '_via_settings' in ann_i:
+                # only grab the via img metadata
+                ann_i = ann_i['_via_img_metadata']
             ann_all = {**ann_all, **ann_i}
             n_img_all.append(len(ann_i))
 
@@ -144,7 +150,10 @@ class PreProcessingToolbox:
         ann_master = json.load(open(ann_master_file))
         # access img metadata
         # NOTE: previous datasets only saved the img_metadata
-        ann_master = ann_master["_via_img_metadata"] 
+        if '_via_settings' in ann_master:
+            # only grab the via img metadata
+            ann_master = ann_master['_via_img_metadata']
+        # ann_master = ann_master["_via_img_metadata"] 
         ann_master = list(ann_master.values())
 
         # find all files in img_dir
@@ -278,12 +287,12 @@ class PreProcessingToolbox:
 
         return True
 
-    def count_pos_neg_images(self, ann_path):
+    def count_pos_neg_images(self, ann_list):
         """ count positive/negative images in json file, returns tuple (# pos, # neg) """
         """ also can split pos/neg into dictionaries, return those dictionaries """
 
-        ann_dict = json.load(open(ann_path))
-        ann_list = list(ann_dict.values())
+        # ann_dict = json.load(open(ann_path))
+        # ann_list = list(ann_dict.values())
 
         idx_pos = []
         idx_neg = []
@@ -463,6 +472,9 @@ class PreProcessingToolbox:
         print('n_train {}'.format(tr))
         print('n_test {}'.format(te))
         print('n_val {}'.format(va))
+
+        import code
+        code.interact(local=dict(globals(), **locals()))
 
         # do random split of image data
         ds_train, ds_val, ds_test = torch.utils.data.random_split(wd, [tr, va, te])
@@ -926,7 +938,7 @@ class PreProcessingToolbox:
                           img_dir_patterns = None,
                           ann_dir_patterns = None,
                           img_pattern = '*.png',
-                          ann_pattern = '*labels_polygons_v1.json',
+                          ann_pattern = '*.json',
                           data_dir_out = None,
                           ann_file_out = None,
                           default_dir = '/home/agkelpie/Data'): # TODO make this general
@@ -960,6 +972,7 @@ class PreProcessingToolbox:
         for ann_dir in ann_dir_patterns:
             # print(str(data_server_dir + ann_dir_patterns + ann_pattern))
             glob_ann = glob.glob(str(data_server_dir + ann_dir + ann_pattern), recursive=True)
+            # print('glob_ann = ' + str(data_server_dir + ann_dir + ann_pattern))
             glob_anns.extend(glob_ann)
 
         print('Found Annotation Globs:')
@@ -972,12 +985,15 @@ class PreProcessingToolbox:
         if data_dir_out is None:
             data_dir_out = os.path.join(default_dir, dataset_name)
         img_out_dir = os.path.join(data_dir_out, 'images')
+        img_raw_dir = os.path.join(data_dir_out, 'images_raw')
         ann_out_dir = os.path.join(data_dir_out, 'metadata')
 
         os.makedirs(img_out_dir, exist_ok=True)
+        os.makedirs(img_raw_dir, exist_ok=True)
         os.makedirs(ann_out_dir, exist_ok=True)
 
         # we only want to create symlinks of the images that have been processed
+        
         
 
         # create symlinks
@@ -986,7 +1002,7 @@ class PreProcessingToolbox:
             # print(f'{i+1} / {len(glob_img)}')
             img_name = os.path.basename(img_path)
 
-            dst_file = os.path.join(img_out_dir, img_name)
+            dst_file = os.path.join(img_raw_dir, img_name)
             # symlink fails if link already exists, so we unlink any existing links first
             # also, os.path.exists returns false if symlink is already broken
             if os.path.exists(dst_file) or os.path.lexists(dst_file):
@@ -997,18 +1013,28 @@ class PreProcessingToolbox:
 
         # check number of symlinks in folder:
         print(f'num images in glob = {len(glob_imgs)}')
-        img_list = os.listdir(img_out_dir)
+        img_list = os.listdir(img_raw_dir)
         print(f'num imgs in out_dir = {len(img_list)}')
         print('should be the same')
 
         # merge annotations to one:
         if ann_file_out is None:
+            ann_raw_file_out = dataset_name + '_raw.json'
+
+        ann_raw_path = os.path.join(ann_out_dir, ann_raw_file_out)
+        res = self.combine_annotations(ann_files=glob_anns,
+                                        ann_dir=False,
+                                        ann_out=ann_raw_path)
+
+        if ann_file_out is None:
             ann_file_out = dataset_name + '.json'
 
         ann_out_path = os.path.join(ann_out_dir, ann_file_out)
-        res = self.combine_annotations(ann_files=glob_anns,
-                                        ann_dir=False,
-                                        ann_out=ann_out_path)
+        # remove unprocessed images
+        ann_out_path, img_dir_out = self.filter_processed_images_annotations(ann_path = ann_raw_path,
+                                                                             ann_out_path=ann_out_path,
+                                                                             img_dir= img_raw_dir, 
+                                                                             img_out_dir= img_out_dir)
 
         # check number of entries in annotation out file
         ann_check = json.load(open(ann_out_path))
@@ -1093,6 +1119,42 @@ class PreProcessingToolbox:
             return False, ann_dict
 
 
+    def filter_processed_images_annotations(self,
+                                            ann_path,
+                                            img_dir,
+                                            ann_out_path=None,
+                                            img_out_dir=None):
+        """filter out processed images and annotations - that only have the is_processed flag
+
+        Args:
+            ann_path (_type_): _description_
+            img_dir (_type_): _description_
+            ann_out_path (_type_, optional): _description_. Defaults to None.
+            img_out_dir (_type_, optional): _description_. Defaults to None.
+        """
+        # load ann_file
+        ann_dict = json.load(open(ann_path))
+        ann_list = list(ann_dict.values())
+        if '_via_settings' in ann_list:
+                # only grab the via img metadata
+                ann_list = ann_list['_via_img_metadata']
+        ann_out = [a for a in ann_list if int(a['file_attributes']['is_processed']) == 1]
+
+        # output ann_processed as ann_out_path (first convert back to dict)
+        ann_dict_out = {}
+        for a in ann_out:
+            ann_dict_out = self.sample_dict(ann_dict, a)
+        
+        # create annotations out file:
+        self.make_annfile_from_dict(ann_dict_out, ann_out_path)
+        
+        # then take all those image names, and copy them over to new folder
+        # img_names = [a['filename'] for a in ann_out]
+        self.copy_symlinks_from_dict(ann_dict_out, img_dir, img_out_dir)
+        
+        return ann_out_path, img_out_dir
+
+
     def generate_dataset_from_symbolic_links(self,
                                              root_dir,
                                              ann_path,
@@ -1118,8 +1180,14 @@ class PreProcessingToolbox:
         # TODO check if len(img_dir_in) == len(ann_dict)
         # we assume they match, otherwise, might be problems
 
+        # first, only select the "is-processed" images
+        # ann_processed = [a for a in ann_list if int(a['file_attributes']['is_processed']) == 1]
+
+        # make a new image directory for processed images:
+        # img_dir_in
+
         # get indices of positive, negative images  (wrt ann_path)
-        idx_pos, idx_neg = self.count_pos_neg_images(ann_path)
+        idx_pos, idx_neg = self.count_pos_neg_images(ann_list)
 
         # create folders for symlinks
         # ann_out_dir = os.path.dirname(ann_path)
