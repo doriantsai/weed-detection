@@ -162,8 +162,12 @@ class PreProcessingToolbox:
         # find all dictionary entries that match img_dir
         # master_filename_list = [s['filename'] for s in ann_master ]
         # update: filter annotation list for images that have "1" for is_processed flag
+        # NOTE already happens in filter_processed images, so should be unnecessary
         master_filename_list = [s['filename'] for s in ann_master if s['file_attributes']['is_processed'] == str(1) ]
-        
+
+        # import code
+        # code.interact(local=dict(globals(), **locals()))
+
         # create dictionary with keys: list entries, values: indices
         ind_dict = dict((k, i) for i, k in enumerate(master_filename_list))
 
@@ -441,6 +445,9 @@ class PreProcessingToolbox:
         print('syncing annotations file with master file')
         self.sync_annotations(all_folder, ann_master, ann_all)
 
+        # import code
+        # code.interact(local=dict(globals(), **locals()))
+
         # create dummy weed dataset object to do random split
         if annotation_type == 'poly':
             wd = WeedDatasetPoly(root_dir, ann_all, transforms=None, mask_dir=mask_folder)
@@ -473,8 +480,8 @@ class PreProcessingToolbox:
         print('n_test {}'.format(te))
         print('n_val {}'.format(va))
 
-        import code
-        code.interact(local=dict(globals(), **locals()))
+        # import code
+        # code.interact(local=dict(globals(), **locals()))
 
         # do random split of image data
         ds_train, ds_val, ds_test = torch.utils.data.random_split(wd, [tr, va, te])
@@ -1043,6 +1050,31 @@ class PreProcessingToolbox:
         return ann_out_path, data_dir_out
 
 
+    def trim_list(self, ann_dict, n_delete, img_dir, img_trim_dir, ann_file):
+        """ helper function to trim images from annotation list """
+
+        ann_list = list(ann_dict.values())
+        to_delete = set(random.sample(range(len(ann_list)), n_delete))
+        ann_trim_list = [x for k, x in enumerate(ann_list) if not k in to_delete]
+        print(f'len ann_neg_trim = {len(ann_trim_list)}')
+
+        # convert ann_trim_list to dictionary
+        ann_dict_trim = {}
+        for ann in ann_trim_list:
+            ann_dict_trim = self.sample_dict(ann_dict_trim, ann)
+
+        # clear out the relevant image trim directory
+        # img_trim_path = os.path.join(root_dir, img_trim_dir)
+        if os.path.isdir(img_trim_dir):
+            shutil.rmtree(img_trim_dir)
+        self.copy_symlinks_from_dict(ann_dict_trim, img_dir, img_trim_dir)
+
+        ann_file_trim_out = os.path.join(ann_file[:-5] + '_trim.json')
+        self.make_annfile_from_dict(ann_dict_trim, ann_file_trim_out)
+
+        return ann_dict_trim, ann_file_trim_out
+
+
     def copy_symlinks_from_dict(self, ann_dict_in, img_src_dir, img_dst_dir):
         """ helper function to generate_dataset_from_symlink """
         os.makedirs(img_dst_dir, exist_ok=True)
@@ -1140,10 +1172,12 @@ class PreProcessingToolbox:
                 ann_list = ann_list['_via_img_metadata']
         ann_out = [a for a in ann_list if int(a['file_attributes']['is_processed']) == 1]
 
+        print(f'Out of {len(ann_list)} images in img_dir, {len(ann_out)} images are is_processed==1')
+
         # output ann_processed as ann_out_path (first convert back to dict)
         ann_dict_out = {}
         for a in ann_out:
-            ann_dict_out = self.sample_dict(ann_dict, a)
+            ann_dict_out = self.sample_dict(ann_dict_out, a)
         
         # create annotations out file:
         self.make_annfile_from_dict(ann_dict_out, ann_out_path)
@@ -1177,6 +1211,8 @@ class PreProcessingToolbox:
         ann_dict = json.load(open(ann_path))
         ann_list = list(ann_dict.values())
 
+        
+
         # TODO check if len(img_dir_in) == len(ann_dict)
         # we assume they match, otherwise, might be problems
 
@@ -1208,37 +1244,74 @@ class PreProcessingToolbox:
         n_pos = len(ann_pos)
         n_neg = len(ann_neg)
         n_neg_goal = round(n_pos * pos_neg_img_ratio)
+
+        import code
+        code.interact(local=dict(globals(), **locals()))
+
+        img_neg_trim_dir = os.path.join(root_dir, 'images_neg_trim')
+        img_pos_trim_dir = os.path.join(root_dir, 'images_pos_trim')
+
+
         n_delete = n_neg - n_neg_goal
         if n_delete <= 0:
-            print('no trimming of negative images')
-            print('n_delete = ' + n_delete)
+            print('no trimming of negative images, we need to trim positive images')
+            print(f'n_delete = {n_delete}')
+
+            # TODO call trim_list with -ndelete, ann_pos
+            ann_dict_pos, ann_file_pos = self.trim_list(ann_dict=ann_pos,
+                                                        n_delete=-n_delete,
+                                                        img_dir=img_dir_in,
+                                                        img_trim_dir=img_pos_trim_dir,
+                                                        ann_file=ann_pos_out)
+            ann_dict_neg = ann_neg
+            ann_file_neg = ann_neg_out
+            # copy all images from img_neg to img_neg_trim
+            self.copy_symlinks_from_dict(ann_neg, img_dir_in, img_neg_trim_dir)
+            
         else:
             print('trimming negative images')
             # randomly sample which elements to delete, based on index
-            to_delete = set(random.sample(range(len(ann_neg)), n_delete))
-            ann_neg_list = list(ann_neg.values())
-            ann_neg_trim_list = [x for k, x in enumerate(ann_neg_list) if not k in to_delete]
-            print(f'len ann_neg_trim = {len(ann_neg_trim_list)}')
+            # to_delete = set(random.sample(range(len(ann_neg)), n_delete))
+            # ann_neg_list = list(ann_neg.values())
+            # ann_neg_trim_list = [x for k, x in enumerate(ann_neg_list) if not k in to_delete]
+            # print(f'len ann_neg_trim = {len(ann_neg_trim_list)}')
+            ann_dict_neg, ann_file_neg = self.trim_list(ann_dict=ann_neg,
+                                                        n_delete=n_delete,
+                                                        img_dir=img_dir_in,
+                                                        img_trim_dir=img_neg_trim_dir,
+                                                        ann_file=ann_neg_out)
+            ann_dict_pos = ann_pos
+            ann_file_pos = ann_pos_out
+            self.copy_symlinks_from_dict(ann_pos, img_dir_in, img_pos_trim_dir)
 
         # convert ann_neg_trim_list to dictionary
-        ann_neg_trim = {}
-        for ann in ann_neg_trim_list:
-            ann_neg_trim = self.sample_dict(ann_neg_trim, ann)
+        # ann_neg_trim = {}
+        # for ann in ann_neg_trim_list:
+        #     ann_neg_trim = self.sample_dict(ann_neg_trim, ann)
 
-        # need to clear out img_neg_trim_dir before loading it up
-        img_neg_trim_dir = os.path.join(root_dir, 'images_neg_trim')
-        if os.path.isdir(img_neg_trim_dir):
-            shutil.rmtree(img_neg_trim_dir)
-        self.copy_symlinks_from_dict(ann_neg_trim, img_dir_in, img_neg_trim_dir)
+        # # need to clear out img_neg_trim_dir before loading it up
+        # img_neg_trim_dir = os.path.join(root_dir, 'images_neg_trim')
+        # if os.path.isdir(img_neg_trim_dir):
+        #     shutil.rmtree(img_neg_trim_dir)
+        # self.copy_symlinks_from_dict(ann_neg_trim, img_dir_in, img_neg_trim_dir)
 
-        # make dictionary, save output
-        ann_neg_trim_out = os.path.join(ann_neg_out[:-5] + '_trim.json')
-        self.make_annfile_from_dict(ann_neg_trim, ann_neg_trim_out)
+        # # make dictionary, save output
+        # ann_neg_trim_out = os.path.join(ann_neg_out[:-5] + '_trim.json')
+        # self.make_annfile_from_dict(ann_neg_trim, ann_neg_trim_out)
 
-        print(f'num images in ann_neg_trim = {len(ann_neg_trim)}')
-        img_list = os.listdir(img_neg_trim_dir)
-        print(f'num imgs in img_neg_trim_dir = {len(img_list)}')
+        # check:
+        print(f'num annotations in ann_pos_trim = {len(ann_dict_pos)}')
+        img_pos_list = os.listdir(img_pos_trim_dir)
+        print(f'num imgs in img_pos_trim_dir = {len(img_pos_list)}')
         print('should be the same')
+        
+        print(f'num images in ann_neg_trim = {len(ann_dict_neg)}')
+        img_neg_list = os.listdir(img_neg_trim_dir)
+        print(f'num imgs in img_neg_trim_dir = {len(img_neg_list)}')
+        print('should be the same')
+
+        # import code
+        # code.interact(local=dict(globals(), **locals()))
 
         # findally, combine pos, neg img directories and respective json files
         if img_out_dir is None:
@@ -1248,20 +1321,19 @@ class PreProcessingToolbox:
             shutil.rmtree(img_out_dir)
 
         # copy images over as symlinks to img_out_dir
+        self.copy_symlinks_from_dict(ann_dict_pos, img_pos_trim_dir, img_out_dir)
+        self.copy_symlinks_from_dict(ann_dict_neg, img_neg_trim_dir, img_out_dir)
 
-        self.copy_symlinks_from_dict(ann_pos, img_pos_out_dir, img_out_dir)
-        self.copy_symlinks_from_dict(ann_neg_trim, img_neg_trim_dir, img_out_dir)
 
         # combine annotation files
-        ann_combine = [ann_pos_out, ann_neg_trim_out]
+        ann_combine = [ann_file_pos, ann_file_neg]
         if ann_out_file is None:
             ann_out_file = ann_path[:-5] + '_balanced.json'
         res = self.combine_annotations(ann_combine, ann_dir=False, ann_out=ann_out_file)
 
-
         # check
         img_out_list = os.listdir(img_out_dir)
-        img_pos_list = os.listdir(img_pos_out_dir)
+        img_pos_list = os.listdir(img_pos_trim_dir)
         img_neg_list = os.listdir(img_neg_trim_dir)
         if (len(img_pos_list) + len(img_neg_list)) != len(img_out_list):
             print('warning: number of images in symbolically linked folder does not = num positive images + num negative images')
@@ -1272,6 +1344,8 @@ class PreProcessingToolbox:
         ann_out_dict = json.load(open(ann_out_file))
         print(f'len of ann_out_dict = {len(ann_out_dict)}')
 
+        # import code
+        # code.interact(local=dict(globals(), **locals()))
         return img_out_dir, ann_out_file
 
 # =========================================================================== #

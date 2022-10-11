@@ -24,6 +24,8 @@ ann_dir_patterns=['/2021-10-13/*/Serrated Tussock/metadata/Yellangelo-Final*']
 
 ppt = PreProcessingToolbox()
 
+
+
 # ======================================================================================
 # create symbolic links to image folders
 # ======================================================================================
@@ -39,6 +41,7 @@ ann_dataset_path, root_dir = ppt.generate_symbolic_links(dataserver_dir,
 print('Generating balanced image folder and annotation file')
 img_bal_dir, ann_bal_path = ppt.generate_dataset_from_symbolic_links(root_dir,
                                                              ann_dataset_path)
+
 
 # ======================================================================================
 # create masks
