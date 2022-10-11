@@ -18,8 +18,8 @@ dependencies:
   - scikit-image
   - scikit-learn
   - tensorboard
-  - pytorch::pytorch
-  - torchvision
+  - pytorch::pytorch=1.12.0
+  - torchvision=0.13.0
   - torchaudio
   - nvidia::cudatoolkit=11.3
   - shapely
