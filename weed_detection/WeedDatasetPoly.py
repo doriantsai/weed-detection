@@ -22,7 +22,7 @@ from torchvision.datasets.video_utils import VideoClips
 # CLASSES 
 # CLASSES = (0, 1, 2)
 # CLASS_NAMES = ('background', 'Tussock', 'Horehound')
-CLASS_DICT = {0: "background", 1:"Tussock", 2: "Horehound"}
+CLASS_DICT = {0: "background", 1:"tussock", 2: "horehound"}
 CLASS_COLORS = ('black', 'blue', 'orange')
 black = np.r_[0, 0, 0]/255
 purple = np.r_[135, 0, 135]/255
@@ -217,7 +217,8 @@ class WeedDatasetPoly(object):
                     labels_box.append( list(CLASS_DICT.values()).index(species_name) )
 
                 if name == 'point':
-                    species_name = r['region_attributes']['species']
+                    # species_name = r['region_attributes']['species']
+                    species_name = 'tussock' # TODO currently, point's don't have species annotation?
                     labels_pt.append( list(CLASS_DICT.values()).index(species_name) )
 
                 if name == 'polygon':

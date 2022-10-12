@@ -1245,8 +1245,8 @@ class PreProcessingToolbox:
         n_neg = len(ann_neg)
         n_neg_goal = round(n_pos * pos_neg_img_ratio)
 
-        import code
-        code.interact(local=dict(globals(), **locals()))
+        # import code
+        # code.interact(local=dict(globals(), **locals()))
 
         img_neg_trim_dir = os.path.join(root_dir, 'images_neg_trim')
         img_pos_trim_dir = os.path.join(root_dir, 'images_pos_trim')
