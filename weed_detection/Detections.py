@@ -29,17 +29,26 @@ class Detections(Region):
             self.shape_type = str(shape_type)
 
         self.shape = self.make_shape(x, y)
+        self.box = self.make_box(x, y) # [xmin, ymin, xmax, ymax]
         centroid = self.get_centroid()
         self.centroid_x = centroid(0)
         self.centroid_y = centroid(1)
-        
+         
 
     def get_centroid(self):
-        centroid = self.shape.centroid
+        centroid = self.shape.centroid # does this work for a point?
         cx = centroid.coords[0][0]
         cy = centroid.coords[0][1]
         return (cx, cy) # I think this is shapely's thing?
 
+
+    def make_box(self, x, y):
+        xmin = min(x)
+        ymin = min(y)
+        xmax = max(x)
+        ymax = max(y)
+        bbox = [xmin, ymin, xmax, ymax]
+        return bbox
 
     def print(self):
         print('Detection:')
@@ -47,5 +56,5 @@ class Detections(Region):
         print(f'score: {self.score}')
         Region.print(self)
         print(f'centroid: ({self.centroid_x}, {self.centroid_y})')
-        
+
  

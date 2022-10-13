@@ -30,7 +30,7 @@ from scipy.interpolate import interp1d
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 from torchvision.models.detection.mask_rcnn import MaskRCNNPredictor
 
-from Detections import Detections
+# from Detections import Detections
 from MaskDetections import MaskDetections
 
 
@@ -150,8 +150,6 @@ class Detector:
         return image
 
 
-
-
     def detect(self, 
                image, 
                confidence_threshold = False, 
@@ -203,26 +201,31 @@ class Detector:
                                             mask = mask,
                                             mask_threshold = mask_threshold)
             detections.append(maskdetections)
-        
-            # detections_bo
-            # TODO create a detections class that has the shape/box/centroid/species/outcome properties
 
         # TODO calibrate model confidence scores!
 
         # apply confidence threshold to detection scores
         detections = [d for d in detections if detections.score >= confidence_threshold]
+
+        # return detections
         return detections
+        
 
+    # @abstractmethod
+    # def run(self, image):
+    #     raise NotImplementedError
+        # must return 'classes', 'scores', 'boxes'
+        # classes: a list of class labels (int)
+        # scores: a list of confidence scores
+        # boxes: a list of coords (format?)
+    def run(self, image):
 
-            
+        detections = self.detect(image)
 
+        classes = [d[i].label for d, i in enumerate(detections)]
+        scores = [d[i].score for d, i in enumerate(detections)]
+        boxes = [d[i].box for d, i in enumerate(detections)]
 
-
-
-    def threshold_predictions(self, pred, thresh):
-        return pred
-
-    def run(self, image, thresholds):
-
-        classes, scores, boxes = self.model.detect(image, thresholds)
         return classes, scores, boxes
+
+

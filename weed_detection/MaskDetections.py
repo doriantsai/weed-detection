@@ -11,7 +11,6 @@ class MaskDetections(Detections):
         self.score = score
         self.mask = mask
         self.mask_threshold = mask_threshold
-        # TODO mask gets converted to polygon
         self.mask_binary, x, y = self.binarize_confidence_mask(self.mask, self.mask_threshold)
         Detections.__init__(label, score, x, y, 'poly')
 
