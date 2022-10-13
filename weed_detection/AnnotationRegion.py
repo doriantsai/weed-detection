@@ -12,12 +12,13 @@ class AnnotationRegion(Region):
     SHAPE_POLY = 'polygon'
     SHAPE_RECT = 'rect'
     SHAPE_POINT = 'point'
+    SHAPE_TYPES = [SHAPE_POINT, SHAPE_RECT, SHAPE_POLY]
     
     def __init__(self, class_name, x, y, shape_type, occluded):
         Region.__init__(self, class_name, x, y)
         self.occluded = occluded
 
-        if shape_type not in [self.SHAPE_POLY or self.SHAPE_POINT or self.SHAPE_RECT]:
+        if shape_type not in [self.SHAPE_TYPES]:
             self.error('Unknown shape type passed to AnnotationRegion __init__()')
             exit(-1)
         else:
