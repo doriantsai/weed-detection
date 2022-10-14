@@ -54,11 +54,13 @@ class Detector:
                  nms_threshold: float = NMS_THRESHOLD_DEFAULT,
                  mask_threshold: float = MASK_THRESHOLD_DEFAULT):
 
+        self.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+
         self.model = self.load_model(model_file)
         self.species = self.load_class_names(class_names_file=names_file)
         self.image_width = image_input_size[0]
         self.image_height = image_input_size[1]
-        self.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+        
 
         self.confidence_threshold = confidence_threshold
         self.nms_threshold = nms_threshold
@@ -124,7 +126,7 @@ class Detector:
         color_format = ['RGB', 'BGR']
         # TODO also, rescale image to correct input image size?
 
-        if isinstance(image, np.array):
+        if isinstance(image, np.ndarray):
             # check color format/ordering of image, convert to RGB
             if image_color_format == color_format[1]:
                 image = image[:, :, [2, 1, 0]]
@@ -136,7 +138,9 @@ class Detector:
                                   (self.image_width, self.image_height),
                                   interpolation=cv.INTER_NEAREST)
             # transform to tensor
-            image = torch.from_numpy(image)
+            # image = torch.from_numpy(image)
+            transform = transforms.ToTensor()
+            image = transform(image)
         elif isinstance(image, PIL_Image.Image):
             # resize image to fit
             image = PIL_Image.resize((self.image_width, self.image_height))
@@ -169,7 +173,7 @@ class Detector:
 
         with torch.no_grad():
             self.model.to(self.device)
-            image.to(self.device)
+            image = image.to(self.device)
 
             self.model.eval()
 
@@ -198,7 +202,7 @@ class Detector:
             # should be automatically populated
             maskdetections = MaskDetections(label = detections_class[i],
                                             score = detections_scores[i],
-                                            mask = mask,
+                                            mask_confidence= mask,
                                             mask_threshold = mask_threshold)
             detections.append(maskdetections)
 
@@ -218,7 +222,7 @@ class Detector:
         # classes: a list of class labels (int)
         # scores: a list of confidence scores
         # boxes: a list of coords (format?)
-    def run(self, image):
+    def run(self, image): # TODO add parameters/options
 
         detections = self.detect(image)
 
@@ -229,3 +233,15 @@ class Detector:
         return classes, scores, boxes
 
 
+if __name__ == "__main__":
+
+    # load a model
+    # infer on a given image
+    # print out the classes, scores, boxes (do plots later)
+    model_file = 'model/2021_Yellangelo_Tussock_v0_2022-10-12_10_35.pth'
+    detector = Detector(model_file = model_file) # might have to retrain with correct image size
+
+    image_file = '2021-10-13-T_13_48_58_720.png'
+    image = cv.imread(image_file)
+    image = cv.cvtColor(image, cv.COLOR_BGR2RGB)
+    classes, scores, boxes = detector.run(image)
