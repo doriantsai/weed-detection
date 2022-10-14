@@ -22,7 +22,9 @@ class Region:
         convert x, y values into shapely geometry object (point/polygon)
         NOTE: bbox is a type of polygon, accessed via shape.exterior.coords.xy
         """
-        if type(x) is int and type(y) is int:
+        if x is False and y is False:
+            shape = False
+        elif type(x) is int and type(y) is int:
             shape = Point(x, y)
         else:
             # make sure x, y are same size
@@ -52,7 +54,10 @@ class Region:
     def print(self):
         print('Region: ')
         print('Class: ' + str(self.class_name))
-        print('Shape type: ' + self.shape.type)
+        if self.shape:
+            print(f'Shape type: {self.shape.type}')
+        else:
+            print('shape is of unknown type')
         print('Coordinates: ')
         if type(self.shape) is Point:
             print(self.shape.bounds)
