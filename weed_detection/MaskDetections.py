@@ -35,9 +35,16 @@ class MaskDetections(Detections):
         else:
             raise TypeError('Unrecognised types for mask_confidence and/or mask_binary')
         
-            
         
-        Detections.__init__(self, label, score, x, y, 'polygon')
+        # import code
+        # code.interact(local=dict(globals(), **locals()))
+
+        Detections.__init__(self,
+                            label=label, 
+                            score=score, 
+                            x=x, 
+                            y=y, 
+                            shape_type = 'polygon')
 
 
     def binarize_confidence_mask(self, 
@@ -85,7 +92,7 @@ class MaskDetections(Detections):
         # we take the largest contour as the most likely polygon from the mask
         contours.sort(key=len, reverse=True)
         largest_contour = contours[0]
-        largest_contour_squeeze = np.squeeze(contours)
+        largest_contour_squeeze = np.squeeze(largest_contour)
         all_x, all_y = [], []
         for c in largest_contour_squeeze:
             all_x.append(c[0])

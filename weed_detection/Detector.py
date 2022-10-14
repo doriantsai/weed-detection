@@ -90,7 +90,7 @@ class Detector:
         loads pre-trained model on coco image database
         """
         # load instance segmentation model pre-trained on COCO
-        model = torchvision.models.detection.maskrcnn_resnet50_fpn(pretrained=pre_trained)
+        model = torchvision.models.detection.maskrcnn_resnet50_fpn(weights='MaskRCNN_ResNet50_FPN_Weights.DEFAULT')
 
         # get number of input features from the classifier
         in_features = model.roi_heads.box_predictor.cls_score.in_features
@@ -209,7 +209,7 @@ class Detector:
         # TODO calibrate model confidence scores!
 
         # apply confidence threshold to detection scores
-        detections = [d for d in detections if detections.score >= confidence_threshold]
+        detections = [d for d in detections if d.score >= confidence_threshold]
 
         # return detections
         return detections
@@ -226,9 +226,9 @@ class Detector:
 
         detections = self.detect(image)
 
-        classes = [d[i].label for d, i in enumerate(detections)]
-        scores = [d[i].score for d, i in enumerate(detections)]
-        boxes = [d[i].box for d, i in enumerate(detections)]
+        classes = [d.label for d in detections]
+        scores = [d.score for d in detections]
+        boxes = [d.box for d in detections]
 
         return classes, scores, boxes
 
@@ -245,3 +245,9 @@ if __name__ == "__main__":
     image = cv.imread(image_file)
     image = cv.cvtColor(image, cv.COLOR_BGR2RGB)
     classes, scores, boxes = detector.run(image)
+    print('classes:')
+    print(classes)
+    print('scores: ')
+    print(scores)
+    print('boxes: ')
+    print(boxes)

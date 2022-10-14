@@ -22,7 +22,7 @@ class Region:
         convert x, y values into shapely geometry object (point/polygon)
         NOTE: bbox is a type of polygon, accessed via shape.exterior.coords.xy
         """
-        if x is False and y is False:
+        if type(x) is bool and type(y) is bool:
             shape = False
         elif type(x) is int and type(y) is int:
             shape = Point(x, y)
