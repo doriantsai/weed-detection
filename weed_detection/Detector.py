@@ -263,13 +263,18 @@ if __name__ == "__main__":
     Detector.download_model(url, model_file)
     detector = Detector(model_file = os.path.join('model', model_file)) # might have to retrain with correct image size
 
-    image_file = 'images/2021-10-13-T_13_50_55_743.png'
-    image = cv.imread(image_file)
-    image = cv.cvtColor(image, cv.COLOR_BGR2RGB)
-    classes, scores, boxes = detector.run(image)
-    print('classes:')
-    print(classes)
-    print('scores: ')
-    print(scores)
-    print('boxes: ')
-    print(boxes)
+    # grab any images in the 'images' folder:
+    img_dir = 'images'
+    img_list = os.listdir(img_dir)
+    # image_file = 'images/2021-10-13-T_13_50_55_743.png'
+    for img_name in img_list:
+        print(f'image name: {img_name}')
+        image = cv.imread(os.path.join(img_dir, img_name))
+        image = cv.cvtColor(image, cv.COLOR_BGR2RGB)
+        classes, scores, boxes = detector.run(image)
+        print('classes:')
+        print(classes)
+        print('scores: ')
+        print(scores)
+        print('boxes: ')
+        print(boxes)
