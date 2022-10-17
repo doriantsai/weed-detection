@@ -52,8 +52,9 @@ Run the download script and your desired dataset.
 
 ## Running the Detector
 - After installation (see above), activate `agkelpie` environment
-- navigate to examples `cd examples`
-- Run `python working_example.py` and see output in `output` folder
+- Make a director called `images` in the `weed_detection` folder
+- Copy several test images into the `images` folder
+- Run `Detector.py`, which should automatically download the current Tussock model, and then run the detector on the test images
 
 
 
