@@ -16,6 +16,7 @@
 import os
 import json
 from shutil import ReadError
+from subprocess import call
 
 import torch
 import torchvision
@@ -81,6 +82,24 @@ class Detector:
         else:
             raise ReadError(f'No class names read from class_names_file: {class_names_file}')
             return False
+
+
+    @staticmethod
+    def download_model(url, model_file, model_dir = 'model'):
+        """ download model """
+        move_model_file = os.path.join(model_dir, model_file)
+        if not os.path.exists(move_model_file):
+            os.makedirs(model_dir, exist_ok=True)
+            call(['wget', '-O', model_file, url])   
+            
+            os.rename(model_file, move_model_file)
+            print(f'model downloaded to {move_model_file}')
+
+        else:
+            print('Model_file already exists. Model already downloaded.')
+            print(model_file)
+        
+        return True
 
 
     def build_model(self, 
@@ -238,10 +257,13 @@ if __name__ == "__main__":
     # load a model
     # infer on a given image
     # print out the classes, scores, boxes (do plots later)
-    model_file = 'model/2021_Yellangelo_Tussock_v0_2022-10-12_10_35.pth'
-    detector = Detector(model_file = model_file) # might have to retrain with correct image size
+    # model_file = 'model/2021_Yellangelo_Tussock_v0_2022-10-12_10_35.pth'
+    model_file = '2021_Yellangelo_Tussock_v0_2022-10-12_10_35_epoch30.pth'
+    url = 'https://cloudstor.aarnet.edu.au/plus/s/3XEnfIEoLEAP27o/download'
+    Detector.download_model(url, model_file)
+    detector = Detector(model_file = os.path.join('model', model_file)) # might have to retrain with correct image size
 
-    image_file = '2021-10-13-T_13_48_58_720.png'
+    image_file = 'images/2021-10-13-T_13_50_55_743.png'
     image = cv.imread(image_file)
     image = cv.cvtColor(image, cv.COLOR_BGR2RGB)
     classes, scores, boxes = detector.run(image)

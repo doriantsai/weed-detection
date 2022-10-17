@@ -7,7 +7,7 @@ channels:
   - nvidia
   - defaults
 dependencies:
-  - python=3.7
+  - python>=3.7
   - numpy
   - matplotlib
   - pip
@@ -20,7 +20,6 @@ dependencies:
   - tensorboard
   - pytorch::pytorch=1.12.0
   - torchvision=0.13.0
-  - torchaudio
   - nvidia::cudatoolkit=11.3
   - shapely
   - pylint
@@ -29,7 +28,7 @@ dependencies:
   - pytorch-lightning
   - wandb
   - ipython
-  - opencv
+  - opencv>=4.6
   - python-flatbuffers
   - boto3
   - onnx
