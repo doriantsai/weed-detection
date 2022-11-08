@@ -15,12 +15,12 @@ from weed_detection.WeedModel import WeedModel
 from weed_detection.PreProcessingToolbox import PreProcessingToolbox
 
 # setup file/folder locations
-dataserver_dir = os.path.join('/home/agkelpie/Data/03_Tagged')
-dataset_name = '2021_Yellangelo_Tussock_v0'
+dataserver_dir = os.path.join('/media/david/storage_device/Datasets/AOS_Kelpie/03_Tagged')
+dataset_name = '2021_Clarkefield_Tussock_v0_2021-12-10'
 
 # glob string patterns to find the images and metadata (annotations) files, respectively
-img_dir_patterns=['/2021-10-13/*/Serrated Tussock/images/']
-ann_dir_patterns=['/2021-10-13/*/Serrated Tussock/metadata/Yellangelo-Final*']
+img_dir_patterns=['/2021-12-10/*/images/']
+ann_dir_patterns=['/2021-12-10/*/metadata/Clarkfield-2021-12-10-249*']
 
 ppt = PreProcessingToolbox()
 
@@ -33,7 +33,8 @@ print('Generating symbolic links')
 ann_dataset_path, root_dir = ppt.generate_symbolic_links(dataserver_dir,
                                                         dataset_name,
                                                         img_dir_patterns,
-                                                        ann_dir_patterns)
+                                                        ann_dir_patterns,
+                                                        unwanted_anns=['saffron thistle'])
 
 # ======================================================================================
 # create balanced image folder and annotation file from symbolic links

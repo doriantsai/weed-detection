@@ -474,7 +474,7 @@ class PreProcessingToolbox:
 
         tr = int(round(n_img * ratio_train_test[0]))
         te = int(round(n_img * ratio_train_test[1]))
-        va = int(round(n_img * ratio_train_test[2]))
+        va = n_img - tr - te
 
         print('n_train {}'.format(tr))
         print('n_test {}'.format(te))
@@ -948,7 +948,8 @@ class PreProcessingToolbox:
                           ann_pattern = '*.json',
                           data_dir_out = None,
                           ann_file_out = None,
-                          default_dir = '/home/agkelpie/Data'): # TODO make this general
+                          default_dir = '/media/david/storage_device/Datasets/AOS_Kelpie',
+                          unwanted_anns = None): # TODO make this general
         """ generate symlinks from original data server directory
         given specific string patterns for image directory, annotation directories, based on GLOB patterns
         output symbolic links in data_dir_out and ann_file_out """
@@ -1041,7 +1042,8 @@ class PreProcessingToolbox:
         ann_out_path, img_dir_out = self.filter_processed_images_annotations(ann_path = ann_raw_path,
                                                                              ann_out_path=ann_out_path,
                                                                              img_dir= img_raw_dir, 
-                                                                             img_out_dir= img_out_dir)
+                                                                             img_out_dir= img_out_dir,
+                                                                             unwanted_anns=unwanted_anns)
 
         # check number of entries in annotation out file
         ann_check = json.load(open(ann_out_path))
@@ -1155,7 +1157,8 @@ class PreProcessingToolbox:
                                             ann_path,
                                             img_dir,
                                             ann_out_path=None,
-                                            img_out_dir=None):
+                                            img_out_dir=None,
+                                            unwanted_anns=None):
         """filter out processed images and annotations - that only have the is_processed flag
 
         Args:
@@ -1173,6 +1176,12 @@ class PreProcessingToolbox:
         ann_out = [a for a in ann_list if int(a['file_attributes']['is_processed']) == 1]
 
         print(f'Out of {len(ann_list)} images in img_dir, {len(ann_out)} images are is_processed==1')
+        if unwanted_anns is not None:
+            # Keep the annotation if there are no annotations
+            ann_out = [a for a in ann_out if len(a['regions']) == 0 or 
+            # or if no annotated regions are of undesired species
+                       len([1 for region in a['regions'] if 'species' not in region['region_attributes'] or region['region_attributes']['species'] in unwanted_anns]) == 0]
+            print(f'Removing unwanted annotations {unwanted_anns} leaves {len(ann_out)} images in dataset')
 
         # output ann_processed as ann_out_path (first convert back to dict)
         ann_dict_out = {}
