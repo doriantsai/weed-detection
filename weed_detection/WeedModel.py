@@ -558,10 +558,10 @@ class WeedModel:
         writer = SummaryWriter(os.path.join('runs', exp_name))
 
         # set validation epoch frequency
-        val_epoch = 2
+        val_epoch = 4
 
         # set savepoint epoch frequency
-        snapshot_epoch = 5
+        snapshot_epoch = 4
 
         # ---------------------------------------------- #
         # train for-loop for epochs NOTE we do not do explicit early stopping.
@@ -570,6 +570,8 @@ class WeedModel:
         # that in fact, we have reached a low-point in the validation loss.
         start_time = time.time()
         print('start training')
+        best_epoch=0
+        lowest_val = 1e6
         for epoch in range(hp_train['num_epochs']):
             # modified from coco_api tools to take in separate training and
             # validation dataloaders, as well as port the images to device
@@ -594,6 +596,9 @@ class WeedModel:
 
             # evaluate on test dataset ever val_epoch epochs
             if (epoch % val_epoch) == (val_epoch - 1):
+                if mv.loss.median < lowest_val:
+                    lowest_val = mv.loss.median
+                    best_epoch = epoch
                 writer.add_scalar('Detector/Validation_Loss',
                                   mv.loss.median, epoch + 1)
 
@@ -631,7 +636,7 @@ class WeedModel:
         self.set_model_path(model_save_path)
         self._epoch = epoch
 
-        return model, model_save_path
+        return model, model_save_path, best_epoch
 
 
     def load_model(self,

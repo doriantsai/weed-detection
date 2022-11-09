@@ -124,7 +124,7 @@ dso = Thistle.load_dataset_objects(dataset_path)
 # train model
 # ======================================================================================
 print('Training model')
-model, model_save_path = Thistle.train(model_name=dataset_name,
+model, model_save_path, best_epoch = Thistle.train(model_name=dataset_name,
                                          dataset_path=dataset_path,
                                          model_name_suffix=True)
 print(f'finished training model: {model_save_path}')
@@ -140,7 +140,8 @@ print('Computing PR curve')
 model_names = [Thistle.get_model_name()]
 model_descriptions = ['St_MaskRCNN']
 model_types = [model_type]
-model_epochs = [5]  # TODO find min. of validation curve and use nearest
+model_epochs = [best_epoch]  # TODO find min. of validation curve and use nearest
+print(f"BEST EPOCH {best_epoch}")
 models={'name': model_names,
         'folder': model_names,
         'description': model_descriptions,

@@ -15,12 +15,12 @@ from weed_detection.WeedModel import WeedModel
 from weed_detection.PreProcessingToolbox import PreProcessingToolbox
 
 # setup file/folder locations
-dataserver_dir = os.path.join('/home/agkelpie/Data/agkelpie/03_Tagged')
-dataset_name = '2021-03-26_MFS_Horehound_v0'
+dataserver_dir = os.path.join('/media/david/storage_device/Datasets/AOS_Kelpie/03_Tagged')
+dataset_name = '2021-11-23_Horehound_v0'
 
 # glob string patterns to find the images and metadata (annotations) files, respectively
-img_dir_patterns=['/2021-03-26/Location_2/images/']
-ann_dir_patterns=['/2021-03-26/Location_2/metadata/']
+img_dir_patterns=['/2021-11-23/Yellangelo/Horehound/images/']
+ann_dir_patterns=['/2021-11-23/Yellangelo/Horehound/metadata/Yellangelo*']
 
 ppt = PreProcessingToolbox()
 
@@ -31,7 +31,9 @@ print('Generating symbolic links')
 ann_dataset_path, root_dir = ppt.generate_symbolic_links(dataserver_dir,
                                                         dataset_name,
                                                         img_dir_patterns,
-                                                        ann_dir_patterns)
+                                                        ann_dir_patterns,
+                                                        unwanted_anns=['scottish thistle']
+                                                        )
 
 # ======================================================================================
 # create balanced image folder and annotation file from symbolic links
@@ -118,7 +120,7 @@ dso = Horehound.load_dataset_objects(dataset_path)
 # train model
 # ======================================================================================
 print('Training model')
-model, model_save_path = Horehound.train(model_name=dataset_name,
+model, model_save_path, best_epoch = Horehound.train(model_name=dataset_name,
                                          dataset_path=dataset_path,
                                          model_name_suffix=True)
 print(f'finished training model: {model_save_path}')
@@ -134,7 +136,9 @@ print('Computing PR curve')
 model_names = [Horehound.get_model_name()]
 model_descriptions = ['Hh_MaskRCNN']
 model_types = [model_type]
-model_epochs = [20]  # TODO find min. of validation curve and use nearest
+model_epochs = [best_epoch]  
+print(f"BEST EPOCH {best_epoch}")
+# TODO find min. of validation curve and use nearest
 models={'name': model_names,
         'folder': model_names,
         'description': model_descriptions,
