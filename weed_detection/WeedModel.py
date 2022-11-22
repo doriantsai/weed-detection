@@ -11,6 +11,7 @@ Email: dorian.tsai@gmail.com
 
 import os
 from typing import Type
+from sklearn.metrics import f1_score
 import torch
 import torchvision
 import re
@@ -603,7 +604,7 @@ class WeedModel:
                                   mv.loss.median, epoch + 1)
 
             # save snapshot every snapshot_epochs
-            if (epoch % snapshot_epoch) == (snapshot_epoch - 1):
+            # if (epoch % snapshot_epoch) == (snapshot_epoch - 1):
                 print('saving snapshot at epoch: {}'.format(epoch))
 
                 # save epoch
@@ -613,6 +614,10 @@ class WeedModel:
                                              'snapshots',
                                              model_name + '_epoch' + str(epoch + 1) + '.pth')
                 torch.save(model.state_dict(), snapshot_name)
+                if best_epoch == epoch:
+                    best_name = os.path.join(save_folder,
+                                             'snapshots',
+                                             'best_' + model_name + '.pth')
                 # print('snapshot name: {}',format(snapshot_name))
 
         print('training complete')
@@ -636,7 +641,7 @@ class WeedModel:
         self.set_model_path(model_save_path)
         self._epoch = epoch
 
-        return model, model_save_path, best_epoch
+        return model, model_save_path, best_epoch+1
 
 
     def load_model(self,
@@ -1194,6 +1199,10 @@ class WeedModel:
             mask_open = cv.morphologyEx(
                 mask_bin.astype(np.uint8), cv.MORPH_OPEN, kernel)
             mask_close = cv.morphologyEx(mask_open, cv.MORPH_CLOSE, kernel)
+
+            # Use original if open closing operation destroys mask (very small masks)
+            if np.amax(mask_close) == 0:
+                mask_close = mask_bin
 
             # minor erosion then dilation by the same amount
 
@@ -2169,8 +2178,8 @@ class WeedModel:
         print('gt sum: ', gt_sum)
         print('tp + fn = ', tp_sum + fn_sum)
 
-        prec = tp_sum / (tp_sum + fp_sum)
-        rec = tp_sum / (tp_sum + fn_sum)
+        prec = tp_sum / (tp_sum + fp_sum+1e-12)
+        rec = tp_sum / (tp_sum + fn_sum+1e-12)
 
         print('precision = {}'.format(prec))
         print('recall = {}'.format(rec))
@@ -2184,7 +2193,7 @@ class WeedModel:
 
     def compute_f1score(self, p, r):
         """ compute f1 score """
-        return 2 * (p * r) / (p + r)
+        return 2 * (p * r) / (p + r + 1e-12)
 
     def extend_pr(self,
                   prec,
@@ -2369,20 +2378,28 @@ class WeedModel:
         prec = []
         rec = []
         f1score = []
+        tps = []
+        fps = []
+        fns = []
         start_time = time.time()
         for c, conf in enumerate(confidence_thresh):
             print('{}: outcome confidence threshold: {}'.format(c, conf))
 
-            _, p, r, f1 = self.compute_pr_dataset(dataset,
+            data_full, p, r, f1 = self.compute_pr_dataset(dataset,
                                                   predictions,
                                                   conf,
                                                   nms_iou_thresh,
                                                   imsave=imsave,
                                                   save_folder=save_folder)
+            
 
             prec.append(p)
             rec.append(r)
             f1score.append(f1)
+            tps.append(sum([sum(data_full[idx]['tp']) for idx in range(len(data_full))]))
+            fps.append(sum([sum(data_full[idx]['fp']) for idx in range(len(data_full))]))
+            fns.append(sum([sum(data_full[idx]['fn_gt'])+sum(data_full[idx]['fn_dt']) 
+                       for idx in range(len(data_full))]))
 
         end_time = time.time()
 
@@ -2393,6 +2410,18 @@ class WeedModel:
 
         rec = np.array(rec)
         prec = np.array(prec)
+        f1score = np.array(f1score)
+        tps = np.array(tps)
+        fps = np.array(fps)
+        fns = np.array(fns)
+
+        # Trim rec and prec to remove any moments where rec == 0 (they mean nothing)
+        prec = prec[rec > 0]
+        f1score = f1score[rec > 0]
+        tps = tps[rec > 0]
+        fps = fps[rec > 0]
+        fns = fns[rec > 0]
+        rec = rec[rec > 0]
 
         # plot raw PR curve
         fig, ax = plt.subplots()
@@ -2408,7 +2437,6 @@ class WeedModel:
             plt.show()
 
         # plot F1score
-        f1score = np.array(f1score)
         # fig, ax = plt.subplots() ax.plot(rec, f1score, marker='o',
         # linestyle='dashed') plt.xlabel('recall') plt.ylabel('f1 score')
         # plt.title('f1 score vs recall for varying confidence') save_plot_name
@@ -2439,6 +2467,8 @@ class WeedModel:
 
         print('ap score: {:.5f}'.format(ap))
         print('max f1 score: {:.5f}'.format(max(f1score)))
+        max_f1_idx = np.argmax(f1score)
+        print(f'TP: {tps[max_f1_idx]}; FP: {fps[max_f1_idx]}; FN: {fns[max_f1_idx]}')
 
         # save ap, f1score, precision, recall, etc
         res = {'precision': p_final,
