@@ -9,51 +9,59 @@ import numpy as np
 import torch
 import torch.utils.data
 import json
-import matplotlib.pyplot as plt
-from torchvision.models.detection.rpn import RegionProposalNetwork
 import torchvision.transforms as T
 import random
 
 # from skimage import transform as sktrans
 from PIL import Image
 from torchvision.transforms import functional as tvtransfunc
-from torchvision.datasets.video_utils import VideoClips
 
 
 class WeedDataset(object):
-    """ weed dataset object """
+    """ weed dataset object for polygons """
 
-
-    # TODO maybe should actually hold the datasets/dataloader objects?
-    def __init__(self, root_dir, json_file, transforms, img_dir=None):
+    def __init__(self,
+                 json_file,
+                 img_dir,
+                 transforms,
+                 mask_dir=None,
+                 config_file=None):
         """
         initialise the dataset
-        annotations - json file of annotations of a prescribed format
-        root_dir - root directory of dataset, under which are Images/All/Test/Train folders
+        annotations - absolute path to json file of annotations of a prescribed format
+        img_dir - image directory
         transforms - list of transforms randomly applied to dataset for training
+        mask_dir - mask directory (if maskrcnn)
+        
         """
 
-        # TODO annotations should have root_dir/Annotations/json_file
-        annotations = json.load(open(os.path.join(root_dir, 'metadata', json_file)))
+        # absolute filepath
+        annotations = json.load(open(os.path.join(json_file)))
         self.annotations = list(annotations.values())
-        self.root_dir = root_dir
         self.transforms = transforms
 
+        self.img_dir = img_dir
 
-        if img_dir is not None:
-            self.img_dir = img_dir
+        if mask_dir is not None:
+            self.mask_dir = mask_dir
         else:
-            self.img_dir = os.path.join(self.root_dir, 'images')
+            # assume one level up from the image folder
+            self.mask_dir = os.path.join(img_dir, '..', 'masks')
 
-        # if mask_dir is not None:
-        #     self.mask_dir = mask_dir
-        # else:
-        #     self.mask_dir = os.path.join(self.root_dir, 'Masks')
+        if config_file is not None:
+            self.config_file = config_file
+        else:
+            self.config_file = os.path.join('.', '..', 'config/classes.json')
 
+        # load config_file json:
+        with open(self.config_file, 'r') as f:
+            config = json.load(f)
+        self.classes = config['names']
+        self.class_colours = config['colours']
+        
         # load all image files, sorting them to ensure aligned (dictionaries are unsorted)
-        # self.imgs = list(sorted(os.listdir(self.img_dir)))
-        # self.masks = list(sorted(os.listdir(self.mask_dir)))
-
+        self.imgs = list(sorted(os.listdir(self.img_dir)))
+        self.masks = list(sorted(os.listdir(self.mask_dir)))
 
 
     def __getitem__(self, idx):
@@ -70,69 +78,112 @@ class WeedDataset(object):
         image =  Image.open(img_name).convert("RGB")
 
         # get mask
-        # mask_name = os.path.join(self.mask_dir, self.annotations[idx]['filename'][:-4] + '_mask.png')
-        # mask = Image.open(mask_name)
-        # # convert PIL image to np array
-        # mask = np.array(mask)
+        mask_name = os.path.join(self.mask_dir, self.annotations[idx]['filename'][:-4] + '_mask.png')
+        mask =  np.array(Image.open(mask_name))
 
-        # instances are encoded as different colors
-        # obj_ids = np.unique(mask)
-        # first id is the background, so remove it
-        # obj_ids = obj_ids[1:]
-
-        # split the color-encoded mask into a set of binary masks
-        # NOTE unsure if this will work as intended
-        # masks = mask == obj_ids[:, None, None]
+        # if we have a normal mask of 0's and 1's
+        if mask.max() > 0:
+            # instances are encoded as different colors
+            obj_ids = np.unique(mask)
+            # first id is the background, so remove it
+            obj_ids = obj_ids[1:]
+            # split the color-encoded mask into a set of binary masks
+            masks = mask == obj_ids[:, None, None]
+            nobj = len(obj_ids)
+        else:
+            # for a negative image, mask is all zeros, or just empty
+            # masks = np.expand_dims(mask == 1, axis=1)
+            nobj = 0
+            
+        if nobj > 0:
+            masks = torch.as_tensor(masks, dtype=torch.uint8)
+        else:
+            masks = torch.zeros((0, image.size[0], image.size[1]), dtype=torch.uint8)
 
         # get bounding boxes for each object
-        # nobj = len(obj_ids)
-
-        # number of bboxes
-        nobj = len(self.annotations[idx]['regions'])
-
-        # get bbox
         # bounding box is read in a xmin, ymin, width and height
         # bounding box is saved as xmin, ymin, xmax, ymax
         boxes = []
-
-        # import code
-        # code.interact(local=dict(globals(), **locals()))
-
-        # bounding boxes code for fasterrcnn
         if nobj > 0:
             for i in range(nobj):
+                pos = np.where(masks[i])
+                xmin = np.min(pos[1])
+                xmax = np.max(pos[1])
+                ymin = np.min(pos[0])
+                ymax = np.max(pos[0])
+                boxes.append([xmin, ymin, xmax, ymax])
+        if nobj == 0:
+            boxes = torch.zeros((0, 4), dtype=torch.float32)
+        else:
+            boxes = torch.as_tensor(boxes, dtype=torch.float32)
+
+        # get annotation spray points
+        points = []
+        if nobj > 0:
+            reg = self.annotations[idx]['regions']
+            for i, r in enumerate(reg):
                 if isinstance(self.annotations[idx]['regions'], dict):
                     j = str(i)
                 else:  # regions is a list type
                     j = i
-                xmin = self.annotations[idx]['regions'][j]['shape_attributes']['x']
-                ymin = self.annotations[idx]['regions'][j]['shape_attributes']['y']
-                width = self.annotations[idx]['regions'][j]['shape_attributes']['width']
-                height = self.annotations[idx]['regions'][j]['shape_attributes']['height']
-                xmax = xmin + width
-                ymax = ymin + height
-                boxes.append([xmin, ymin, xmax, ymax])
-
-
-        if nobj == 0:
-            boxes = torch.zeros((0, 4), dtype=torch.float64)
+                name = r['shape_attributes']['name']
+                if name == 'point':
+                    cx = self.annotations[idx]['regions'][j]['shape_attributes']['cx']
+                    cy = self.annotations[idx]['regions'][j]['shape_attributes']['cy']
+                    points.append([cx, cy])
+                # TODO need to do a python script that checks for this ahead of time
+                # NOTE: not every polygon (nobj) should contain a spraypoint, because we don't want to spray every 
+                # polygon necessarily. 
+                # NOTE: reportedly, the new AgKelpie image database has this functionality
+            points = torch.as_tensor(points, dtype=torch.float32)
         else:
-            boxes = torch.as_tensor(boxes, dtype=torch.float64)
-
+            points = torch.zeros((0, 2), dtype=torch.float32)
 
         # compute area
         if nobj == 0:
-            # no boxes
-            area = 0
+            area = 0 # no boxes
         else:
             area = (boxes[:, 3] - boxes[:, 1]) * (boxes[:, 2] - boxes[:, 0])
-        area = torch.as_tensor(area, dtype=torch.float64)
+        area = torch.as_tensor(area, dtype=torch.float32)
 
-        # only one class + background:
-        labels = torch.ones((nobj,), dtype=torch.int64)
+        # read in all region attributes to apply label based on class names:
+        labels_box = []
+        labels_pt = []
+        labels_poly = []
+        if nobj > 0:
+            reg = self.annotations[idx]['regions']
+            for i, r in enumerate(reg):
+                if isinstance(self.annotations[idx]['regions'], dict):
+                    j = str(i)
+                else:
+                    j = i
+                name = r['shape_attributes']['name']
+                if name == 'rect':
+                    species_name = r['region_attributes']['species']
+                    if self.check_species(species_name):
+                        labels_box.append( list(self.classes.values()).index(species_name) )
+                    else:
+                        ValueError(species_name, f'species_name {species_name} not in self.classes.values()')
 
-        # TODO iscrowd?
-        iscrowd = torch.zeros((nobj,), dtype=torch.int64)
+                if name == 'point':
+                    # species_name = r['region_attributes']['species']
+                    species_name = list(self.classes.items())[1] # TODO currently, point's don't have species annotation?
+                    if self.check_species(species_name):
+                        labels_pt.append( list(self.classes.values()).index(species_name) )
+                    else:
+                        ValueError(species_name, f'species_name {species_name} not in self.classes.values()')
+
+                if name == 'polygon':
+                    species_name = r['region_attributes']['species']
+                    if self.check_species(species_name):
+                        labels_poly.append( list(self.classes.values()).index(species_name) )
+                    else:
+                        ValueError(species_name, f'species_name {species_name} not in self.classes.values()')
+
+        # for now, we don't care about point or box annotations, poly and box annotations should also be equivalent
+        labels = torch.as_tensor(labels_poly, dtype=torch.int64)
+
+        iscrowd = torch.zeros((nobj,), dtype=torch.int64) # currently unused, but potential for crowded weed images
 
         # image_id is the index of the image in the folder
         image_id = torch.tensor([idx], dtype=torch.int64)
@@ -143,6 +194,8 @@ class WeedDataset(object):
         sample['image_id'] = image_id
         sample['area'] = area
         sample['iscrowd'] = iscrowd
+        sample['masks'] = masks
+        sample['points'] = points
 
         # apply transforms to image and sample
         if self.transforms:
@@ -150,6 +203,14 @@ class WeedDataset(object):
 
         return image, sample
 
+
+    def check_species(self, species):
+        """ check species names, if matches self.classes, then returns true, else returns false """
+        if species in self.classes.values():
+            return True
+        else:
+            return False
+        
 
     def __len__(self):
         """
@@ -184,6 +245,35 @@ class Compose(object):
             image, target = t(image, target)
         return image, target
 
+class ToTensor(object):
+    """ convert ndarray to sample in Tensors """
+
+    def __call__(self, image, sample):
+        """ convert image and sample to tensors """
+
+        # convert image
+        image = tvtransfunc.to_tensor(image)
+        image = torch.as_tensor(image, dtype=torch.float32)
+        # make sure to convert to float64
+
+        # convert samples
+        boxes = sample['boxes']
+        if not torch.is_tensor(boxes):
+            boxes = torch.as_tensor(torch.from_numpy(boxes), dtype=torch.float32)
+        sample['boxes'] = boxes
+
+        masks = sample['masks']
+        if not torch.is_tensor(masks):
+            masks = torch.as_tensor(torch.from_numpy(masks), dtype=torch.float32)
+        sample['masks'] = masks
+
+        points = sample['points']
+        if not torch.is_tensor(points):
+            points = torch.as_tensor(torch.from_numpy(points), dtype=torch.float32)
+        sample['points'] = points
+
+        return image, sample
+
 
 class Rescale(object):
     """ Rescale image to given size """
@@ -195,7 +285,11 @@ class Rescale(object):
     def __call__(self, image, sample=None):
 
         # handle the aspect ratio
+        if isinstance(image, np.ndarray):
+            image = Image.fromarray(image) # convert to PIL image
+
         h, w = image.size[:2]
+
         if isinstance(self.output_size, int):
             if h > w:
                 new_h, new_w = self.output_size * h / w, self.output_size
@@ -207,10 +301,18 @@ class Rescale(object):
         new_h, new_w = int(new_h), int(new_w)
 
         # do the transform
-        img = T.Resize((new_w, new_h))(image)
+        img = T.Resize((new_w, new_h))(image) # only works for PIL images
 
         # apply transform to bbox as well
         if sample is not None:
+
+            # apply resize to mask as well
+            mask = sample["masks"]
+
+            if len(mask) > 0:
+                m = T.Resize((new_w, new_h))(mask)  # HACK FIXME
+                sample['masks'] = m
+
             xChange = float(new_w) / float(w)
             yChange = float(new_h) / float(h)
             bbox = sample["boxes"]  # [xmin ymin xmax ymax]
@@ -222,27 +324,15 @@ class Rescale(object):
                 bbox[:, 3] = bbox[:, 3] * xChange
                 sample["boxes"] = np.float64(bbox)
 
+            points = sample['points']
+            if len(points) > 0:
+                points[:, 0] = points[:, 0] * yChange
+                points[:, 1] = points[:, 1] * xChange
+                sample['points'] = np.float64(points)
+
             return img, sample
         else:
             return img
-
-
-class ToTensor(object):
-    """ convert ndarray to sample in Tensors """
-
-    def __call__(self, image, sample):
-        """ convert image and sample to tensors """
-
-        # convert image
-        image = tvtransfunc.to_tensor(image)
-
-        # convert samples
-        boxes = sample['boxes']
-        if not torch.is_tensor(boxes):
-            boxes = torch.from_numpy(boxes)
-        sample['boxes'] = boxes
-
-        return image, sample
 
 
 class RandomHorizontalFlip(object):
@@ -258,6 +348,7 @@ class RandomHorizontalFlip(object):
 
         if random.random() < self.prob:
             w, h = image.size[:2]
+
             # flip image
             image = image.transpose(method=Image.FLIP_LEFT_RIGHT)
 
@@ -269,6 +360,19 @@ class RandomHorizontalFlip(object):
             if len(bbox) > 0:
                 bbox[:, [0, 2]] = w - bbox[:, [2, 0]]  # note the indices switch (must flip the box as well!)
                 sample['boxes'] = bbox
+
+            # flip mask
+            mask = sample['masks']
+
+            # mask = mask.transpose(method=Image.FLIP_LEFT_RIGHT)
+            if len(mask) > 0:
+                mask = torch.flip(mask, [2])
+                sample['masks'] = mask
+
+            points = sample['points']
+            if len(points) > 0:
+                points[:, 0] = w - points[:, 0]
+                sample['points'] = points
 
         return image, sample
 
@@ -294,6 +398,20 @@ class RandomVerticalFlip(object):
                 # bbox[:, [0, 2]] = w - bbox[:, [2, 0]]
                 bbox[:, [1, 3]] = h - bbox[:, [3, 1]]
                 sample['boxes'] = bbox
+
+            # flip mask
+            mask = sample['masks']
+            # mask = mask.transpose(method=Image.FLIP_TOP_BOTTOM)
+            if len(mask) > 0:
+                mask = torch.flip(mask, [1])
+                sample['masks'] = mask
+
+            # flip points
+            points = sample['points']
+            if len(points) > 0:
+                points[:, 1] = h - points[:, 1]
+                sample['points'] = points
+
         return image, sample
 
 
@@ -314,6 +432,7 @@ class RandomBlur(object):
         """ apply blur to image """
         # image = tvtransfunc.gaussian_blur(image, self.kernel_size) # sigma calculated automatically
         image = tvtransfunc.gaussian_blur(image, self.kernel_size, self.sigma)
+        # TODO not sure if I should blur the mask? Mask RCNN accepts only binary mask, or can it be weighted?
         return image, sample
 
 
@@ -373,62 +492,4 @@ class RandomContrast(object):
                 image = tvtransfunc.adjust_contrast(image, contrast)
             else:
                 image = tvtransfunc.adjust_contrast(image, self.contrast)
-        return image, sample
-
-
-# NOTE changing the hue seemed to really screw up the results, or potentially should only make the slightest
-class RandomHue(object):
-    """ Random hue jitter transform """
-
-    def __init__(self,
-                 prob,
-                 hue=0,
-                 range=[-0.1, 0.1],
-                 rand=True):
-        self.prob = prob
-        # hue is a single number ranging from
-        # Should be in [-0.5, 0.5]. 0.5 and -0.5 give complete reversal of
-        # hue channel in HSV space in positive and negative direction
-        # respectively. 0 means no shift. Therefore, both -0.5 and 0.5 will give
-        # an image with complementary colors while 0 gives the original image.
-        self.hue = hue
-        self.rand = rand
-        self.range = range
-
-    def __call__(self, image, sample):
-        """ apply change in brightnes/constrast/saturation/hue """
-
-        if random.random() < self.prob:
-            if self.rand:
-                hue = random.random()* (self.range[1] - self.range[0]) + self.range[0]
-                image = tvtransfunc.adjust_hue(image, hue)
-            else:
-                image = tvtransfunc.adjust_hue(image, self.hue)
-        return image, sample
-
-
-class RandomSaturation(object):
-    """ Random saturation """
-
-    def __init__(self,
-                 prob,
-                 saturation=0,
-                 range=[0.5, 1.5],
-                 rand=True):
-        self.prob = prob
-        # 0 will give a black and white image, 1 will give the original
-        # image while 2 will enhance the saturation by a factor of 2.
-        self.saturation = saturation
-        self.rand = rand
-        self.range = range
-
-
-    def __call__(self, image, sample):
-        """ apply change in saturation """
-        if random.random() < self.prob:
-            if self.rand:
-                sat = random.random()* (self.range[1] - self.range[0]) + self.range[0]
-                image = tvtransfunc.adjust_saturation(image, sat)
-            else:
-                image = tvtransfunc.adjust_saturation(image, self.saturation)
         return image, sample

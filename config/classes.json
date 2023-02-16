@@ -1,0 +1,24 @@
+{
+    "names": {
+        "0": "background",
+        "1": "tussock",
+        "2": "horehound"
+    },
+    "colours": {
+        "black": [
+            0,
+            0,
+            0
+        ],
+        "purple": [
+            135,
+            0,
+            135
+        ],
+        "orange": [
+            255,
+            127,
+            80
+        ]
+    }
+}
