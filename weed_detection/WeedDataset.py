@@ -23,7 +23,7 @@ class WeedDataset(object):
     def __init__(self,
                  json_file,
                  img_dir,
-                 transforms,
+                 transforms=None,
                  mask_dir=None,
                  config_file=None):
         """
@@ -34,7 +34,7 @@ class WeedDataset(object):
         mask_dir - mask directory (if maskrcnn)
         
         """
-
+        # TODO address if masks folder not available, config classes, auto-create, etc
         # absolute filepath
         annotations = json.load(open(os.path.join(json_file)))
         self.annotations = list(annotations.values())
@@ -45,13 +45,13 @@ class WeedDataset(object):
         if mask_dir is not None:
             self.mask_dir = mask_dir
         else:
-            # assume one level up from the image folder
+            # assume parallel to image folder
             self.mask_dir = os.path.join(img_dir, '..', 'masks')
 
         if config_file is not None:
             self.config_file = config_file
         else:
-            self.config_file = os.path.join('.', '..', 'config/classes.json')
+            self.config_file = os.path.join('config/classes.json')
 
         # load config_file json:
         with open(self.config_file, 'r') as f:
@@ -493,3 +493,22 @@ class RandomContrast(object):
             else:
                 image = tvtransfunc.adjust_contrast(image, self.contrast)
         return image, sample
+
+
+if __name__ == "__main__":
+    
+    print('WeedDataset.py')
+    
+    jsonfile = '/home/dorian/Data/03_Tagged/2021-10-19/Jugiong/Thistle-10/metadata/Jugiong-10-Final.json'
+    img_dir = '/home/dorian/Data/03_Tagged/2021-10-19/Jugiong/Thistle-10/images'
+    tform = Compose([Rescale(1024),
+                    RandomBlur(5, (0.5, 2.0)),
+                    RandomHorizontalFlip(0),
+                    RandomVerticalFlip(0),
+                    ToTensor()])
+    WD = WeedDataset(json_file=jsonfile, img_dir=img_dir, transforms=tform)
+    
+    print(WD[0])
+    
+    import code
+    code.interact(local=dict(globals(), **locals()))

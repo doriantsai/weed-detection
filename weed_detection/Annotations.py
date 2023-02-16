@@ -52,6 +52,14 @@ class Annotations:
         self.annotations = self.convert_annotations()
         
 
+    def read_agkelpie_image_database_raw(self):
+        """
+        read the raw annotations from the agkelpie image database
+        return img metadata as a list for each image
+        """
+        # TODO
+    
+        
     
     def read_via_annotations_raw(self):
         """
