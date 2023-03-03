@@ -14,13 +14,13 @@ class AnnotationRegion(Region):
     SHAPE_POINT = 'point'
     SHAPE_TYPES = [SHAPE_POINT, SHAPE_RECT, SHAPE_POLY]
     
-    def __init__(self, class_name, x, y, shape_type, occluded):
+    def __init__(self, class_name, x, y, shape_type, occluded, plant_count=None):
         Region.__init__(self, class_name, x, y)
         self.occluded = occluded
+        self.plant_count = plant_count
 
         if shape_type not in [self.SHAPE_TYPES]:
-            self.error('Unknown shape type passed to AnnotationRegion __init__()')
-            exit(-1)
+            ValueError(shape_type, 'Unknown shape type passed to AnnotationRegion __init__()')
         else:
             self.shape_type = str(shape_type)
 
