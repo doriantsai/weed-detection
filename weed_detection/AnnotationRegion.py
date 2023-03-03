@@ -18,11 +18,11 @@ class AnnotationRegion(Region):
         Region.__init__(self, class_name, x, y)
         self.occluded = occluded
         self.plant_count = plant_count
-
-        if shape_type not in [self.SHAPE_TYPES]:
-            ValueError(shape_type, 'Unknown shape type passed to AnnotationRegion __init__()')
-        else:
-            self.shape_type = str(shape_type)
+        self.shape_type = str(shape_type)
+        # if shape_type not in [self.SHAPE_TYPES]:
+        #     ValueError(shape_type, 'Unknown shape type passed to AnnotationRegion __init__()')
+        # else:
+        #     self.shape_type = str(shape_type)
 
         
     def print(self):

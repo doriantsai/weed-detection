@@ -70,8 +70,7 @@ class Annotations:
         else:
             raise ValueError(ann_format, 'Unknown annotation format')
 
-        self.annotations = self.find_matching_images_annotations()
-
+        # self.annotations = self.find_matching_images_annotations()
         
 
     def read_agkelpie_annotations_raw(self):
@@ -87,14 +86,7 @@ class Annotations:
         folder_name = metadata['folder_name']
         dataset_name = folder_name + '_' + location_name # dataset_name used to make dirs
 
-        # img_data is a dictionary, with keys = image name
-        # img_names = list(img_data.keys())
-
-
         return data, dataset_name, species if len(data) > 0 else False
-
-
-
 
 
     def read_via_annotations_raw(self):
@@ -268,7 +260,43 @@ class Annotations:
         # TODO: find the number of annotations
         # TODO: whichever is smaller, take that and (hope to) find the corresponding set in the larger group
         """
-        
+
+        n_img = len(self.img_list)
+
+        n_ann = len(self.annotations)
+
+        if n_img <= n_ann:
+            # number of images is limiting factor, find corresponding annotations based on img_list
+            matching_img = self.img_list
+            matching_ann = []
+            for img_name in self.img_list:
+                for ann in self.annotations:
+                    if ann.filename == img_name:
+                        matching_ann.append(ann)
+        else:
+            # number of annotations is limiting factor, find corresponding images based on self.annotations
+            matching_ann = self.annotations
+            matching_img = []
+            for ann in self.annotations:
+                for img_name in self.img_list:
+                    if img_name == ann.filename:
+                        matching_img.append(img_name)
+
+        print(f'original img_list = {len(self.img_list)}')
+        print(f'original ann_list = {len(self.annotations)}')
+        print(f'matching img_list = {len(matching_img)}')
+        print(f'matching ann_list = {len(matching_ann)}')
+
+        # check using sets:
+        ann_list = [ann.filename for ann in matching_ann]
+        if set(ann_list) == set(matching_img):
+            print('the lists contain the same elements')
+        else:
+            print('the lists do not contain the same elements')
+
+        # update the annotations and img_list
+        self.annotations = matching_ann
+        self.img_list = matching_img
 
 
 if __name__ == "__main__":
@@ -280,9 +308,10 @@ if __name__ == "__main__":
     img_dir = '/home/agkelpie/Code/agkelpie_weed_detection/agkelpiedataset_canberra_20220422_first500/annotated_images'
     
     Ann = Annotations(filename=filename, img_dir=img_dir)
-    data = Ann.read_agkelpie_annotations_raw()
-    print(data)
+    # data = Ann.read_agkelpie_annotations_raw()
+    # print(data)
     
+    Ann.find_matching_images_annotations()
     # data = Ann.read_via_annotations_raw()
     # print(data)
 
