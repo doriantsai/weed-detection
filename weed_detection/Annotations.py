@@ -9,6 +9,11 @@ import json
 import os
 from PIL import Image as PILImage
 from copy import deepcopy
+import numpy as np
+import cv2 as cv
+from matplotlib.patches import Polygon as MPLPolygon
+from matplotlib.collections import PatchCollection
+import matplotlib.pyplot as plt
 
 from Image import Image
 from AnnotationRegion import AnnotationRegion
@@ -299,6 +304,66 @@ class Annotations:
         self.img_list = matching_img
 
 
+    def create_masks_from_polygons(self,
+                                   mask_dir=None):
+        """create binary masks for img_list and ann_list, save in mask_dir
+        NOTE: only valid for agkelpie format, not via format
+
+        Args:
+            mask_dir (_type_, optional): _description_. Defaults to None.
+        """
+        # assume img_list and ann_list are consistent
+        assert len(self.annotations) == len(self.img_list), "num annotations should be == num images"
+
+        # create masks folder
+        if mask_dir is None:
+            mask_dir = os.path.join('masks')
+        os.makedirs(mask_dir, exist_ok=True)
+
+        img_poly = {}
+        img_ids = []
+        for ann in self.annotations:
+
+            # create mask image
+            mask = np.zeros((ann.width, ann.height), np.int32)
+
+            # iterate over ann.regions
+            # find each annotation that is a polygon ann.shape_type
+            # then get x, y coordinates
+            count_poly = 0
+            poly = []
+            for reg in ann.regions:
+                if reg.shape_type == 'polygon':
+                    # reg is already a polygon
+                    x, y = reg.shape.exterior.coords.xy
+                    xy = np.array([x, y], np.int32).transpose()
+                    count_poly += 1
+                    cv.fillPoly(mask, [xy], color=(count_poly))
+                    poly.append(xy)
+
+            # save mask
+            mask_name = ann.filename[:-4] + '_mask.png'
+            cv.imwrite(os.path.join(mask_dir, mask_name), mask)
+
+            # for debugging purposes, make visual mask figures:
+            SAVE = False
+            if SAVE:
+                img = PILImage.open(os.path.join(self.img_dir, ann.filename))
+                patches = []
+                for p in poly:
+                    patches.append(MPLPolygon(p, closed=True))
+
+                colors = 100 * np.random.rand(len(patches))
+                poly_patches = PatchCollection(patches, alpha=0.4)
+                poly_patches.set_array(colors)
+                fig, ax = plt.subplots(2,1)
+                ax[0].imshow(img)
+                ax[0].add_collection(poly_patches)
+                ax[1].imshow(mask)
+                plt.savefig(os.path.join(mask_dir, mask_name[:-4] + '_debug.png'))
+
+
+
 if __name__ == "__main__":
 
     print('Annotations.py')
@@ -319,6 +384,9 @@ if __name__ == "__main__":
     # tested via initialization
     i = 10
     Ann.annotations[i].print()
+
+    print('making masks from polygons')
+    Ann.create_masks_from_polygons()    
 
     import code
     code.interact(local=dict(globals(), **locals()))

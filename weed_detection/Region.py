@@ -16,6 +16,7 @@ class Region:
         # x, y can be a single int/pt, or an array of x's and y's
         self.shape = self.make_shape(x, y)
 
+
     @staticmethod
     def make_shape(x, y):
         """
