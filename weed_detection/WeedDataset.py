@@ -140,10 +140,10 @@ class WeedDataset(object):
             points = torch.zeros((0, 2), dtype=torch.float32)
 
         # compute area
-        if nobj == 0:
-            area = 0 # no boxes
-        else:
+        if nobj > 0:
             area = (boxes[:, 3] - boxes[:, 1]) * (boxes[:, 2] - boxes[:, 0])
+        else:
+            area = 0
         area = torch.as_tensor(area, dtype=torch.float32)
 
         # read in all region attributes to apply label based on class names:
