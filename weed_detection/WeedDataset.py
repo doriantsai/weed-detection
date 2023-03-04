@@ -15,17 +15,25 @@ import random
 # from skimage import transform as sktrans
 from PIL import Image
 from torchvision.transforms import functional as tvtransfunc
-
+from Annotations import Annotations
 
 class WeedDataset(object):
     """ weed dataset object for polygons """
 
+    # annotation format, either VIA or AGKELPIE
+    AGKELPIE_FORMAT = 'AGKELPIE'
+
+    # old properties for VIA formatting
+    VIA_FORMAT = 'VIA'
+    
+    # TODO put defaults, similar to James' code
     def __init__(self,
-                 json_file,
+                 annotation_filename,
                  img_dir,
                  transforms=None,
                  mask_dir=None,
-                 config_file=None):
+                 config_file=None,
+                 format=AGKELPIE_FORMAT):
         """
         initialise the dataset
         annotations - absolute path to json file of annotations of a prescribed format
@@ -36,8 +44,16 @@ class WeedDataset(object):
         """
         # TODO address if masks folder not available, config classes, auto-create, etc
         # absolute filepath
-        annotations = json.load(open(os.path.join(json_file)))
-        self.annotations = list(annotations.values())
+        if format == self.VIA_FORMAT:
+            annotations = json.load(open(os.path.join(annotation_filename)))
+            self.annotations = list(annotations.values())
+            self.imgs = list(sorted(os.listdir(self.img_dir)))
+        else:
+            annotations = Annotations(filename=annotation_filename,
+                                      ann_format=format)
+            self.annotations = annotations.annotations
+            self.imgs = self.annotations.imgs
+            
         self.transforms = transforms
 
         self.img_dir = img_dir
@@ -45,8 +61,7 @@ class WeedDataset(object):
         if mask_dir is not None:
             self.mask_dir = mask_dir
         else:
-            # assume parallel to image folder
-            self.mask_dir = os.path.join(img_dir, '..', 'masks')
+            self.mask_dir = os.path.join(img_dir, '..', 'masks') # assume parallel to image folder
 
         if config_file is not None:
             self.config_file = config_file
@@ -60,7 +75,6 @@ class WeedDataset(object):
         self.class_colours = config['colours']
         
         # load all image files, sorting them to ensure aligned (dictionaries are unsorted)
-        self.imgs = list(sorted(os.listdir(self.img_dir)))
         self.masks = list(sorted(os.listdir(self.mask_dir)))
 
 
@@ -68,6 +82,48 @@ class WeedDataset(object):
         """
         given an index, return the corresponding image and sample from the dataset
         converts images and corresponding sample to tensors
+        """
+        if self.format == self.AGKELPIE_FORMAT:
+            image, sample = self.getitem_agkelpie(idx)
+        elif self.format == self.VIA_FORMAT:
+            image, sample = self.getitem_via(idx)
+        else:
+            ValueError(self.format, 'annotation format unknown')
+        return image, sample
+        
+        
+    def getitem_agkelpie(self, idx):
+        """
+        given an index, return the corresponding image and sample from the dataset
+        converts images and corresponding sample to tensors
+        for agkelpie dataset format
+        """
+        if torch.is_tensor(idx):
+            idx = idx.tolist()
+            
+        # get image
+        # TODO
+        
+        return
+    
+    def package_sample(self, boxes, labels, image_id, area, iscrowd, masks, points):
+        """ helper function to package inputs into sample dictionary """
+        sample = {}
+        sample['boxes'] = boxes
+        sample['labels'] = labels
+        sample['image_id'] = image_id
+        sample['area'] = area
+        sample['iscrowd'] = iscrowd
+        sample['masks'] = masks
+        sample['points'] = points
+        return sample
+    
+    
+    def getitem_via(self, idx):
+        """
+        given an index, return the corresponding image and sample from the dataset
+        converts images and corresponding sample to tensors
+        for via dataset format
         """
 
         if torch.is_tensor(idx):
@@ -188,15 +244,8 @@ class WeedDataset(object):
         # image_id is the index of the image in the folder
         image_id = torch.tensor([idx], dtype=torch.int64)
 
-        sample = {}
-        sample['boxes'] = boxes
-        sample['labels'] = labels
-        sample['image_id'] = image_id
-        sample['area'] = area
-        sample['iscrowd'] = iscrowd
-        sample['masks'] = masks
-        sample['points'] = points
-
+        sample = self.package_sample(boxes, labels, image_id, area, iscrowd, masks, points)
+        
         # apply transforms to image and sample
         if self.transforms:
             image, sample = self.transforms(image, sample)
@@ -506,7 +555,7 @@ if __name__ == "__main__":
                     RandomHorizontalFlip(0),
                     RandomVerticalFlip(0),
                     ToTensor()])
-    WD = WeedDataset(json_file=jsonfile, img_dir=img_dir, transforms=tform)
+    WD = WeedDataset(annotation_filename=jsonfile, img_dir=img_dir, transforms=tform)
     
     print(WD[0])
     

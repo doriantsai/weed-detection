@@ -63,19 +63,20 @@ class Annotations:
 
         # image directory
         self.img_dir = img_dir
-        self.img_list = list(sorted(os.listdir(self.img_dir)))
+        self.imgs = list(sorted(os.listdir(self.img_dir)))
 
-        # load anontation data
+        # load annotations data
         if ann_format == self.AGKELPIE_FORMAT:
             self.annotations_raw, self.dataset_name, self.species = self.read_agkelpie_annotations_raw()
             self.annotations = self.convert_agkelpie_annotations() # convert to internal format
+            
         elif ann_format == self.VIA_FORMAT:
             self.annotations_raw = self.read_via_annotations_raw()
             self.annotations = self.convert_via_annotations() # convert to internal format
         else:
             raise ValueError(ann_format, 'Unknown annotation format')
 
-        # self.annotations = self.find_matching_images_annotations()
+        self.annotations, self.imgs = self.find_matching_images_annotations()
         
 
     def read_agkelpie_annotations_raw(self):
@@ -113,11 +114,11 @@ class Annotations:
         
         # for now, just check length/number of annotations, but in future
         # TODO check filenames with annotated filenames
-        if len(self.annotations_raw) == len(self.img_list):
+        if len(self.annotations_raw) == len(self.imgs):
             return True
         else:
             print(f'Number of images in raw annotations: {len(self.annotations_raw)}')
-            print(f'Number of images in img_dir: {len(self.img_list)}')
+            print(f'Number of images in img_dir: {len(self.imgs)}')
             return False
 
 
@@ -150,8 +151,6 @@ class Annotations:
                     plant_count = ann['plant_count']
                     species = ann['species']
                     coordinates_str = ann['coordinates'] # coordinates stored as strings formatted like python dictionaries
-                    # import code
-                    # code.interact(local=dict(globals(), **locals()))
                     if shape_attr == 'point':
                         coordinates_dict = json.loads(coordinates_str) # convert string to pythonic object (dictionary)
                         img.regions.append(AnnotationRegion(class_name = species,
@@ -194,7 +193,7 @@ class Annotations:
 
         # get image height/width from an img file in img_dir
         # assume all images are of the same size in the same img_dir
-        im = PILImage.open(os.path.join(self.img_dir, self.img_list[0]))
+        im = PILImage.open(os.path.join(self.img_dir, self.imgs[0]))
         width, height = im.size
 
 
@@ -261,20 +260,18 @@ class Annotations:
         #     print('Number of images in img_dir is not equal to number of raw annotations in Annotations.__init__()')
         #     exit(-1)
         # thus, we need to find whichever is lower/less, and then find the corresponding set...
-        # TODO: find number of imgs in img_dir
-        # TODO: find the number of annotations
-        # TODO: whichever is smaller, take that and (hope to) find the corresponding set in the larger group
+        # find number of imgs in img_dir
+        # find the number of annotations
+        # whichever is smaller, take that and (hope to) find the corresponding set in the larger group
         """
-
-        n_img = len(self.img_list)
-
+        n_img = len(self.imgs)
         n_ann = len(self.annotations)
 
         if n_img <= n_ann:
             # number of images is limiting factor, find corresponding annotations based on img_list
-            matching_img = self.img_list
+            matching_img = self.imgs
             matching_ann = []
-            for img_name in self.img_list:
+            for img_name in self.imgs:
                 for ann in self.annotations:
                     if ann.filename == img_name:
                         matching_ann.append(ann)
@@ -283,11 +280,11 @@ class Annotations:
             matching_ann = self.annotations
             matching_img = []
             for ann in self.annotations:
-                for img_name in self.img_list:
+                for img_name in self.imgs:
                     if img_name == ann.filename:
                         matching_img.append(img_name)
 
-        print(f'original img_list = {len(self.img_list)}')
+        print(f'original img_list = {len(self.imgs)}')
         print(f'original ann_list = {len(self.annotations)}')
         print(f'matching img_list = {len(matching_img)}')
         print(f'matching ann_list = {len(matching_ann)}')
@@ -300,8 +297,7 @@ class Annotations:
             print('the lists do not contain the same elements')
 
         # update the annotations and img_list
-        self.annotations = matching_ann
-        self.img_list = matching_img
+        return matching_ann, matching_img
 
 
     def create_masks_from_polygons(self,
@@ -313,15 +309,13 @@ class Annotations:
             mask_dir (_type_, optional): _description_. Defaults to None.
         """
         # assume img_list and ann_list are consistent
-        assert len(self.annotations) == len(self.img_list), "num annotations should be == num images"
+        assert len(self.annotations) == len(self.imgs), "num annotations should be == num images"
 
         # create masks folder
         if mask_dir is None:
             mask_dir = os.path.join('masks')
         os.makedirs(mask_dir, exist_ok=True)
 
-        img_poly = {}
-        img_ids = []
         for ann in self.annotations:
 
             # create mask image
@@ -376,7 +370,7 @@ if __name__ == "__main__":
     # data = Ann.read_agkelpie_annotations_raw()
     # print(data)
     
-    Ann.find_matching_images_annotations()
+    anns, imgs = Ann.find_matching_images_annotations()
     # data = Ann.read_via_annotations_raw()
     # print(data)
 
@@ -385,8 +379,8 @@ if __name__ == "__main__":
     i = 10
     Ann.annotations[i].print()
 
-    print('making masks from polygons')
-    Ann.create_masks_from_polygons()    
+    # print('making masks from polygons')
+    # Ann.create_masks_from_polygons()    
 
     import code
     code.interact(local=dict(globals(), **locals()))
