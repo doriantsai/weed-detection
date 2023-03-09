@@ -1,18 +1,12 @@
 {
     "names": {
-        "0": "background",
-        "1": "tussock",
+        "3": "tussock",
+        "1": "African lovegrass",
         "2": "horehound",
-        "3": "African lovegrass",
         "4": "thistle",
         "5": "austrostipa"
     },
     "colours": {
-        "black": [
-            0,
-            0,
-            0
-        ],
         "purple": [
             135,
             0,

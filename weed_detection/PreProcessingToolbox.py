@@ -21,8 +21,7 @@ from subprocess import call
 # from torch._C import namedtuple_solution_cloned_coefficient
 from weed_detection.WeedDataset import WeedDataset, Compose, \
     RandomBlur, RandomVerticalFlip, RandomHorizontalFlip, \
-    RandomBrightness, RandomContrast, RandomHue, \
-    RandomSaturation, ToTensor
+    RandomBrightness, RandomContrast, ToTensor
 import torch
 import random
 import glob

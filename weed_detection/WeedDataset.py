@@ -133,16 +133,22 @@ class WeedDataset(object):
         points = []
         boxes = []
         area = []
-        for reg in self.annotations[idx].regions:
-            if reg.shape_type == 'point':
-                labels_pt.append( list(self.classes.values()).index(reg.class_name) )
-                points.append((reg.shape.x, reg.shape.y))
-                # coords_pt.append(reg.shape.bounds) # returns bounding box, for pt, xy1, xy2 are the same
-                # TODO can +- the bounds to do centre tussock detection
-            if reg.shape_type == 'polygon':
-                labels.append( list(self.classes.values()).index(reg.class_name) )
-                boxes.append(reg.shape.bounds)
-                area.append(reg.shape.area) # pixels
+        if nobj > 0:
+            for reg in self.annotations[idx].regions:
+                if reg.shape_type == 'point':
+                    labels_pt.append( list(self.classes.values()).index(reg.class_name) )
+                    points.append((reg.shape.x, reg.shape.y))
+                    # coords_pt.append(reg.shape.bounds) # returns bounding box, for pt, xy1, xy2 are the same
+                    # TODO can +- the bounds to do centre tussock detection
+                if reg.shape_type == 'polygon':
+                    # labels.append( list(self.classes.values()).index(reg.class_name) )
+                    labels.append(int(self.get_key(self.classes, reg.class_name)))
+                    boxes.append(reg.shape.bounds)
+                    area.append(reg.shape.area) # pixels
+        else:
+            points = torch.zeros((0, 2), dtype=torch.float32)
+            boxes = torch.zeros((0, 4), dtype=torch.float32)
+            area = torch.zeros(0, dtype=torch.float32)
 
         # convert to tensors
         boxes = torch.as_tensor(boxes, dtype=torch.float32)
@@ -164,7 +170,14 @@ class WeedDataset(object):
 
         return image, sample
 
+
+    def get_key(self, my_dict, val):
+        """ helper function, get key of dictionary given value """
+        for key, value in my_dict.items():
+            if val == value:
+                return key
     
+
     def package_sample(self, boxes, labels, image_id, area, iscrowd, masks, points):
         """ helper function to package inputs into sample dictionary """
         sample = {}
@@ -334,7 +347,6 @@ class WeedDataset(object):
         # TODO assert for valid input
         # tforms must be callable and operate on an image
         self.transforms = tforms
-
 
 
 class Compose(object):
@@ -635,5 +647,18 @@ if __name__ == "__main__":
 
     print(WD[0])
     
+    # check if any have no annotaions:
+    # for i, ann in enumerate(WD.annotations):
+    #     if len(ann.regions) < 1:
+    #         print(f'{i}: found negative image')
+    #     else:
+    #         print(f'{i}: num regions = {len(ann.regions)}')
+    
+    # check labels:
+    for i, batch in enumerate(WD):
+        img, target = batch
+        labels = target['labels']
+        print(f'{i}: {labels}')
+
     import code
     code.interact(local=dict(globals(), **locals()))
