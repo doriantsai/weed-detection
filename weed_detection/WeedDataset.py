@@ -44,15 +44,17 @@ class WeedDataset(object):
         """
         # TODO address if masks folder not available, config classes, auto-create, etc
         # absolute filepath
-        if format == self.VIA_FORMAT:
+        self.format = format
+        if self.format == self.VIA_FORMAT:
             annotations = json.load(open(os.path.join(annotation_filename)))
             self.annotations = list(annotations.values())
             self.imgs = list(sorted(os.listdir(self.img_dir)))
         else:
             annotations = Annotations(filename=annotation_filename,
+                                      img_dir=img_dir,
                                       ann_format=format)
             self.annotations = annotations.annotations
-            self.imgs = self.annotations.imgs
+            self.imgs = annotations.imgs
             
         self.transforms = transforms
 
@@ -102,9 +104,66 @@ class WeedDataset(object):
             idx = idx.tolist()
             
         # get image
-        # TODO
+        img_name = os.path.join(self.img_dir, self.imgs[idx])
+        image =  Image.open(img_name).convert("RGB")
+
+        # get mask
+        mask_name = os.path.join(self.mask_dir, self.masks[idx])
+        mask =  np.array(Image.open(mask_name))
         
-        return
+        # convert masks with different instances of different colours to pure binary mask
+        # if we have a normal mask of 0's and 1's
+        if mask.max() > 0:
+            obj_ids = np.unique(mask) # instances are encoded as different colors
+            obj_ids = obj_ids[1:] # first id is the background, so remove it
+            masks = mask == obj_ids[:, None, None] # split the color-encoded mask into a set of binary masks
+            nobj = len(obj_ids)
+        else:
+            # for a negative image, mask is all zeros, or just empty 
+            # masks = np.expand_dims(mask == 1, axis=1)
+            nobj = 0            
+        if nobj > 0:
+            masks = torch.as_tensor(masks, dtype=torch.uint8)
+        else:
+            masks = torch.zeros((0, image.size[0], image.size[1]), dtype=torch.uint8)
+
+        # get annotations
+        labels = []
+        labels_pt = []
+        points = []
+        boxes = []
+        area = []
+        for reg in self.annotations[idx].regions:
+            if reg.shape_type == 'point':
+                labels_pt.append( list(self.classes.values()).index(reg.class_name) )
+                points.append((reg.shape.x, reg.shape.y))
+                # coords_pt.append(reg.shape.bounds) # returns bounding box, for pt, xy1, xy2 are the same
+                # TODO can +- the bounds to do centre tussock detection
+            if reg.shape_type == 'polygon':
+                labels.append( list(self.classes.values()).index(reg.class_name) )
+                boxes.append(reg.shape.bounds)
+                area.append(reg.shape.area) # pixels
+
+        # convert to tensors
+        boxes = torch.as_tensor(boxes, dtype=torch.float32)
+        area = torch.as_tensor(area, dtype=torch.float32)
+        points = torch.as_tensor(points, dtype=torch.float32)
+        labels = torch.as_tensor(labels, dtype=torch.int64)
+        iscrowd = torch.zeros((nobj,), dtype=torch.int64) # currently unused, but potential for crowded weed images
+        image_id = torch.tensor([idx], dtype=torch.int64) # image_id is the index of the image in the folder
+
+        # package into sample
+        sample = self.package_sample(boxes, labels, image_id, area, iscrowd, masks, points)
+        
+        # import code
+        # code.interact(local=dict(globals(), **locals()))
+
+        # apply transforms to image and sample
+        if self.transforms:
+            image, sample = self.transforms(image, sample)
+
+        return image, sample
+
     
     def package_sample(self, boxes, labels, image_id, area, iscrowd, masks, points):
         """ helper function to package inputs into sample dictionary """
@@ -548,15 +607,32 @@ if __name__ == "__main__":
     
     print('WeedDataset.py')
     
-    jsonfile = '/home/dorian/Data/03_Tagged/2021-10-19/Jugiong/Thistle-10/metadata/Jugiong-10-Final.json'
-    img_dir = '/home/dorian/Data/03_Tagged/2021-10-19/Jugiong/Thistle-10/images'
+    # old via annotation format
+    # jsonfile = '/home/dorian/Data/03_Tagged/2021-10-19/Jugiong/Thistle-10/metadata/Jugiong-10-Final.json'
+    # img_dir = '/home/dorian/Data/03_Tagged/2021-10-19/Jugiong/Thistle-10/images'
+    # tform = Compose([Rescale(1024),
+    #                 RandomBlur(5, (0.5, 2.0)),
+    #                 RandomHorizontalFlip(0),
+    #                 RandomVerticalFlip(0),
+    #                 ToTensor()])
+    # WD = WeedDataset(annotation_filename=jsonfile, img_dir=img_dir, transforms=tform)
+        
+    ann_file = '/home/agkelpie/Code/agkelpie_weed_detection/agkelpiedataset_canberra_20220422_first500/dataset.json'
+    img_dir = '/home/agkelpie/Code/agkelpie_weed_detection/agkelpiedataset_canberra_20220422_first500/annotated_images'
+    mask_dir = '/home/agkelpie/Code/agkelpie_weed_detection/agkelpiedataset_canberra_20220422_first500/masks'
+    config_file = '/home/agkelpie/Code/agkelpie_weed_detection/weed-detection/config/classes.json'
+
     tform = Compose([Rescale(1024),
                     RandomBlur(5, (0.5, 2.0)),
                     RandomHorizontalFlip(0),
                     RandomVerticalFlip(0),
                     ToTensor()])
-    WD = WeedDataset(annotation_filename=jsonfile, img_dir=img_dir, transforms=tform)
-    
+    WD = WeedDataset(annotation_filename=ann_file,
+                     img_dir=img_dir,
+                     transforms=tform,
+                     mask_dir=mask_dir,
+                     config_file=config_file)
+
     print(WD[0])
     
     import code

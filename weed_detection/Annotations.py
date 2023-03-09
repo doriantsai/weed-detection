@@ -380,7 +380,9 @@ if __name__ == "__main__":
     Ann.annotations[i].print()
 
     # print('making masks from polygons')
-    # Ann.create_masks_from_polygons()    
+    mask_dir = os.path.join(img_dir, '..', 'masks')
+    os.makedirs(mask_dir, exist_ok=True)
+    Ann.create_masks_from_polygons(mask_dir=mask_dir)    
 
     import code
     code.interact(local=dict(globals(), **locals()))
