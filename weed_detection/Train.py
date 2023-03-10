@@ -22,13 +22,21 @@ from torchvision.models.detection.mask_rcnn import MaskRCNNPredictor
 from torch.utils.data import DataLoader
 import torchvision.models as models
 
+import torch.distributed as dist
 import WeedDataset as WD
 
+
+# save path for models and checkpoints
+save_path = '/home/agkelpie/Code/agkelpie_weed_detection/weed-detection/model'
+os.makedirs(save_path, exist_ok=True)
+
+
 # Set up WandB
-# TODO change to agkelpie?
+# TODO change to an agkelpie account?
 wandb.init(project='weed-detection-refactor1', entity='doriantsai')
 
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+# device = torch.device('cpu') # for debugging purposes, only use on very small datasets
 
 # setup dataset:
 ann_file = '/home/agkelpie/Code/agkelpie_weed_detection/agkelpiedataset_canberra_20220422_first500/dataset.json'
@@ -50,11 +58,11 @@ WeedData = WD.WeedDataset(annotation_filename=ann_file,
 # TODO input parameters like James?
 batch_size = 10
 num_workers = 10
-learning_rate = 0.005 # 0.002
+learning_rate = 0.01 # 0.002
 momentum = 0.9 # 0.8
-weight_decay = 0.0001
-num_epochs = 10
-step_size = round(num_epochs / 2)
+weight_decay = 0.0005
+num_epochs = 100
+step_size = 3 # round(num_epochs / 2)
 shuffle = True
 rescale_size = int(1024)
 
@@ -72,8 +80,6 @@ dataloader = DataLoader(WeedData,
 
 # set up the model
 # TODO load from WeedModel?
-# model = MaskRCNN(num_classes=2)
-
 
 # Load pre-trained Mask R-CNN model
 weights= detection.MaskRCNN_ResNet50_FPN_Weights.DEFAULT
@@ -88,22 +94,25 @@ model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
 in_features_mask = model.roi_heads.mask_predictor.conv5_mask.in_channels
 hidden_layer = 256
 model.roi_heads.mask_predictor = MaskRCNNPredictor(in_features_mask, hidden_layer, num_classes)
+model.train()
 model.to(device)
 
 # setup the optimizer and learning rate scheduler
 params = [p for p in model.parameters() if p.requires_grad]
 optimizer = torch.optim.SGD(params, lr=learning_rate, momentum=momentum, weight_decay=weight_decay)
 lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=0.1)
+clip_value = 5 # c;o[ gradoemts tp [revemt mams]]
+
+
+# TODO add validation/evaluation to the training loop, validate every X epochs or so
+# TODO add early stopping
 
 # Train the model
-
 start_time = time.time()
-max_epochs = 100
 print('begin training')
-for epoch in range(max_epochs):
+for epoch in range(num_epochs):
     
-    print(f'epoch {epoch}/{max_epochs}')
-
+    print(f'epoch {epoch}/{num_epochs}')
     for i, batch in enumerate(dataloader):
         
         images, targets = batch
@@ -113,16 +122,28 @@ for epoch in range(max_epochs):
         
         loss_dict = model(images, targets)
         losses = sum(loss for loss in loss_dict.values())
-
-        # Log the loss and learning rate to WandB
-        wandb.log({'epoch': epoch, 
-                   'loss': losses.item(), 
-                   'learning_rate': optimizer.param_groups[0]['lr']})
-
+        
         optimizer.zero_grad()
+        
         losses.backward()
+        torch.nn.utils.clip_grad_norm_(model.parameters(), clip_value)
         optimizer.step()
-        lr_scheduler.step()
+        
+        # Log training loss to Weights and Biases
+        wandb.log({'epoch': epoch+1, 'training_loss': losses.item()})
+
+    
+    lr_scheduler.step()
+    
+     # Save the model checkpoint after each epoch
+    checkpoint_path = f'checkpoint_{epoch+1}.pth'
+    torch.save(model.state_dict(), os.path.join(save_path, checkpoint_path))
+    wandb.save(checkpoint_path)
+    
+    # Check for early stopping
+    # if early_stopping.check(loss):
+    #     print("Early stopping criterion met")
+    #     break
     
     torch.cuda.empty_cache()
 
@@ -133,10 +154,8 @@ print('training time: {} sec'.format(sec))
 print('training time: {} min'.format(sec / 60.0))
 print('training time: {} hrs'.format(sec / 3600.0))
 
-save_path = '/home/agkelpie/Code/agkelpie_weed_detection/weed-detection/model'
-os.makedirs(save_path, exist_ok=True)
 # save trained model for inference
-torch.save(model.state_dict(), os.path.join(save_path, 'model.pth'))
+torch.save(model.state_dict(), os.path.join(save_path, 'model_final.pth'))
 print('model saved: {}'.format(save_path))
 
 print('done')    

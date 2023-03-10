@@ -110,7 +110,7 @@ class WeedDataset(object):
         # get mask
         mask_name = os.path.join(self.mask_dir, self.masks[idx])
         mask =  np.array(Image.open(mask_name))
-        
+
         # convert masks with different instances of different colours to pure binary mask
         # if we have a normal mask of 0's and 1's
         if mask.max() > 0:
@@ -121,48 +121,60 @@ class WeedDataset(object):
         else:
             # for a negative image, mask is all zeros, or just empty 
             # masks = np.expand_dims(mask == 1, axis=1)
-            nobj = 0            
+            nobj = 0       
         if nobj > 0:
             masks = torch.as_tensor(masks, dtype=torch.uint8)
         else:
             masks = torch.zeros((0, image.size[0], image.size[1]), dtype=torch.uint8)
 
+        boxes = []
+        if nobj > 0:
+            for i in range(nobj):
+                pos = np.where(masks[i])
+                xmin = np.min(pos[1])
+                xmax = np.max(pos[1])
+                ymin = np.min(pos[0])
+                ymax = np.max(pos[0])
+                boxes.append([xmin, ymin, xmax, ymax])
+        else:
+            boxes = torch.zeros((0, 4), dtype=torch.float32)
         # get annotations
         labels = []
-        labels_pt = []
-        points = []
-        boxes = []
+        # labels_pt = []
+        # points = []
+        
         area = []
         if nobj > 0:
             for reg in self.annotations[idx].regions:
-                if reg.shape_type == 'point':
-                    labels_pt.append( list(self.classes.values()).index(reg.class_name) )
-                    points.append((reg.shape.x, reg.shape.y))
+                # if reg.shape_type == 'point':
+                #     labels_pt.append( list(self.classes.values()).index(reg.class_name) )
+                #     points.append((reg.shape.x, reg.shape.y))
                     # coords_pt.append(reg.shape.bounds) # returns bounding box, for pt, xy1, xy2 are the same
                     # TODO can +- the bounds to do centre tussock detection
                 if reg.shape_type == 'polygon':
                     # labels.append( list(self.classes.values()).index(reg.class_name) )
-                    labels.append(int(self.get_key(self.classes, reg.class_name)))
-                    boxes.append(reg.shape.bounds)
+                    # labels.append(int(self.get_key(self.classes, reg.class_name)))
+                    labels.append(1)
+                    # boxes.append(reg.shape.bounds)
                     area.append(reg.shape.area) # pixels
         else:
-            points = torch.zeros((0, 2), dtype=torch.float32)
-            boxes = torch.zeros((0, 4), dtype=torch.float32)
+            # points = torch.zeros((0, 2), dtype=torch.float32)
+            # boxes = torch.zeros((0, 4), dtype=torch.float32)
             area = torch.zeros(0, dtype=torch.float32)
-
+            # labels = torch.zeros((0,), dtype=torch.int64)
+        
         # convert to tensors
         boxes = torch.as_tensor(boxes, dtype=torch.float32)
         area = torch.as_tensor(area, dtype=torch.float32)
-        points = torch.as_tensor(points, dtype=torch.float32)
-        labels = torch.as_tensor(labels, dtype=torch.int64)
-        iscrowd = torch.zeros((nobj,), dtype=torch.int64) # currently unused, but potential for crowded weed images
+        # points = torch.as_tensor(points, dtype=torch.float32)
+        # labels = torch.as_tensor(labels, dtype=torch.int64)
+        # temporary - single class work-around:
+        labels = torch.ones((nobj,), dtype=torch.int64)
+        # iscrowd = torch.zeros((nobj,), dtype=torch.int64) # currently unused, but potential for crowded weed images
         image_id = torch.tensor([idx], dtype=torch.int64) # image_id is the index of the image in the folder
 
         # package into sample
-        sample = self.package_sample(boxes, labels, image_id, area, iscrowd, masks, points)
-        
-        # import code
-        # code.interact(local=dict(globals(), **locals()))
+        sample = self.package_sample(masks, labels, image_id, boxes=boxes, area=area)
 
         # apply transforms to image and sample
         if self.transforms:
@@ -178,16 +190,21 @@ class WeedDataset(object):
                 return key
     
 
-    def package_sample(self, boxes, labels, image_id, area, iscrowd, masks, points):
+    def package_sample(self, masks, labels, image_id, boxes, area=None):
+    # def package_sample(self, masks, labels, image_id, boxes=None,area=None, iscrowd=None, points=None):
         """ helper function to package inputs into sample dictionary """
         sample = {}
-        sample['boxes'] = boxes
         sample['labels'] = labels
         sample['image_id'] = image_id
-        sample['area'] = area
-        sample['iscrowd'] = iscrowd
         sample['masks'] = masks
-        sample['points'] = points
+        # if iscrowd is not None:
+        #     sample['iscrowd'] = iscrowd
+        if boxes is not None:
+            sample['boxes'] = boxes
+        if area is not None:
+            sample['area'] = area
+        # if points is not None:
+        #     sample['points'] = points
         return sample
     
     
@@ -195,7 +212,8 @@ class WeedDataset(object):
         """
         given an index, return the corresponding image and sample from the dataset
         converts images and corresponding sample to tensors
-        for via dataset format
+        for via dataset format only
+        NOTE: not updated
         """
 
         if torch.is_tensor(idx):
@@ -387,10 +405,10 @@ class ToTensor(object):
             masks = torch.as_tensor(torch.from_numpy(masks), dtype=torch.float32)
         sample['masks'] = masks
 
-        points = sample['points']
-        if not torch.is_tensor(points):
-            points = torch.as_tensor(torch.from_numpy(points), dtype=torch.float32)
-        sample['points'] = points
+        # points = sample['points']
+        # if not torch.is_tensor(points):
+        #     points = torch.as_tensor(torch.from_numpy(points), dtype=torch.float32)
+        # sample['points'] = points
 
         return image, sample
 
@@ -444,11 +462,11 @@ class Rescale(object):
                 bbox[:, 3] = bbox[:, 3] * xChange
                 sample["boxes"] = np.float64(bbox)
 
-            points = sample['points']
-            if len(points) > 0:
-                points[:, 0] = points[:, 0] * yChange
-                points[:, 1] = points[:, 1] * xChange
-                sample['points'] = np.float64(points)
+            # points = sample['points']
+            # if len(points) > 0:
+            #     points[:, 0] = points[:, 0] * yChange
+            #     points[:, 1] = points[:, 1] * xChange
+            #     sample['points'] = np.float64(points)
 
             return img, sample
         else:
@@ -489,10 +507,10 @@ class RandomHorizontalFlip(object):
                 mask = torch.flip(mask, [2])
                 sample['masks'] = mask
 
-            points = sample['points']
-            if len(points) > 0:
-                points[:, 0] = w - points[:, 0]
-                sample['points'] = points
+            # points = sample['points']
+            # if len(points) > 0:
+            #     points[:, 0] = w - points[:, 0]
+            #     sample['points'] = points
 
         return image, sample
 
@@ -527,10 +545,10 @@ class RandomVerticalFlip(object):
                 sample['masks'] = mask
 
             # flip points
-            points = sample['points']
-            if len(points) > 0:
-                points[:, 1] = h - points[:, 1]
-                sample['points'] = points
+            # points = sample['points']
+            # if len(points) > 0:
+            #     points[:, 1] = h - points[:, 1]
+            #     sample['points'] = points
 
         return image, sample
 
@@ -655,10 +673,16 @@ if __name__ == "__main__":
     #         print(f'{i}: num regions = {len(ann.regions)}')
     
     # check labels:
+    # for i, batch in enumerate(WD):
+    #     img, target = batch
+    #     labels = target['labels']
+    #     print(f'{i}: {labels}')
+
+    # check bounding boxes:
     for i, batch in enumerate(WD):
         img, target = batch
-        labels = target['labels']
-        print(f'{i}: {labels}')
-
+        boxes = target['boxes']
+        print(f'{i}: {boxes}')
+        
     import code
     code.interact(local=dict(globals(), **locals()))

@@ -383,6 +383,9 @@ if __name__ == "__main__":
     mask_dir = os.path.join(img_dir, '..', 'masks')
     os.makedirs(mask_dir, exist_ok=True)
     Ann.create_masks_from_polygons(mask_dir=mask_dir)    
+    
+    # check masks for NaNs:
+    
 
     import code
     code.interact(local=dict(globals(), **locals()))
