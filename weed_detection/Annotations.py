@@ -53,6 +53,7 @@ class Annotations:
     def __init__(self, 
                  filename: str, 
                  img_dir: str, 
+                 mask_dir: str = None,
                  ann_format: str = AGKELPIE_FORMAT,
                  dataset_name: str = None,
                  species: str = None):
@@ -64,6 +65,13 @@ class Annotations:
         # image directory
         self.img_dir = img_dir
         self.imgs = list(sorted(os.listdir(self.img_dir)))
+        
+        # mask directory
+        self.mask_dir = mask_dir
+        # if directory is empty (no files), then create masks
+        if len(os.listdir(self.mask_dir)) == 0:
+            self.create_masks_from_polygons()
+        self.masks = list(sorted(os.listdir(self.mask_dir)))
 
         # load annotations data
         if ann_format == self.AGKELPIE_FORMAT:
@@ -314,7 +322,7 @@ class Annotations:
 
         # create masks folder
         if mask_dir is None:
-            mask_dir = os.path.join('masks')
+            mask_dir = self.mask_dir
         os.makedirs(mask_dir, exist_ok=True)
 
         for ann in self.annotations:
@@ -407,6 +415,10 @@ class Annotations:
                 
                 # also remove in self.imgs:
                 self.imgs.remove(img)        
+                
+                # also remove from self.masks:
+                mask_name = img[:-4] + '_mask.png'
+                self.masks.remove(mask_name)
               
 
 if __name__ == "__main__":

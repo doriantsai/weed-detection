@@ -33,6 +33,7 @@ class WeedDataset(object):
                  transforms=None,
                  mask_dir=None,
                  config_file=None,
+                 imgtxt_file=None,
                  format=AGKELPIE_FORMAT):
         """
         initialise the dataset
@@ -43,19 +44,7 @@ class WeedDataset(object):
         
         """
         # TODO address if masks folder not available, config classes, auto-create, etc
-        # absolute filepath
-        self.format = format
-        if self.format == self.VIA_FORMAT:
-            annotations = json.load(open(os.path.join(annotation_filename)))
-            self.annotations = list(annotations.values())
-            self.imgs = list(sorted(os.listdir(self.img_dir)))
-        else:
-            annotations = Annotations(filename=annotation_filename,
-                                      img_dir=img_dir,
-                                      ann_format=format)
-            self.annotations = annotations.annotations
-            self.imgs = annotations.imgs
-            
+        
         self.transforms = transforms
 
         self.img_dir = img_dir
@@ -76,9 +65,27 @@ class WeedDataset(object):
         self.classes = config['names']
         self.class_colours = config['colours']
         
-        # load all image files, sorting them to ensure aligned (dictionaries are unsorted)
-        self.masks = list(sorted(os.listdir(self.mask_dir)))
-
+        # absolute filepath
+        self.format = format
+        if self.format == self.VIA_FORMAT:
+            annotations = json.load(open(os.path.join(annotation_filename)))
+            self.annotations = list(annotations.values())
+            self.imgs = list(sorted(os.listdir(self.img_dir)))
+            self.masks = list(sorted(os.listdir(self.mask_dir)))
+        else:
+            annotations = Annotations(filename=annotation_filename,
+                                      img_dir=img_dir,
+                                      ann_format=format)
+            # added to deal with training/testing sets from text files without touching original dataset.json annotation files
+            if imgtxt_file is not None:
+                self.imgtxt_file = imgtxt_file
+                print(f'pruning annotations using {imgtxt_file}')
+                annotations.prune_annotations_from_imagelist_txt(imgtxt_file)
+                
+            self.annotations = annotations.annotations
+            self.imgs = annotations.imgs
+            self.masks = annotations.masks
+            
 
     def __getitem__(self, idx):
         """
