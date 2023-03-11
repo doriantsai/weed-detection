@@ -264,6 +264,7 @@ class Annotations:
         # find the number of annotations
         # whichever is smaller, take that and (hope to) find the corresponding set in the larger group
         """
+        # TODO image download stride is a potential issue - need not just to find min, but also matching
         n_img = len(self.imgs)
         n_ann = len(self.annotations)
 
@@ -357,6 +358,56 @@ class Annotations:
                 plt.savefig(os.path.join(mask_dir, mask_name[:-4] + '_debug.png'))
 
 
+    def generate_imagelist_txt(self, txtfile):
+        """
+        output current self.annotations list to txt for further manipulation/esp useful for adjusting training/testing/validation sets
+        assume txtfilename is full absolute path
+        """
+        # for each annotations, get filename, write that to a text file
+        with open(txtfile, 'w') as f:
+            for ann in self.annotations:
+                f.write(f'{ann.filename}\n')
+                
+
+    def prune_annotations_from_imagelist_txt(self, txtfile):
+        """
+        read in text file that has a list of images with which to use for training/testing/validation
+        update the self.annotations list with relelvant images
+        """
+        # read image names from txtfile and remove trailing /n
+        with open(txtfile, 'r') as f:
+            imgs_str = f.readlines()
+        txt_imgs = [img.strip() for img in imgs_str]
+        
+        print(f'number of images listed in txtfile: {len(txt_imgs)}')
+        print(f'number of images listed in annotations: {len(self.annotations)}')
+        
+        # asserts
+        assert len(txt_imgs) <= len(self.annotations), "number of images in txtfile must be equal to or less than the number of annotations"
+        
+        # for each img not in self.annotations.filenames, we want to remove them
+        ann_imgs = [ann.filename for ann in self.annotations]
+        
+        # find matching number of images in self.annotations list vs imgs_str
+        missing_imgs_from_txt = set(ann_imgs) - set(txt_imgs)
+        missing_imgs_from_ann = set(txt_imgs) - set(ann_imgs)
+        
+        if len(missing_imgs_from_ann) > 0:
+            print('Warning: txt_imgs lists images that aren''t contained within ann_imgs')
+        if len(missing_imgs_from_txt) > 0:
+            print('These are the images we want to remove/prune:')
+            imgs_remove = list(missing_imgs_from_txt)
+            for i, img in enumerate(imgs_remove):
+                print(f'{i}: {img}')
+            
+                # find the corresponding img in self.annotations and remove it
+                for j, ann in enumerate(self.annotations):
+                    if img == ann.filename:
+                        del self.annotations[j]
+                
+                # also remove in self.imgs:
+                self.imgs.remove(img)        
+              
 
 if __name__ == "__main__":
 
@@ -380,13 +431,20 @@ if __name__ == "__main__":
     Ann.annotations[i].print()
 
     # print('making masks from polygons')
-    mask_dir = os.path.join(img_dir, '..', 'masks')
-    os.makedirs(mask_dir, exist_ok=True)
-    Ann.create_masks_from_polygons(mask_dir=mask_dir)    
+    # mask_dir = os.path.join(img_dir, '..', 'masks')
+    # os.makedirs(mask_dir, exist_ok=True)
+    # Ann.create_masks_from_polygons(mask_dir=mask_dir)    
     
-    # check masks for NaNs:
-    
+    # generate image list txt file:
+    # print('generating image list txt file')
+    txtfile = os.path.join(img_dir, '..', 'annotated_images_from_annotations.txt')
+    # Ann.generate_imagelist_txt(txtfile)
+    # print(f'txtfile = {txtfile}')
 
+    print('testing out txtfile reading')
+    txtfile = os.path.join(img_dir, '..', 'annotated_images_from_annotations.txt')
+    Ann.prune_annotations_from_imagelist_txt(txtfile)
+    
     import code
     code.interact(local=dict(globals(), **locals()))
 
