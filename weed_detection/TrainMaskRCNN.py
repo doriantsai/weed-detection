@@ -9,7 +9,8 @@ import torch
 import torchvision
 import wandb
 import time
-import shutil
+import numpy as np
+# import shutil
 
 # from torchvision.models.detection.mask_rcnn import MaskRCNN
 import torch.nn as nn
@@ -21,8 +22,10 @@ from torchvision.models.detection.mask_rcnn import MaskRCNNPredictor
 from torch.utils.data import DataLoader
 import torchvision.models as models
 from sklearn.model_selection import train_test_split
+# from sklearn.metrics import average_precision_score
+from torchmetrics.detection.mean_ap import MeanAveragePrecision
 
-import torch.distributed as dist
+# import torch.distributed as dist
 import WeedDataset as WD
 import Annotations as Ann
 
@@ -58,6 +61,8 @@ class TrainMaskRCNN:
         self.annotation_object = Ann.Annotations(filename=annotation_data['annotation_file'],
                                   img_dir=annotation_data['image_dir'],
                                   mask_dir=annotation_data['mask_dir'])
+    
+        self.num_classes = 2 # TODO obtain directly from annotation data
 
         # handle train_val_ratio
         # self.n_train, self.n_val, self.n_test = self.process_train_val_test_ratio(train_val_ratio)
@@ -71,7 +76,7 @@ class TrainMaskRCNN:
 
         # TODO put into config file for hyper parameters
         self.num_epochs = 100
-        self.step_size = 10 # round(num_epochs / 2)
+        self.step_size = round(self.num_epochs  / 4)
         self.rescale_size = int(1024)
 
         self.batch_size = 10
@@ -216,16 +221,16 @@ class TrainMaskRCNN:
         return dataloader
 
 
-    def create_model(self, num_classes=2):
+    def create_model(self):
         """ create neural network model for object detection, MaskRCNN """
         weights= detection.MaskRCNN_ResNet50_FPN_Weights.DEFAULT
         model = models.detection.maskrcnn_resnet50_fpn(weights=weights)
         in_features = model.roi_heads.box_predictor.cls_score.in_features
-        model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
+        model.roi_heads.box_predictor = FastRCNNPredictor(in_features, self.num_classes)
         # Replace the mask predictor with a new one
         in_features_mask = model.roi_heads.mask_predictor.conv5_mask.in_channels
         hidden_layer = 256
-        model.roi_heads.mask_predictor = MaskRCNNPredictor(in_features_mask, hidden_layer, num_classes)
+        model.roi_heads.mask_predictor = MaskRCNNPredictor(in_features_mask, hidden_layer, self.num_classes)
         model.to(self.device)
         return model
 
@@ -275,6 +280,9 @@ class TrainMaskRCNN:
             # train model for one epoch
             train_loss = self.train_one_epoch(self.model, dataloader_train, optimizer)
 
+            # compute mAP score
+            train_mAP = self.compute_mAP(self.model, dataloader_val)
+
             # validation 
             if (epoch % val_epoch) == (val_epoch - 1):
                 val_loss = self.validate_epoch(self.model, dataloader_val)
@@ -284,11 +292,14 @@ class TrainMaskRCNN:
                     lowest_val = val_loss
                     best_epoch = epoch
 
+                # compute mAP score
+                val_mAP = self.compute_mAP(self.model, dataloader_val)
+
             # Log training loss to Weights and Biases
             if (epoch % val_epoch) == (val_epoch - 1):
-                wandb.log({'epoch': epoch+1, 'training_loss': train_loss, 'validation_loss': val_loss})
+                wandb.log({'epoch': epoch+1, 'training_loss': train_loss, 'training_mAP': train_mAP, 'validation_loss': val_loss, 'validation_mAP': val_mAP})
             else:
-                wandb.log({'epoch': epoch+1, 'training_loss': train_loss})
+                wandb.log({'epoch': epoch+1, 'training_loss': train_loss, 'training_mAP': train_mAP})
 
             lr_scheduler.step()
             
@@ -335,8 +346,17 @@ class TrainMaskRCNN:
         return running_train_loss
         
     
+    # def model_eval_mode(self):
+    #     """ eval mode, since FasterRCNN/MaskRCNN eval mode doesn't work """
+    #     for m in self.model.modules():
+    #         if isinstance(m, nn.BatchNorm2d):
+    #             m.eval()
+
+
     def validate_epoch(self, model, dataloader):
         """ evaluate model over one epoch """
+        # self.model_eval_mode()
+        model.train()
         for m in model.modules():
             if isinstance(m, nn.BatchNorm2d):
                 m.eval()
@@ -353,6 +373,32 @@ class TrainMaskRCNN:
                 losses = sum(loss for loss in loss_dict.values())
                 running_val_loss += losses.item()
         return running_val_loss
+
+
+    def compute_mAP(self, model, dataloader):
+        """ compute MAP on object detection and bounding boxes """
+
+        metric = MeanAveragePrecision()
+        # NOTE consider putting into evaluation pipeline?
+        # self.model_eval_mode()
+        # for m in model.modules():
+        #     if isinstance(m, nn.BatchNorm2d):
+        model.eval()
+
+        # Define the ground truth and predictions arrays
+        for batch in dataloader:
+            images, targets = batch
+            images = list(image.to(self.device) for image in images)
+            targets = [{k: v.to(self.device) for k, v in t.items()} for t in targets]
+
+            # make predictions
+            with torch.no_grad():
+                outputs = model(images)
+                # TODO make sure box format is correct, iou type correctly selected
+                metric.update(outputs, targets)
+
+        ans = metric.compute()
+        return float(ans['map'])
 
 
     # Set up the loss function
