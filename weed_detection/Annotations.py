@@ -365,6 +365,7 @@ class Annotations:
                 ax[0].add_collection(poly_patches)
                 ax[1].imshow(mask)
                 plt.savefig(os.path.join(mask_dir, mask_name[:-4] + '_debug.png'))
+        print('Successfully created masks from polygons')
 
 
     def generate_imagelist_txt(self, txtfile, imglist=None):
@@ -389,7 +390,8 @@ class Annotations:
         with open(txtfile, 'w') as f:
             for img in imglist:
                 f.write(f'{img}\n')
-                
+        print(f'Successfully wrote image list to txtfile: {txtfile}')
+
 
     def prune_annotations_from_imagelist_txt(self, txtfile):
         """
@@ -421,10 +423,7 @@ class Annotations:
             imgs_remove = list(missing_imgs_from_txt)
             for i, img in enumerate(imgs_remove):
                 print(f'{i}: {img}')
-            
-                # import code
-                # code.interact(local=dict(globals(), **locals()))
-                
+
                 # find the corresponding img in self.annotations and remove it
                 for j, ann in enumerate(self.annotations):
                     if img == ann.filename:
@@ -433,10 +432,10 @@ class Annotations:
                 # also remove in self.imgs:
                 self.imgs.remove(img)        
                 
-                
                 # also remove from self.masks:
                 mask_name = img[:-4] + '_mask.png'
                 self.masks.remove(mask_name)
+        print(f'Successfully pruned annotations, image list and mask list wrt txtfile: {txtfile}')
               
 
 if __name__ == "__main__":

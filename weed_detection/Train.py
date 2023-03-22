@@ -35,33 +35,12 @@ import Annotations as Ann
 def collate_fn(batch):
     return tuple(zip(*batch))
 
-
-# def clean_dirs(target_img_dir, target_meta_dir, target_ann_file):
-#     """
-#     clear relevant folders and files for new dataset split creation
-#     automatically deletes existing folder & contents if exists, then makes anew
-#     """
-#     if os.path.isdir(target_img_dir):
-#         shutil.rmtree(target_img_dir)
-#     os.makedirs(target_img_dir)
-    
-#     if os.path.isdir(target_meta_dir):
-#         shutil.rmtree(target_meta_dir)
-#     os.makedirs(target_meta_dir)
-
-#     if os.path.exists(target_ann_file):
-#         os.remove(target_ann_file)
-
-
-
 # save path for models and checkpoints
 save_path = '/home/agkelpie/Code/agkelpie_weed_detection/weed-detection/model'
 os.makedirs(save_path, exist_ok=True)
 
-
 # Set up WandB
-# TODO change to an agkelpie account?
-wandb.init(project='weed-detection-refactor1', entity='doriantsai')
+wandb.init(project='weed-detection-refactor1', entity='doriantsai') # TODO change to an agkelpie account?
 
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 # device = torch.device('cpu') # for debugging purposes, only use on very small datasets
@@ -158,16 +137,14 @@ WeedDataVal = WD.WeedDataset(annotation_filename=ann_file,
                        config_file=config_file,
                        imgtxt_file=val_file)
 
-# TODO WeedDataset for testing?
-
 # TODO input parameters like James?
 batch_size = 10
 num_workers = 10
 learning_rate = 0.002 # 0.002
 momentum = 0.9 # 0.8
 weight_decay = 0.0005
-num_epochs = 10
-step_size = 5 # round(num_epochs / 2)
+num_epochs = 100
+step_size = 10 # round(num_epochs / 2)
 rescale_size = int(1024)
 
 dataloader_train = DataLoader(WeedDataTrain, 
@@ -190,7 +167,7 @@ weights= detection.MaskRCNN_ResNet50_FPN_Weights.DEFAULT
 model = models.detection.maskrcnn_resnet50_fpn(weights=weights)
 
 # Replace the last layer to fit the number of classes in your custom dataset
-num_classes = 2  # Change this according to your dataset
+num_classes = 2  # TODO Change this according to your dataset
 in_features = model.roi_heads.box_predictor.cls_score.in_features
 model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
 
@@ -206,10 +183,7 @@ optimizer = torch.optim.SGD(params, lr=learning_rate, momentum=momentum, weight_
 lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=0.1)
 clip_value = 5 # clip gradients
 
-
-# TODO add validation/evaluation to the training loop, validate every X epochs or so
 # TODO add early stopping
-# TODO how to group this up into objects - should check James' codebase
 # Train the model
 start_time = time.time()
 val_epoch = 2 # validation epoch frequency
@@ -239,9 +213,6 @@ for epoch in range(num_epochs):
         torch.nn.utils.clip_grad_norm_(model.parameters(), clip_value)
         optimizer.step()
         
-    # Log training loss to Weights and Biases
-    wandb.log({'epoch': epoch+1, 'training_loss': running_train_loss})
-
     # validation 
     if (epoch % val_epoch) == (val_epoch - 1):
         # put into eval mode, NOTE: MaskRCNN outputs predictions in eval mode, so to retain losses:
@@ -272,7 +243,10 @@ for epoch in range(num_epochs):
             best_epoch = epoch
     
         # Log training loss to Weights and Biases
-        wandb.log({'epoch': epoch+1, 'validation_loss': running_val_loss}) 
+        # wandb.log({'epoch': epoch+1, 'validation_loss': running_val_loss}) 
+
+    # Log training loss to Weights and Biases
+    wandb.log({'epoch': epoch+1, 'training_loss': running_train_loss, 'validation_loss': running_val_loss})
 
     lr_scheduler.step()
     
