@@ -75,6 +75,7 @@ class WeedDataset(object):
         else:
             annotations = Annotations(filename=annotation_filename,
                                       img_dir=img_dir,
+                                      mask_dir=mask_dir,
                                       ann_format=format)
             # added to deal with training/testing sets from text files without touching original dataset.json annotation files
             if imgtxt_file is not None:

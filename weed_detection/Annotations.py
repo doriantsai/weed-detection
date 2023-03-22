@@ -66,13 +66,6 @@ class Annotations:
         self.img_dir = img_dir
         self.imgs = list(sorted(os.listdir(self.img_dir)))
         
-        # mask directory
-        self.mask_dir = mask_dir
-        # if directory is empty (no files), then create masks
-        if len(os.listdir(self.mask_dir)) == 0:
-            self.create_masks_from_polygons()
-        self.masks = list(sorted(os.listdir(self.mask_dir)))
-
         # load annotations data
         if ann_format == self.AGKELPIE_FORMAT:
             self.annotations_raw, self.dataset_name, self.species = self.read_agkelpie_annotations_raw()
@@ -85,6 +78,14 @@ class Annotations:
             raise ValueError(ann_format, 'Unknown annotation format')
 
         self.annotations, self.imgs = self.find_matching_images_annotations()
+
+        # mask directory
+        self.mask_dir = mask_dir
+        # if directory is empty (no files), then create masks
+        if len(os.listdir(self.mask_dir)) == 0:
+            self.create_masks_from_polygons()
+        self.masks = list(sorted(os.listdir(self.mask_dir)))
+        # end init
         
 
     def read_agkelpie_annotations_raw(self):
@@ -366,15 +367,28 @@ class Annotations:
                 plt.savefig(os.path.join(mask_dir, mask_name[:-4] + '_debug.png'))
 
 
-    def generate_imagelist_txt(self, txtfile):
+    def generate_imagelist_txt(self, txtfile, imglist=None):
         """
         output current self.annotations list to txt for further manipulation/esp useful for adjusting training/testing/validation sets
         assume txtfilename is full absolute path
         """
-        # for each annotations, get filename, write that to a text file
+        # default imglist
+        if imglist is None:
+            imglist = [ann.filename for ann in self.annotations]
+            
+        # ann.imgs should be a complete list of all the images in annotations
+        assert len(imglist) <= len(self.imgs), "number of images in txtfile must be equal to or less than the number of annotations"
+        
+        # ensure imglist is contained within set of self.imgs
+        missing_imgs_from_ann = set(imglist) - set(self.imgs)
+        if len(missing_imgs_from_ann) > 0:
+            TypeError(imglist, 'imglist has images that are not contained within self.imgs')
+            # TODO print those images
+        
+        # for each filename in imglist, write it to a text file
         with open(txtfile, 'w') as f:
-            for ann in self.annotations:
-                f.write(f'{ann.filename}\n')
+            for img in imglist:
+                f.write(f'{img}\n')
                 
 
     def prune_annotations_from_imagelist_txt(self, txtfile):
@@ -408,6 +422,9 @@ class Annotations:
             for i, img in enumerate(imgs_remove):
                 print(f'{i}: {img}')
             
+                # import code
+                # code.interact(local=dict(globals(), **locals()))
+                
                 # find the corresponding img in self.annotations and remove it
                 for j, ann in enumerate(self.annotations):
                     if img == ann.filename:
@@ -415,6 +432,7 @@ class Annotations:
                 
                 # also remove in self.imgs:
                 self.imgs.remove(img)        
+                
                 
                 # also remove from self.masks:
                 mask_name = img[:-4] + '_mask.png'
