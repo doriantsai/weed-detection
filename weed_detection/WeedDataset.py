@@ -9,11 +9,11 @@ import numpy as np
 import torch
 import torch.utils.data
 import json
-import torchvision.transforms as T
 import random
+import torchvision
 
 # from skimage import transform as sktrans
-from PIL import Image
+from PIL import Image as PILImage
 from torchvision.transforms import functional as tvtransfunc
 from Annotations import Annotations
 
@@ -32,7 +32,7 @@ class WeedDataset(object):
                  img_dir,
                  transforms=None,
                  mask_dir=None,
-                 config_file=None,
+                 classes_file=None,
                  imgtxt_file=None,
                  format=AGKELPIE_FORMAT):
         """
@@ -43,7 +43,6 @@ class WeedDataset(object):
         mask_dir - mask directory (if maskrcnn)
         
         """
-        # TODO address if masks folder not available, config classes, auto-create, etc
         
         self.transforms = transforms
 
@@ -52,10 +51,10 @@ class WeedDataset(object):
         if mask_dir is not None:
             self.mask_dir = mask_dir
         else:
-            self.mask_dir = os.path.join(img_dir, '..', 'masks') # assume parallel to image folder
+            self.mask_dir = os.path.join(os.path.dirname(img_dir), 'masks') # assume parallel to image folder
 
-        if config_file is not None:
-            self.config_file = config_file
+        if classes_file is not None:
+            self.config_file = classes_file
         else:
             self.config_file = os.path.join('config/classes.json')
 
@@ -84,9 +83,29 @@ class WeedDataset(object):
                 annotations.prune_annotations_from_imagelist_txt(imgtxt_file)
                 
             self.annotations = annotations.annotations
+            self.num_classes = annotations.num_classes
             self.imgs = annotations.imgs
             self.masks = annotations.masks
-            
+            self.define_labels()
+
+
+    def define_labels(self):
+        """ given the number of classes and names of species in the annotations, define labels starting from 1 and incrementing +1 each time a new species is found """
+        # list of objects is self.annotations[image_index].regions[regions_index] region name is given as self.annotations[image_index].regions[regions_index].class_name
+        
+        check_label = [] # just for debugging
+        unique_species = {} # a dictionary to keep track of encountered species names (strings)
+        species_label = 1 # a label counter to keep track of the label increment, +1 each time we encounter a new species
+        for img in self.annotations:
+            for reg in img.regions:
+                species_name = reg.class_name
+                if species_name not in unique_species:
+                    unique_species[species_name] = species_label
+                    species_label += 1
+                reg.label = unique_species[species_name]
+                check_label.append(unique_species[species_name])
+        print('successfully applied labels to each region')
+
 
     def __getitem__(self, idx):
         """
@@ -113,12 +132,12 @@ class WeedDataset(object):
             
         # get image
         img_name = os.path.join(self.img_dir, self.imgs[idx])
-        image =  Image.open(img_name).convert("RGB")
+        image =  PILImage.open(img_name).convert("RGB")
 
         # get mask
-        mask_name = os.path.join(self.mask_dir, self.masks[idx])
-        mask =  np.array(Image.open(mask_name))
-
+        mask_path = os.path.join(self.mask_dir, self.masks[idx])
+        mask =  np.array(PILImage.open(mask_path))
+       
         # convert masks with different instances of different colours to pure binary mask
         # if we have a normal mask of 0's and 1's
         if mask.max() > 0:
@@ -129,7 +148,8 @@ class WeedDataset(object):
         else:
             # for a negative image, mask is all zeros, or just empty 
             # masks = np.expand_dims(mask == 1, axis=1)
-            nobj = 0       
+            nobj = 0     
+
         if nobj > 0:
             masks = torch.as_tensor(masks, dtype=torch.uint8)
         else:
@@ -146,45 +166,35 @@ class WeedDataset(object):
                 boxes.append([xmin, ymin, xmax, ymax])
         else:
             boxes = torch.zeros((0, 4), dtype=torch.float32)
+
         # get annotations
         labels = []
-        # labels_pt = []
-        # points = []
-        
         area = []
         if nobj > 0:
             for reg in self.annotations[idx].regions:
                 # if reg.shape_type == 'point':
-                #     labels_pt.append( list(self.classes.values()).index(reg.class_name) )
+                    # labels_pt.append( list(self.classes.values()).index(reg.class_name) )
                 #     points.append((reg.shape.x, reg.shape.y))
-                    # coords_pt.append(reg.shape.bounds) # returns bounding box, for pt, xy1, xy2 are the same
-                    # TODO can +- the bounds to do centre tussock detection
+                # coords_pt.append(reg.shape.bounds) # returns bounding box, for pt, xy1, xy2 are the same
+                # TODO can +- the bounds to do centre tussock detection
+
                 if reg.shape_type == 'polygon':
-                    # labels.append( list(self.classes.values()).index(reg.class_name) )
-                    # labels.append(int(self.get_key(self.classes, reg.class_name)))
-                    labels.append(1)
-                    # boxes.append(reg.shape.bounds)
+                    labels.append(int(reg.label))
                     area.append(reg.shape.area) # pixels
         else:
-            # points = torch.zeros((0, 2), dtype=torch.float32)
-            # boxes = torch.zeros((0, 4), dtype=torch.float32)
             area = torch.zeros(0, dtype=torch.float32)
-            # labels = torch.zeros((0,), dtype=torch.int64)
+            labels = []
         
         # convert to tensors
         boxes = torch.as_tensor(boxes, dtype=torch.float32)
         area = torch.as_tensor(area, dtype=torch.float32)
-        # points = torch.as_tensor(points, dtype=torch.float32)
-        # labels = torch.as_tensor(labels, dtype=torch.int64)
-        # temporary - single class work-around:
-        labels = torch.ones((nobj,), dtype=torch.int64)
-        # iscrowd = torch.zeros((nobj,), dtype=torch.int64) # currently unused, but potential for crowded weed images
+        labels = torch.as_tensor(labels, dtype=torch.int64)
         image_id = torch.tensor([idx], dtype=torch.int64) # image_id is the index of the image in the folder
 
         # package into sample
         sample = self.package_sample(masks, labels, image_id, boxes=boxes, area=area)
 
-        # apply transforms to image and sample
+        # apply transforms to image and sample and mask
         if self.transforms:
             image, sample = self.transforms(image, sample)
 
@@ -229,11 +239,11 @@ class WeedDataset(object):
 
         # get image
         img_name = os.path.join(self.img_dir, self.annotations[idx]['filename'])
-        image =  Image.open(img_name).convert("RGB")
+        image =  PILImage.open(img_name).convert("RGB")
 
         # get mask
         mask_name = os.path.join(self.mask_dir, self.annotations[idx]['filename'][:-4] + '_mask.png')
-        mask =  np.array(Image.open(mask_name))
+        mask =  np.array(PILImage.open(mask_name))
 
         # if we have a normal mask of 0's and 1's
         if mask.max() > 0:
@@ -243,6 +253,7 @@ class WeedDataset(object):
             obj_ids = obj_ids[1:]
             # split the color-encoded mask into a set of binary masks
             masks = mask == obj_ids[:, None, None]
+            masks = masks[:]
             nobj = len(obj_ids)
         else:
             # for a negative image, mask is all zeros, or just empty
@@ -432,7 +443,7 @@ class Rescale(object):
 
         # handle the aspect ratio
         if isinstance(image, np.ndarray):
-            image = Image.fromarray(image) # convert to PIL image
+            image = PILImage.fromarray(image) # convert to PIL image
 
         h, w = image.size[:2]
 
@@ -447,7 +458,7 @@ class Rescale(object):
         new_h, new_w = int(new_h), int(new_w)
 
         # do the transform
-        img = T.Resize((new_w, new_h))(image) # only works for PIL images
+        img = torchvision.transforms.Resize((new_w, new_h))(image) # only works for PIL images
 
         # apply transform to bbox as well
         if sample is not None:
@@ -456,9 +467,9 @@ class Rescale(object):
             mask = sample["masks"]
 
             if len(mask) > 0:
-                m = T.Resize((new_w, new_h))(mask)  # HACK FIXME
+                m = torchvision.transforms.Resize((new_w, new_h))(mask)
                 sample['masks'] = m
-
+            
             xChange = float(new_w) / float(w)
             yChange = float(new_h) / float(h)
             bbox = sample["boxes"]  # [xmin ymin xmax ymax]
@@ -496,7 +507,7 @@ class RandomHorizontalFlip(object):
             w, h = image.size[:2]
 
             # flip image
-            image = image.transpose(method=Image.FLIP_LEFT_RIGHT)
+            image = image.transpose(method=PILImage.FLIP_LEFT_RIGHT)
 
             # flip bbox
             bbox = sample['boxes']
@@ -510,7 +521,7 @@ class RandomHorizontalFlip(object):
             # flip mask
             mask = sample['masks']
 
-            # mask = mask.transpose(method=Image.FLIP_LEFT_RIGHT)
+            # mask = mask.transpose(method=PILImage.FLIP_LEFT_RIGHT)
             if len(mask) > 0:
                 mask = torch.flip(mask, [2])
                 sample['masks'] = mask
@@ -536,7 +547,7 @@ class RandomVerticalFlip(object):
         if random.random() < self.prob:
             w, h = image.size[:2]
             # flip image
-            image = image.transpose(method=Image.FLIP_TOP_BOTTOM)
+            image = image.transpose(method=PILImage.FLIP_TOP_BOTTOM)
 
             # flip bbox [xmin, ymin, xmax, ymax]
             bbox = sample['boxes']
@@ -547,7 +558,7 @@ class RandomVerticalFlip(object):
 
             # flip mask
             mask = sample['masks']
-            # mask = mask.transpose(method=Image.FLIP_TOP_BOTTOM)
+            # mask = mask.transpose(method=PILImage.FLIP_TOP_BOTTOM)
             if len(mask) > 0:
                 mask = torch.flip(mask, [1])
                 sample['masks'] = mask
@@ -669,7 +680,7 @@ if __name__ == "__main__":
                      img_dir=img_dir,
                      transforms=tform,
                      mask_dir=mask_dir,
-                     config_file=config_file)
+                     classes_file=config_file)
 
     print(WD[0])
     
@@ -687,10 +698,14 @@ if __name__ == "__main__":
     #     print(f'{i}: {labels}')
 
     # check bounding boxes:
+    print('iterating through the entire weed dataset')
     for i, batch in enumerate(WD):
         img, target = batch
-        boxes = target['boxes']
-        print(f'{i}: {boxes}')
+        # boxes = target['boxes']
+        # print(f'{i}: {boxes}')
+        mask = target['masks']
+        print(f'{i}: mask size = {mask.shape}')
+    
         
     import code
     code.interact(local=dict(globals(), **locals()))

@@ -71,19 +71,26 @@ class Annotations:
             self.annotations_raw, self.dataset_name, self.species = self.read_agkelpie_annotations_raw()
             self.annotations = self.convert_agkelpie_annotations() # convert to internal format
             
-        elif ann_format == self.VIA_FORMAT:
+        elif ann_format == self.VIA_FORMAT: # retained only for archival reasons, but otherwise depracated
             self.annotations_raw = self.read_via_annotations_raw()
             self.annotations = self.convert_via_annotations() # convert to internal format
         else:
             raise ValueError(ann_format, 'Unknown annotation format')
 
+        self.num_classes = len(self.species)
         self.annotations, self.imgs = self.find_matching_images_annotations()
 
         # mask directory
+        if mask_dir is None:
+            # default: assume 'masks' folder is parallel to img_dir
+            mask_dir = os.path.join(os.path.dirname(img_dir), 'masks')
         self.mask_dir = mask_dir
+
         # if directory is empty (no files), then create masks
         if len(os.listdir(self.mask_dir)) == 0:
+            print('No masks detected in mask_dir, so creating masks')
             self.create_masks_from_polygons()
+
         self.masks = list(sorted(os.listdir(self.mask_dir)))
         # end init
         
@@ -96,7 +103,7 @@ class Annotations:
         metadata = json.load(open(self.filename))
         data = metadata['images_tagged']
 
-        species = metadata['species'] # TODO: what do for multiple species?
+        species = metadata['species'].split(",") # since species comes in as a single comma-delimited string
         location_name = metadata['name']
         folder_name = metadata['folder_name']
         dataset_name = folder_name + '_' + location_name # dataset_name used to make dirs
@@ -129,6 +136,34 @@ class Annotations:
             print(f'Number of images in raw annotations: {len(self.annotations_raw)}')
             print(f'Number of images in img_dir: {len(self.imgs)}')
             return False
+
+
+    def check_polygons_and_masks(self):
+        """check # of polygons matches number of objects in an image
+        only valid for agkelpie annotations
+        """
+        for i, img in enumerate(self.annotations):
+            poly_count = 0
+            for reg in img.regions:
+                if reg.shape_type == 'polygon':
+                    poly_count += 1
+            
+            # find the corresponding mask, which in theory is the corresponding index
+            mask_name = self.masks[i]
+            mask =  np.array(PILImage.open(os.path.join(self.mask_dir, mask_name)))
+            obj_ids = np.unique(mask)
+            obj_ids = obj_ids[1:]
+            # masks = mask == obj_ids[:, None, None]
+            nobj = len(obj_ids)
+
+            # nobj should == poly_count, so we should not see any messages being printed
+            # TODO should probably throw and error, or return False
+            if not nobj == poly_count:
+                print(f'nobj = {nobj}, but poly_count = {poly_count}')
+                print(f'image name = {img.filename}')
+                print(f'image_idx = {i}')
+                return False
+        return True
 
 
     def convert_agkelpie_annotations(self): 
@@ -326,10 +361,10 @@ class Annotations:
             mask_dir = self.mask_dir
         os.makedirs(mask_dir, exist_ok=True)
 
-        for ann in self.annotations:
+        for i, ann in enumerate(self.annotations):
 
             # create mask image
-            mask = np.zeros((ann.width, ann.height), np.int32)
+            mask = np.zeros((ann.height, ann.width), np.int32)
 
             # iterate over ann.regions
             # find each annotation that is a polygon ann.shape_type
@@ -352,20 +387,41 @@ class Annotations:
             # for debugging purposes, make visual mask figures:
             SAVE = False
             if SAVE:
-                img = PILImage.open(os.path.join(self.img_dir, ann.filename))
-                patches = []
-                for p in poly:
-                    patches.append(MPLPolygon(p, closed=True))
+                self.show_polygon_and_mask(i)
+        print('Successfully created masks from polygons')
 
+
+    def show_polygon_and_mask(self, idx, SHOW=True, SAVE=False):
+        
+        # get mask
+        mask_name = self.masks[idx]
+        mask =  np.array(PILImage.open(os.path.join(self.mask_dir, mask_name)))
+
+        # get polygons
+        ann = self.annotations[idx]
+        img = PILImage.open(os.path.join(self.img_dir, ann.filename))
+        
+        patches = []
+        for reg in ann.regions:
+            if reg.shape_type == 'polygon':
+                # reg is already a polygon
+                x, y = reg.shape.exterior.coords.xy
+                xy = np.array([x, y], np.int32).transpose()
+                patches.append(MPLPolygon(xy, closed=True))
                 colors = 100 * np.random.rand(len(patches))
                 poly_patches = PatchCollection(patches, alpha=0.4)
                 poly_patches.set_array(colors)
-                fig, ax = plt.subplots(2,1)
-                ax[0].imshow(img)
-                ax[0].add_collection(poly_patches)
-                ax[1].imshow(mask)
-                plt.savefig(os.path.join(mask_dir, mask_name[:-4] + '_debug.png'))
-        print('Successfully created masks from polygons')
+        
+        fig, ax = plt.subplots(2,1)
+        ax[0].imshow(img)
+        ax[0].add_collection(poly_patches)
+        ax[1].imshow(mask)
+        if SAVE:
+            # save figure in the root path, so as not to corrupt the mask folder with debug masks
+            plt.savefig(os.path.join(os.path.dirname(mask_dir), mask_name[:-4] + '_debug.png'))
+        if SHOW:
+            plt.show()
+            print('remember to close the matplotlib window')
 
 
     def generate_imagelist_txt(self, txtfile, imglist=None):
@@ -445,34 +501,39 @@ if __name__ == "__main__":
     """ testing Annotaions.py read_via_annotations_raw """
     filename = '/home/agkelpie/Code/agkelpie_weed_detection/agkelpiedataset_canberra_20220422_first500/dataset.json'
     img_dir = '/home/agkelpie/Code/agkelpie_weed_detection/agkelpiedataset_canberra_20220422_first500/annotated_images'
+    mask_dir = '/home/agkelpie/Code/agkelpie_weed_detection/agkelpiedataset_canberra_20220422_first500/masks'
     
-    Ann = Annotations(filename=filename, img_dir=img_dir)
+    # Ann = Annotations(filename=filename, img_dir=img_dir, mask_dir=mask_dir)
     # data = Ann.read_agkelpie_annotations_raw()
     # print(data)
     
-    anns, imgs = Ann.find_matching_images_annotations()
+    # anns, imgs = Ann.find_matching_images_annotations()
     # data = Ann.read_via_annotations_raw()
     # print(data)
 
     """ testing convert annotations"""
     # tested via initialization
-    i = 10
-    Ann.annotations[i].print()
+    # i = 10
+    # Ann.annotations[i].print()
 
     # print('making masks from polygons')
-    # mask_dir = os.path.join(img_dir, '..', 'masks')
-    # os.makedirs(mask_dir, exist_ok=True)
-    # Ann.create_masks_from_polygons(mask_dir=mask_dir)    
+    Ann = Annotations(filename=filename, img_dir=img_dir)
+    mask_dir = os.path.join(img_dir, '..', 'masks')
+    os.makedirs(mask_dir, exist_ok=True)
+    Ann.create_masks_from_polygons(mask_dir=mask_dir)    
     
     # generate image list txt file:
     # print('generating image list txt file')
-    txtfile = os.path.join(img_dir, '..', 'annotated_images_from_annotations.txt')
+    # txtfile = os.path.join(img_dir, '..', 'annotated_images_from_annotations.txt')
     # Ann.generate_imagelist_txt(txtfile)
     # print(f'txtfile = {txtfile}')
 
-    print('testing out txtfile reading')
-    txtfile = os.path.join(img_dir, '..', 'annotated_images_from_annotations.txt')
-    Ann.prune_annotations_from_imagelist_txt(txtfile)
+    # print('testing out txtfile reading')
+    # txtfile = os.path.join(img_dir, '..', 'annotated_images_from_annotations.txt')
+    # Ann.prune_annotations_from_imagelist_txt(txtfile)
+
+    print('testing polygon count vs number of objects in masks')
+    Ann.check_polygons_and_masks()
     
     import code
     code.interact(local=dict(globals(), **locals()))
