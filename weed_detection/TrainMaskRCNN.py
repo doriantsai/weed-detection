@@ -98,6 +98,7 @@ class TrainMaskRCNN:
         self.learning_rate = hp['learning_rate'] # 0.002
         self.momentum = hp['momentum'] # 0.9 # 0.8
         self.weight_decay = hp['weight_decay'] # 0.0005
+        self.patience = hp['patience']
 
         self.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
@@ -285,10 +286,12 @@ class TrainMaskRCNN:
         val_epoch = 2 # validation epoch frequency
         lowest_val = 1e6
         best_epoch = 0 
+        # best_val_loss = float('inf') # for early stopping
+        counter = 0
 
         print('begin training')
         for epoch in range(self.num_epochs):
-            print(f'epoch {epoch+1}/{self.num_epochs}')
+            # print(f'epoch {epoch+1}/{self.num_epochs}')
 
             # train model for one epoch
             train_loss = self.train_one_epoch(self.model, dataloader_train, optimizer)
@@ -301,17 +304,12 @@ class TrainMaskRCNN:
             # validation 
             if (epoch % val_epoch) == (val_epoch - 1):
                 val_loss = self.validate_epoch(self.model, dataloader_val)
-            
-                # save the best epoch via min running loss
-                if val_loss < lowest_val:
-                    lowest_val = val_loss
-                    best_epoch = epoch
 
                 # compute mAP score
                 val_mAP = self.compute_mAP(self.model, dataloader_val)
 
-            # Log training loss to Weights and Biases
-            if (epoch % val_epoch) == (val_epoch - 1):
+                # Log training loss to Weights and Biases
+                print(f'Epoch: {epoch+1}/{self.num_epochs} | Train loss: {train_loss:.4f} | Val loss: {val_loss:.4f}')
                 wandb.log({'epoch': epoch+1, 'training_loss': train_loss, 'training_mAP': train_mAP, 'validation_loss': val_loss, 'validation_mAP': val_mAP})
 
                 # Save the model checkpoint after each validation epoch
@@ -319,11 +317,21 @@ class TrainMaskRCNN:
                 torch.save(self.model.state_dict(), os.path.join(self.output_dir, checkpoint_path))
                 wandb.save(checkpoint_path)
 
-                if best_epoch == epoch:
-                    best_name = os.path.join(self.output_dir, 'model_best.pt')
+                # save the best epoch via min running loss
+                if val_loss < lowest_val:
+                    lowest_val = val_loss
+                    best_epoch = epoch
+                    best_name = os.path.join(self.output_dir, 'model_best.pth')
                     torch.save(self.model.state_dict(), best_name)
-
+                    counter = 0
+                else:
+                    counter += 1
+                    if counter == self.patience:
+                        print('Early stopping')
+                        break
+                # end validation section
             else:
+                print(f'Epoch: {epoch+1}/{self.num_epochs} | Train loss: {train_loss:.4f}')
                 wandb.log({'epoch': epoch+1, 'training_loss': train_loss, 'training_mAP': train_mAP})
 
             # end training/validation loop
@@ -335,10 +343,10 @@ class TrainMaskRCNN:
         print('training time: {} min'.format(sec / 60.0))
         print('training time: {} hrs'.format(sec / 3600.0))
 
-        print(f'best epoch: {best_epoch+1}')
+        print(f'best epoch: {best_epoch+1}, as {best_name}')
 
         # save trained model for inference
-        torch.save(self.model.state_dict(), os.path.join(self.output_dir, 'model_final.pth'))
+        torch.save(self.model.state_dict(), os.path.join(self.output_dir, 'model_maxepochs.pth'))
         print('model saved: {}'.format(self.output_dir))
 
 

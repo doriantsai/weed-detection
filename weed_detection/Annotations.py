@@ -475,10 +475,10 @@ class Annotations:
         if len(missing_imgs_from_ann) > 0:
             print('Warning: txt_imgs lists images that aren''t contained within ann_imgs')
         if len(missing_imgs_from_txt) > 0:
-            print('These are the images we want to remove/prune:')
+            print(f'Removing {len(missing_imgs_from_txt)} images and masks')
             imgs_remove = list(missing_imgs_from_txt)
             for i, img in enumerate(imgs_remove):
-                print(f'{i}: {img}')
+                # print(f'{i}: {img}')
 
                 # find the corresponding img in self.annotations and remove it
                 for j, ann in enumerate(self.annotations):
