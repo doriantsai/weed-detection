@@ -296,6 +296,8 @@ class TrainMaskRCNN:
             # compute mAP score
             train_mAP = self.compute_mAP(self.model, dataloader_val)
 
+            lr_scheduler.step()
+
             # validation 
             if (epoch % val_epoch) == (val_epoch - 1):
                 val_loss = self.validate_epoch(self.model, dataloader_val)
@@ -311,17 +313,22 @@ class TrainMaskRCNN:
             # Log training loss to Weights and Biases
             if (epoch % val_epoch) == (val_epoch - 1):
                 wandb.log({'epoch': epoch+1, 'training_loss': train_loss, 'training_mAP': train_mAP, 'validation_loss': val_loss, 'validation_mAP': val_mAP})
+
+                # Save the model checkpoint after each validation epoch
+                checkpoint_path = f'checkpoint_{epoch+1}.pth'
+                torch.save(self.model.state_dict(), os.path.join(self.output_dir, checkpoint_path))
+                wandb.save(checkpoint_path)
+
+                if best_epoch == epoch:
+                    best_name = os.path.join(self.output_dir, 'model_best.pt')
+                    torch.save(self.model.state_dict(), best_name)
+
             else:
                 wandb.log({'epoch': epoch+1, 'training_loss': train_loss, 'training_mAP': train_mAP})
 
-            lr_scheduler.step()
-            
-            # Save the model checkpoint after each epoch
-            checkpoint_path = f'checkpoint_{epoch+1}.pth'
-            torch.save(self.model.state_dict(), os.path.join(self.output_dir, checkpoint_path))
-            wandb.save(checkpoint_path)
+            # end training/validation loop
 
-        print('training done')
+        print('training complete')
         end_time = time.time()
         sec = end_time - start_time
         print('training time: {} sec'.format(sec))
@@ -329,7 +336,6 @@ class TrainMaskRCNN:
         print('training time: {} hrs'.format(sec / 3600.0))
 
         print(f'best epoch: {best_epoch+1}')
-        # TODO copy/rename checkpoint from best epoch to model_best.pth
 
         # save trained model for inference
         torch.save(self.model.state_dict(), os.path.join(self.output_dir, 'model_final.pth'))
@@ -356,7 +362,7 @@ class TrainMaskRCNN:
             losses.backward()
             # torch.nn.utils.clip_grad_norm_(model.parameters(), clip_value)
             optimizer.step()
-        return running_train_loss
+        return running_train_loss/len(dataloader)
 
 
     def validate_epoch(self, model, dataloader):
@@ -376,7 +382,7 @@ class TrainMaskRCNN:
                 loss_dict = model(images, targets)
                 losses = sum(loss for loss in loss_dict.values())
                 running_val_loss += losses.item()
-        return running_val_loss
+        return running_val_loss/len(dataloader)
 
 
     def compute_mAP(self, model, dataloader):
