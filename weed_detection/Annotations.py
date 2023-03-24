@@ -15,8 +15,8 @@ from matplotlib.patches import Polygon as MPLPolygon
 from matplotlib.collections import PatchCollection
 import matplotlib.pyplot as plt
 
-from Image import Image
-from AnnotationRegion import AnnotationRegion
+from weed_detection.Image import Image
+from weed_detection.AnnotationRegion import AnnotationRegion
 
 
 

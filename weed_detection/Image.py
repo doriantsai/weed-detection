@@ -4,7 +4,7 @@
 Image class, which has annotation properties
 """
 
-from Region import Region
+from weed_detection.Region import Region
 
 class Image:
 

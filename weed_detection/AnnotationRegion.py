@@ -4,7 +4,7 @@
 Annotated Region class, which has annotation and region properties
 """
 
-from Region import Region
+from weed_detection.Region import Region
 
 class AnnotationRegion(Region):
 

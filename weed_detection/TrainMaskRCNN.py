@@ -6,10 +6,10 @@ Train MaskRCNN
 
 import os
 import torch
-import torchvision
+# import torchvision
 import wandb
 import time
-import numpy as np
+# import numpy as np
 # import shutil
 import json
 
@@ -25,11 +25,12 @@ import torchvision.models as models
 from sklearn.model_selection import train_test_split
 # from sklearn.metrics import average_precision_score
 from torchmetrics.detection.mean_ap import MeanAveragePrecision
-from PIL import Image as PILImage
+# from PIL import Image as PILImage
 
 # import torch.distributed as dist
-import WeedDataset as WD
-import Annotations as Ann
+# from weed_detection.WeedDataset import WeedDataset as WD
+import weed_detection.WeedDataset as WD
+from weed_detection.Annotations import Annotations as Ann
 
 
 class TrainMaskRCNN:
@@ -63,7 +64,7 @@ class TrainMaskRCNN:
 
         # create annotation set from annotation data
         self.annotation_data = annotation_data
-        self.annotation_object = Ann.Annotations(filename=annotation_data['annotation_file'],
+        self.annotation_object = Ann(filename=annotation_data['annotation_file'],
                                   img_dir=annotation_data['image_dir'],
                                   mask_dir=annotation_data['mask_dir'])
     
@@ -249,20 +250,20 @@ class TrainMaskRCNN:
         return model
 
 
-    def train_pipeline(self, annotation_data, imagelist_files):
+    def train_pipeline(self):
         """ training pipeline that splits data, creates datasets, trains the model given the datasets """
 
         # split the data
-        self.split_data(imagelist_files['train_file'],
-                        imagelist_files['val_file'],
-                        imagelist_files['test_file'])
+        self.split_data(self.imagelist_files['train_file'],
+                        self.imagelist_files['val_file'],
+                        self.imagelist_files['test_file'])
         
         # create datasets from given files
-        WeedDataTrain, WeedDataVal, __ = self.create_datasets(annotation_data, 
+        WeedDataTrain, WeedDataVal, __ = self.create_datasets(self.annotation_data, 
                                                               self.classes_config_file, 
-                                                              imagelist_files['train_file'], 
-                                                              imagelist_files['val_file'], 
-                                                              imagelist_files['test_file'])
+                                                              self.imagelist_files['train_file'], 
+                                                              self.imagelist_files['val_file'], 
+                                                              self.imagelist_files['test_file'])
         
         # train the model
         self.train_model(WeedDataTrain, WeedDataVal)
@@ -425,7 +426,7 @@ if __name__ == "__main__":
     print('TrainMaskRCNN.py')
 
     TrainMask = TrainMaskRCNN() # rely on defaults
-    TrainMask.train_pipeline(TrainMask.annotation_data, TrainMask.imagelist_files)
+    TrainMask.train_pipeline()
 
     import code
     code.interact(local=dict(globals(), **locals()))

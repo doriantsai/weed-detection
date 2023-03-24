@@ -15,7 +15,8 @@ import torchvision
 # from skimage import transform as sktrans
 from PIL import Image as PILImage
 from torchvision.transforms import functional as tvtransfunc
-from Annotations import Annotations
+
+from weed_detection.Annotations import Annotations
 
 class WeedDataset(object):
     """ weed dataset object for polygons """
