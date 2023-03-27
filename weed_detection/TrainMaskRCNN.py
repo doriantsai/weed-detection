@@ -2,6 +2,27 @@
 
 """
 Train MaskRCNN
+
+A #NOTE on the hyper parameters
+Batch size was set to 10 to max out the available GPU RAM, 
+although input image size and number of workers will also influence this. 
+The number of epochs for training was set to 100, 
+as an arbitrarily long time to satisfy convergence with the intention of plotting out the learning and loss curves. 
+Learning rate, momentum, and weight_decay were initially taken from [Olsen 2019 DeepWeeds], 
+and then empirically fine-tuned for learning. 
+patience is the number of epochs that remain arbitrarily low or approximately constant, before early stopping occurs
+This was sufficient to develop a pipeline and produce a basic demonstrator. 
+Further hyperparameter tuning and sweeps may yield incrementally-improved performance. 
+hp = json.load(open(hyper_param_file))['hyper_parameters']
+self.num_epochs = hp['num_epochs']                      
+self.step_size = hp['step_size'] 
+self.rescale_size = int(hp['rescale_size']) # 1024
+self.batch_size = hp['batch_size']
+self.num_workers = hp['num_workers']
+self.learning_rate = hp['learning_rate'] # 0.002
+self.momentum = hp['momentum'] # 0.9 # 0.8
+self.weight_decay = hp['weight_decay'] # 0.0005
+self.patience = hp['patience']
 """
 
 import os
@@ -54,6 +75,8 @@ class TrainMaskRCNN:
     
     # default hyper parameter text file for training the model
     HYPER_PARAMETERS_DEFAULT = '/home/agkelpie/Code/agkelpie_weed_detection/weed-detection/config/hyper_parameters.json'
+
+
     def __init__(self,
                  annotation_data: dict=ANNOTATION_DATA_DEFAULT,
                  train_val_ratio: tuple=(0.7, 0.15),
@@ -74,13 +97,9 @@ class TrainMaskRCNN:
         #     mask =  np.array(PILImage.open(mask_path))
         #     print(f'{i}: mask size = {mask.shape}')
 
-        # import code
-        # code.interact(local=dict(globals(), **locals()))
-
         self.num_classes = self.annotation_object.num_classes + 1 # for background/negative
 
         # handle train_val_ratio
-        # self.n_train, self.n_val, self.n_test = self.process_train_val_test_ratio(train_val_ratio)
         self.train_val_ratio = train_val_ratio
 
         # class config file for consistent colours/plots across different functions

@@ -31,6 +31,3 @@ dependencies:
   - opencv>=4.6
   - python-flatbuffers
   - boto3
-  - onnx
-  - onnxruntime
-

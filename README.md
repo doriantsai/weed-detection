@@ -3,39 +3,24 @@ A deep learning approach to pastoral weed detection.
 
 
 ## Overview
-A deep learning approach to weed species detection for smart farm pasture management developed by QUT, in collaboration with AOS, DPI and UNE. With a Resnet50 backbone, FasterRCNN and MaskRCNN are used for bounding box and polygon annotations, respectively. A virtual environment is setup to contain the weed detection model via conda.
+A deep learning approach to weed species detection for smart farm pasture management developed by the Queensland University of Technology (QUT), in collaboration with Agent Oriented Systems (AOS), Department of Primary Industries (DPI) and the University of New England (UNE). The robotic system used for data collection was developed by AOS. Data collection were performed and polygon annotations were provided primarily by DPI and AOS. Weed detection models were then developed by both QUT and UNE. This repository is focused on providing a neural network training pipeline for weed detection using MaskRCNN.
 
 
 ## Data
-Data is obtained from the DPI's Weed Reference Library, currently stored on AWS. Access is currently limited for commercial development reasons. See the following link for the AWS workshop to help setup access. The current version of the weed detector only considers image data that has been organised into the proper date and location schema in the folder **03_Tagged**.
-https://help.agkelpie.com/aws_workshop.html, specifically, see the AWS workshop pdf for detailed instructions on the setup.
-https://help.agkelpie.com/AgKelpieImageDatabaseAWSWorkshop.pdf
-
-To download data via script, you need to setup AWS CLI: https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
-
-    curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-    unzip awscliv2.zip
-    sudo ./aws/install
-    aws configure
-
-Use `us-east-1` as the region, and `json` as the output. I also had to use my full mfa device id `arn:aws:iam::############:mfa/FirstName.LastName`, and not just `::############:mfa/FirstName.LastName` as the tutorial indicated.
-
-    aws sts get-session-token --serial-number XX --token-code YY
-
-Run the download script and your desired dataset. 
+Data is obtained from the DPI's Weed Reference Library, available at https://www.agkelpie.com/. Access is currently limited for potential commercial development reasons, but a selected amount will be publicly available for research purposes. 
 
 
 ## File and Folder Descriptions
-* **weed_detection** - QUT's weed detector for single-class weed detection
+* **weed_detection** - QUT's weed detector for multi-class weed detection
 * **config** - configuration files for the virtual environment
 * **model** - model-specific files (weights, species name for the corresponding model, etc)
-* **scripts** - a set of scripts used to run various operations, eg. processing the dataset, training the model, generating performance-recall curves. *In development and could use refactoring*.
 * **examples** - a minimum working example for model inference with a sample image, designed to work with the Agkelpie weed_camera_interface code available at https://github.com/AgKelpie/weed_camera_interface
 - *make_conda_agkelpie.sh* - the script that automatically creates the agkelpie conda virtual environment
 - *setup.py* - along with __init__.py in weed_detection, required to install ``weed_detection`` as a python package
 
 
 ## Installation & Dependencies
+- The following code was run in Ubuntu 20.04 LTS using Python 3
 - Install conda https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html, although I recommend miniforge/mambaforge https://github.com/conda-forge/miniforge, which is a much more minimal and faster installer for conda packages. These installers will create a ''base'' environment that contains the package managers for conda.
 - `conda install mamba -c conda-forge`
 - `git clone git@github.com:AgKelpie/weed_detector_qut.git`
@@ -44,10 +29,22 @@ Run the download script and your desired dataset.
     - make .sh file executable via `chmod +x make_conda_agkelpie.sh`
     - run .sh file via `./make_conda_agkelpie.sh`
     - Note: you can read the dependencies in the `agkelpie.yml` file
-    - Experimental: actual requirements are given in `requirements.txt` file, generated automatically via `pipreqs`.
+    - Experimental: if you want to go the `pip` route, specific requirements are given in `requirements.txt` file, generated automatically via `pipreqs` (`pip install pipreqs` then `pipreqs` in the repo home directory). You gain simplicity, but lose containerisation.
 - this should automatically make a virtual environment called "agkelpie"
 - to activate new environment: `conda activate agkelpie`
 - to deactivate the new environment: `conda deactivate`
+
+
+## Model Training
+- After installation, activate the agkelpie environment
+- Download an agkelpie dataset and set the appropriate folders and file locations
+    - `annotation_data`: a python dictionary with `annotation_file`, `image_dir` and `mask_dir` keys and corresponding values as strings for the absolute filepaths, respectively. The `annotation_file` is the string to the dataset.json automatically downloaded and packaged with the dataset. `image_dir` is the annotated image directory, and `mask_dir` is the directory of masks that have a binary representation of the annotations.
+    - `output_dir`: the directory where models and progress checkpoints are saved during training
+    - `classes_config`: a configuration file for class names and colours 
+    - `imagelist_files`: a python dictionary with `train_file`, `val_file`, `test_file` keys that denote the corresponding training, validation and testing images that are saved in a list as textfiles (each image as a new line)
+    - `hyper_parameters`: a json file containing the dictionary for a variety of hyper parameters for the training pipeline. See `TrainMaskRCNN.py` top-level comments for more information
+- Run the top-level script, `model_training.py`, which calls `TrainMaskRCNN.train_pipeline()`
+- In the specified `output_dir` (default is `./model`), there will be several `.pth` files, which contain the model weights. The `model_best.pth` file is the model which corresponds to the lowest validation error during training. The `model_maxepochs.pth` file is the model which corresponds to the weights at the end of the maximum number of epochs, if early stopping did not trigger. If early stopping did trigger, `model_best.pth` is the final output model
 
 
 ## Running the Detector
@@ -57,4 +54,7 @@ Run the download script and your desired dataset.
 - Run `Detector.py`, which should automatically download the current Tussock model, and then run the detector on the test images
 
 
+## Model Evaluation
+- Model evaluation code from WeedModel.py (pre-2023) is now depracated
+- Instead, we use UNE's Model Evaluation Package. See https://github.com/AgKelpie/une_weed_package for more details on how to run. 
 

@@ -8,7 +8,6 @@ mamba env create -f config/agkelpie.yml
 # current attempt does this, but build may take a while
 # UPDATE: removed, as now redundant with "dependencies: opencv" in the agkelpie.yml file
 # pip install --no-binary opencv-python opencv-python
-
 conda activate agkelpie
 
 # for weed-camera interface, unsure if zeromq == zmq, stackoverflow seems
