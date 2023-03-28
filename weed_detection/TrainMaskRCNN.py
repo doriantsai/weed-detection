@@ -291,7 +291,7 @@ class TrainMaskRCNN:
         print('successfully completed train_pipeline')
 
 
-    def train_model(self, WeedDataTrain, WeedDataVal, model_name=None):
+    def train_model(self, WeedDataTrain, WeedDataVal, model_name=None, SAVE_CHECKPOINTS=False):
         """ train model given the datasets """
 
         # set unique dataset-specific model name and output folder
@@ -342,14 +342,15 @@ class TrainMaskRCNN:
                 # Save the model checkpoint after each validation epoch
                 checkpoint_path = f'checkpoint_{epoch+1}.pth'
                 
-                torch.save(self.model.state_dict(), os.path.join(self.output_dir, model_name, checkpoint_path))
+                if SAVE_CHECKPOINTS:
+                    torch.save(self.model.state_dict(), os.path.join(self.output_dir, model_name, checkpoint_path))
                 wandb.save(checkpoint_path)
 
                 # save the best epoch via min running loss
                 if val_loss < lowest_val:
                     lowest_val = val_loss
                     best_epoch = epoch
-                    best_name = os.path.join(self.output_dir, 'model_best.pth')
+                    best_name = os.path.join(self.output_dir, model_name, 'model_best.pth')
                     torch.save(self.model.state_dict(), best_name)
                     counter = 0
                 else:
