@@ -254,21 +254,34 @@ class Detector:
 
 if __name__ == "__main__":
 
+    # set LOCAL to True if using a local file model, or False to automatically download a pre-existing model
+    # NOTE pre-existing/trained model link may need to be updated for most recent data
+    LOCAL = True
+    
     # load a model
     # infer on a given image
-    # print out the classes, scores, boxes (do plots later)
+    # print out the classes, scores, boxes (TODO plots later)
     # model_file = 'model/2021_Yellangelo_Tussock_v0_2022-10-12_10_35.pth'
-    model_file = '2021_Yellangelo_Tussock_v0_2022-10-12_10_35_epoch30.pth'
-    url = 'https://cloudstor.aarnet.edu.au/plus/s/3XEnfIEoLEAP27o/download'
-    Detector.download_model(url, model_file)
+    
+    if LOCAL:
+        model_file = '/home/agkelpie/Code/agkelpie_weed_detection/weed-detection/model/model_best.pth'
+    else: # REMOTE
+        model_file = '2021_Yellangelo_Tussock_v0_2022-10-12_10_35_epoch30.pth'
+        url = 'https://cloudstor.aarnet.edu.au/plus/s/3XEnfIEoLEAP27o/download'
+        Detector.download_model(url, model_file)
     detector = Detector(model_file = os.path.join('model', model_file)) # might have to retrain with correct image size
 
     # grab any images in the 'images' folder:
-    img_dir = 'images'
+    # img_dir = 'images'
+    img_dir = '/home/agkelpie/Code/agkelpie_weed_detection/agkelpiedataset_yellangelo_tussock/annotated_images'
     img_list = os.listdir(img_dir)
     # image_file = 'images/2021-10-13-T_13_50_55_743.png'
-    for img_name in img_list:
-        print(f'image name: {img_name}')
+    max_image = 10
+    for i, img_name in enumerate(img_list):
+        if i > max_image:
+            print(f'hit max images {i}')
+            break
+        print(f'{i}: image name = {img_name}')
         image = cv.imread(os.path.join(img_dir, img_name))
         image = cv.cvtColor(image, cv.COLOR_BGR2RGB)
         classes, scores, boxes = detector.run(image)
