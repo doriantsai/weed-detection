@@ -31,7 +31,10 @@ class TestModel:
                                'mask_dir': '/home/agkelpie/Code/agkelpie_weed_detection/agkelpiedataset_yellangelo_tussock/masks'}
     
     # default output directory, where models and progress checkpoints are saved
-    OUTPUT_DIR_DEFAULT = '/home/agkelpie/Code/agkelpie_weed_detection/agkelpiedataset_yellangelo_tussock/groundtruth_images'
+    OUTPUT_DIR_DEFAULT = '/home/agkelpie/Code/agkelpie_weed_detection/agkelpiedataset_yellangelo_tussock/images_test'
+
+    # default image save name if none are given
+    DEFAULT_IMAGE_SAVE_NAME = os.path.join(os.getcwd(), 'image_test.png')
 
 
     def __init__(self,
@@ -61,9 +64,9 @@ class TestModel:
         # output directory
         self.output_dir = output_dir
         os.makedirs(output_dir, exist_ok=True)
-    
+        
 
-    def show_annotations(self, image, image_annotation, save_image_filename, SAVE=True):
+    def show_annotations(self, image, image_annotation, save_image_filename=None, SAVE=False):
         # image as numpy array on CPU
         # groundtruth as an annotations object, indexed to the relevant image
         # SAVE as boolean flag to save figure or not
@@ -89,12 +92,14 @@ class TestModel:
                 
 
         if SAVE:
+            if save_image_filename is None:
+                save_image_filename = self.DEFAULT_IMAGE_SAVE_NAME
             self.detector.save_image(image, save_image_filename)
 
         return image
          
 
-    def test(self, image_filename):
+    def show_image_test(self, image_filename):
         # given image filename
         # find the corresponding image in the annotations as groundtruth
         # run detector
@@ -112,12 +117,20 @@ class TestModel:
         image = self.detector.load_image_from_string(image_filename)
 
         # show the gt on the image
-        save_name = img_name[:-4] + '_ann.png'
-        save_image_filename = os.path.join(self.output_dir, save_name) 
-        image_ann = self.show_annotations(image, image_annotation, save_image_filename)
+        # save_name = img_name[:-4] + '_ann.png'
+        # save_image_filename_ann = os.path.join(self.output_dir, save_name) 
+        image_ann = self.show_annotations(image, image_annotation)
 
-        # run detections on the image
-        # need to remember to scale the detections to the original image size
+        # run detector on the image
+        detections = self.detector.detect(image)
+
+        # show detections as overlay
+        save_name = img_name[:-4] + '_test.png'
+        save_image_filename = os.path.join(self.output_dir, save_name)
+        image_det = self.detector.show_detections(image_ann, detections, save_image_filename, SAVE=True)
+
+        return image_det
+
 
 
 if __name__ == "__main__":
@@ -138,8 +151,9 @@ if __name__ == "__main__":
             print(f'reached max images: {max_img}')
             break
         print(f'{i}: {os.path.basename(img_name)}')
-        Test.test(os.path.join(ANNOTATION_DATA['image_dir'], img_name))
+        Test.show_image_test(os.path.join(ANNOTATION_DATA['image_dir'], img_name))
 
+    print(f'saved images in {Test.output_dir}')
     print('Complete TestModel.py')
 
 # functions:
