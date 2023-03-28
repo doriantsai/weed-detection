@@ -85,6 +85,7 @@ class Annotations:
             # default: assume 'masks' folder is parallel to img_dir
             mask_dir = os.path.join(os.path.dirname(img_dir), 'masks')
         self.mask_dir = mask_dir
+        os.makedirs(self.mask_dir, exist_ok=True)
 
         # if directory is empty (no files), then create masks
         if len(os.listdir(self.mask_dir)) == 0:
@@ -429,6 +430,7 @@ class Annotations:
         output current self.annotations list to txt for further manipulation/esp useful for adjusting training/testing/validation sets
         assume txtfilename is full absolute path
         """
+
         # default imglist
         if imglist is None:
             imglist = [ann.filename for ann in self.annotations]
@@ -442,6 +444,10 @@ class Annotations:
             TypeError(imglist, 'imglist has images that are not contained within self.imgs')
             # TODO print those images
         
+        # make sure that imagelist_file directory exist:
+        imagelist_dir = os.path.dirname(txtfile)
+        os.makedirs(imagelist_dir, exist_ok=True)
+
         # for each filename in imglist, write it to a text file
         with open(txtfile, 'w') as f:
             for img in imglist:
