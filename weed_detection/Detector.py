@@ -244,7 +244,7 @@ class Detector:
         return cv.normalize(img, None, 0, 255, cv.NORM_MINMAX, cv.CV_8U) # just in case, normalize image from 0,1 to 0,255
 
 
-    def show_detections(self, image, detections, image_filename, SAVE=False):
+    def show_detections(self, image, detections, save_image_filename, SAVE=False):
         """show_detections
         Given an RGB image (numpy array), output a new image with detections drawn ontop of the input image
 
@@ -288,7 +288,7 @@ class Detector:
                        thickness=font_thick)
         
         if SAVE:
-            self.save_image(image, image_filename)
+            self.save_image(image, save_image_filename)
         return image
     
 
@@ -312,7 +312,7 @@ class Detector:
         # must return 'classes', 'scores', 'boxes'
         # classes: a list of class labels (int)
         # scores: a list of confidence scores
-        # boxes: a list of coords (format?)
+        # boxes: a list of coords [xmin, ymin, xmax, ymax]
     def run(self, image): # TODO add parameters/options
 
         detections = self.detect(image)
@@ -326,6 +326,7 @@ class Detector:
 
 if __name__ == "__main__":
 
+    print('Detector.py')
     # set LOCAL to True if using a local file model, or False to automatically download a pre-existing model
     # NOTE pre-existing/trained model link may need to be updated for most recent data
     LOCAL = True
