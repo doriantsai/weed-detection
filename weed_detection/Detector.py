@@ -46,7 +46,7 @@ class Detector:
     NMS_THRESHOLD_DEFAULT = 0.5
     MASK_THRESHOLD_DEFAULT = 0.5
 
-    
+    ORIGINAL_IMAGE_INPUT_SIZE_DEFAULT = (2052, 2460)
 
     def __init__(self, 
                  model_file: str = MODEL_FILE_DEFAULT,
@@ -54,7 +54,8 @@ class Detector:
                  image_input_size: Tuple[int, int] = IMAGE_INPUT_SIZE_DEFAULT,
                  confidence_threshold: float = CONFIDENCE_THRESHOLD_DEFAULT,
                  nms_threshold: float = NMS_THRESHOLD_DEFAULT,
-                 mask_threshold: float = MASK_THRESHOLD_DEFAULT):
+                 mask_threshold: float = MASK_THRESHOLD_DEFAULT,
+                 original_image_input_size: Tuple[int, int]= ORIGINAL_IMAGE_INPUT_SIZE_DEFAULT):
 
         self.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
@@ -70,6 +71,11 @@ class Detector:
 
         # to store detections in
         self.detections = []
+
+        # to store original input image size
+        self.original_input_image_width = original_image_input_size[0]
+        self.original_input_image_height = original_image_input_size[1]
+
 
     def load_class_names(self, class_names_file: str):
         class_names = []
@@ -142,6 +148,7 @@ class Detector:
     def convert_input_image(self, image, image_color_format = 'RGB'):
         """ convert image input type numpy array/PIL Image/tensor to model required format
         which is pytorch image tensor, RGB
+        also # record original image input size for rescaling output at end
         """
         color_format = ['RGB', 'BGR']
         # TODO also, rescale image to correct input image size?
@@ -153,6 +160,9 @@ class Detector:
 
             # check size of image, rescale to appropriate size
             hi, wi, ci = image.shape
+            # record original image input size for rescaling output at end
+            self.original_input_image_height = hi
+            self.original_input_image_width = wi
             if (hi != self.image_height) or (wi != self.image_width):
                 image = cv.resize(image, 
                                   (self.image_width, self.image_height),
@@ -162,6 +172,8 @@ class Detector:
             transform = transforms.ToTensor()
             image = transform(image)
         elif isinstance(image, PIL_Image.Image):
+            # record original image input size for rescaling output at end
+            self.original_input_image_width, self.original_input_image_height = image.size
             # resize image to fit
             image = PIL_Image.resize((self.image_width, self.image_height))
             pil_transform = transforms.PILToTensor()
@@ -169,6 +181,9 @@ class Detector:
         else:
             transform = transforms.ToTensor()
             image = transform(image)
+            # record original image input size for rescaling output at end # TODO check this
+            self.original_input_image_width, self.original_input_image_height = image.get_image_size()
+
             resize = transforms.Resize()
             image = resize(image, (self.image_width, self.image_height))
         return image
@@ -189,6 +204,7 @@ class Detector:
             mask_threshold = self.mask_threshold
 
         # convert image to valid image tensor
+        # also determines original input image size and sets corresponding detector object properties
         image = self.convert_input_image(image)
 
         with torch.no_grad():
@@ -209,6 +225,10 @@ class Detector:
         # bboxes in the form [xmin, ymin, xmax, ymax]
         detections_boxes = [[bb[0], bb[1], bb[2], bb[3]]
                             for bb in list(detections_raw[0]['boxes'][keep].detach().cpu().numpy())]
+        
+        # TODO rescale bbox to original image dimensions
+        detections_boxes = self.rescale_boxes(detections_boxes)
+
         detections_masks = list(detections_raw[0]['masks'][keep].detach().cpu().numpy())
         # scores are ordered from highest to lowest
         detections_scores = list(detections_raw[0]['scores'][keep].detach().cpu().numpy())
@@ -218,6 +238,9 @@ class Detector:
         for i, mask in enumerate(detections_masks):
             mask = np.transpose(mask, (1, 2, 0))
             
+            # TODO rescale mask to original image dimensions
+            mask = self.rescale_mask(mask)
+
             # create mask detection object, polygon, centroid information, etc 
             # should be automatically populated
             maskdetections = MaskDetections(label = detections_class[i],
@@ -233,6 +256,27 @@ class Detector:
 
         # return detections
         return detections
+
+
+    def rescale_boxes(self, boxes):
+        """ rescale detection bounding boxes to original input image size """
+        # boxes: a list of coords [xmin, ymin, xmax, ymax]
+        arx = float(self.original_input_image_width) / float(self.image_width)
+        ary = float(self.original_input_image_height) / float(self.image_height)
+        for bb in boxes:
+            bb[0] = bb[0] * arx
+            bb[1] = bb[1] * ary
+            bb[2] = bb[2] * arx
+            bb[3] = bb[3] * ary
+        return boxes
+
+
+    def rescale_mask(self, mask):
+        """ rescale mask to orginal input image size """
+        mask = cv.resize(mask, 
+                         (self.original_input_image_width, self.original_input_image_height),
+                         interpolation=cv.INTER_NEAREST)
+        return mask
 
 
     def load_image_from_string(self, image_filename: str):
