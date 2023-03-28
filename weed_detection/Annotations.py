@@ -93,7 +93,19 @@ class Annotations:
             self.create_masks_from_polygons()
 
         self.masks = list(sorted(os.listdir(self.mask_dir)))
+
+        self.dataset_name = self.create_dataset_name()
         # end init
+    
+
+    def create_dataset_name(self):
+        """ create unique annotation set name based on dataset.json from annotation file"""
+        # combine name + dataset_id:
+        metadata = json.load(open(self.filename))
+        name = str(metadata['name'])
+        dataset_id = str(metadata['dataset_id'])
+        dataset_name = name + dataset_id
+        return dataset_name
         
 
     def read_agkelpie_annotations_raw(self):

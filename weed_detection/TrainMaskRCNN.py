@@ -133,6 +133,8 @@ class TrainMaskRCNN:
         self.model = self.create_model()
 
 
+
+
     def process_train_val_test_ratio(self, train_val_ratio):
         """ process train_val ratio for the percentages of data for training, validation and testing, respectively
         input: tuple of two numbers,
@@ -289,8 +291,13 @@ class TrainMaskRCNN:
         print('successfully completed train_pipeline')
 
 
-    def train_model(self, WeedDataTrain, WeedDataVal):
+    def train_model(self, WeedDataTrain, WeedDataVal, model_name=None):
         """ train model given the datasets """
+
+        # set unique dataset-specific model name and output folder
+        if model_name is None:
+            model_name = self.annotation_object.dataset_name
+        os.makedirs(os.path.join(self.output_dir, model_name), exist_ok=True)
         
         # create dataloaders separate for train/val
         dataloader_train = self.create_dataloader(WeedData=WeedDataTrain, shuffle=True)
@@ -334,7 +341,8 @@ class TrainMaskRCNN:
 
                 # Save the model checkpoint after each validation epoch
                 checkpoint_path = f'checkpoint_{epoch+1}.pth'
-                torch.save(self.model.state_dict(), os.path.join(self.output_dir, checkpoint_path))
+                
+                torch.save(self.model.state_dict(), os.path.join(self.output_dir, model_name, checkpoint_path))
                 wandb.save(checkpoint_path)
 
                 # save the best epoch via min running loss
@@ -366,7 +374,7 @@ class TrainMaskRCNN:
         print(f'best epoch: {best_epoch+1}, as {best_name}')
 
         # save trained model for inference
-        torch.save(self.model.state_dict(), os.path.join(self.output_dir, 'model_maxepochs.pth'))
+        torch.save(self.model.state_dict(), os.path.join(self.output_dir, model_name, 'model_maxepochs.pth'))
         print('model saved: {}'.format(self.output_dir))
 
 
