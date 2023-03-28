@@ -14,7 +14,7 @@
 """
 
 import os
-import json
+# import json
 from shutil import ReadError
 from subprocess import call
 
@@ -25,8 +25,9 @@ import numpy as np
 from PIL import Image as PIL_Image
 import cv2 as cv
 from typing import Tuple
-from shapely.geometry import Polygon
-from scipy.interpolate import interp1d
+# from shapely.geometry import Polygon
+# from scipy.interpolate import interp1d
+import matplotlib.pyplot as plt
 
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 from torchvision.models.detection.mask_rcnn import MaskRCNNPredictor
@@ -232,7 +233,78 @@ class Detector:
 
         # return detections
         return detections
+
+
+    def load_image_from_string(self, image_filename: str):
+        """show_image
+        Given an image filename, output the image as a numpy array 
+        """
+        img = cv.imread(image_filename) # openCV default reads in BGR format
+        img = cv.cvtColor(img, cv.COLOR_BGR2RGB) # however, the rest of the world works with RGB
+        return cv.normalize(img, None, 0, 255, cv.NORM_MINMAX, cv.CV_8U) # just in case, normalize image from 0,1 to 0,255
+
+
+    def show_detections(self, image, detections, image_filename, SAVE=False):
+        """show_detections
+        Given an RGB image (numpy array), output a new image with detections drawn ontop of the input image
+
+        Args:
+            image (_type_): _description_
+
+        Returns:
+            _type_: _description_
+        """
+        # TODO assert valid image, numpy array, format, number of channels, size, etc
         
+
+        # get detections
+        # detections = self.detect(image)
+
+        # draw on detetections - just bounding boxes
+        # plotting parameters:
+        box_thick = 3
+        font_scale = 1 # TODO font scale should be function of image size
+        font_thick = 1
+        detection_colour = [255, 0, 0] # RGB red - TODO should setup a library of colours for multiple classes
+
+        for d in detections:
+            bb = np.array(d.box, dtype=np.float32)
+            # draw box
+            image = cv.rectangle(image, 
+                                 (int(bb[0]), int(bb[1])),
+                                 (int(bb[2]), int(bb[3])),
+                                 color=detection_colour,
+                                 thickness=box_thick)
+            
+            # add text to top left corner of box
+            # class + confidence as a percent
+            conf_str = format(d.score * 100.0, '.0f')
+            cv.putText(image,
+                       '{}: {}'.format(d.class_name, conf_str),
+                       (int(bb[0] + 10), int(bb[1]) + 30),
+                       fontFace=cv.FONT_HERSHEY_COMPLEX,
+                       fontScale=font_scale,
+                       color=detection_colour,
+                       thickness=font_thick)
+        
+        if SAVE:
+            self.save_image(image, image_filename)
+        return image
+    
+
+    def save_image(self, image, image_filename):
+        """ save_image
+        write image to file, given image and image_filename
+        """
+        # TODO ensure that image_filename is valid and folder exists
+        image_dir = os.path.dirname(image_filename)
+        os.makedirs(image_dir, exist_ok=True)
+        # TODO ensure that image is valid
+        # assuming image is in RGB format, so convert back to BGR
+        image = cv.cvtColor(image, cv.COLOR_RGB2BGR)
+        cv.imwrite(image_filename, image)
+        return True
+
 
     # @abstractmethod
     # def run(self, image):
@@ -274,20 +346,30 @@ if __name__ == "__main__":
     # grab any images in the 'images' folder:
     # img_dir = 'images'
     img_dir = '/home/agkelpie/Code/agkelpie_weed_detection/agkelpiedataset_yellangelo_tussock/annotated_images'
+    out_dir = '/home/agkelpie/Code/agkelpie_weed_detection/agkelpiedataset_yellangelo_tussock/detections'
     img_list = os.listdir(img_dir)
     # image_file = 'images/2021-10-13-T_13_50_55_743.png'
-    max_image = 10
+    max_image = 5
     for i, img_name in enumerate(img_list):
         if i > max_image:
             print(f'hit max images {i}')
             break
         print(f'{i}: image name = {img_name}')
-        image = cv.imread(os.path.join(img_dir, img_name))
-        image = cv.cvtColor(image, cv.COLOR_BGR2RGB)
-        classes, scores, boxes = detector.run(image)
-        print('classes:')
-        print(classes)
-        print('scores: ')
-        print(scores)
-        print('boxes: ')
-        print(boxes)
+        img = detector.load_image_from_string(os.path.join(img_dir, img_name))
+        detections = detector.detect(img)
+        save_img_name = os.path.join(out_dir, img_name[:-4] + '_det.png')
+        img_out = detector.show_detections(img, detections, save_img_name, True)
+        # use matplotlib to show image, since their image viewer is much more stable and user-friendly
+        # fig, ax = plt.subplot()
+        # plt.imshow(img_out)
+        # plt.show()
+        # image = cv.imread(os.path.join(img_dir, img_name))
+
+        # image = cv.cvtColor(image, cv.COLOR_BGR2RGB)
+        # classes, scores, boxes = detector.run(image)
+        # print('classes:')
+        # print(classes)
+        # print('scores: ')
+        # print(scores)
+        # print('boxes: ')
+        # print(boxes)
