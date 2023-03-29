@@ -22,32 +22,8 @@ from weed_detection.AnnotationRegion import AnnotationRegion
 
 class Annotations:
     # annotation format, either VIA or AGKELPIE
+    # NOTE: depracated VIA format removed after refactor
     AGKELPIE_FORMAT = 'AGKELPIE'
-
-    # old properties for VIA formatting
-    VIA_FORMAT = 'VIA'
-    
-    # old properties for VIA formatting
-    # annotation metadata key from VIA tool
-    VIA_METADATA = '_via_img_metadata'
-    
-    # old properties for VIA formatting
-    # annotation region shapes
-    SHAPE_POLY = 'polygon'
-    SHAPE_RECT = 'rect'
-    SHAPE_POINT = 'point'
-
-    # old properties for VIA formatting
-    # annotation species
-    ATTR_SPECIES = 'species'
-    SPECIES_TUSSOCK = 'tussock'
-    SPECIES_THISTLE = 'thistle'
-    SPECIES_HOREHOUND = 'horehound'
-
-    # old properties for VIA formatting
-    # attributes
-    ATTR_OCCLUDED = 'occluded'
-    ATTR_ISPROCESSED = 'processed'
 
 
     def __init__(self, 
@@ -70,10 +46,6 @@ class Annotations:
         if ann_format == self.AGKELPIE_FORMAT:
             self.annotations_raw, self.dataset_name, self.species = self.read_agkelpie_annotations_raw()
             self.annotations = self.convert_agkelpie_annotations() # convert to internal format
-            
-        elif ann_format == self.VIA_FORMAT: # retained only for archival reasons, but otherwise depracated
-            self.annotations_raw = self.read_via_annotations_raw()
-            self.annotations = self.convert_via_annotations() # convert to internal format
         else:
             raise ValueError(ann_format, 'Unknown annotation format')
 
@@ -122,18 +94,6 @@ class Annotations:
         dataset_name = folder_name + '_' + location_name # dataset_name used to make dirs
 
         return data, dataset_name, species if len(data) > 0 else False
-
-
-    def read_via_annotations_raw(self):
-        """
-        read the raw annotations from the via annotation file
-        return img metadata as a list for each image
-        """
-        metadata = json.load(open(self.filename))
-        img_data = metadata[self.VIA_METADATA]
-        data = list(img_data.values())
-
-        return data if len(data) > 0 else False
 
 
     def check_annotation_image_consistency(self):
@@ -231,75 +191,6 @@ class Annotations:
                                                             plant_count=plant_count))
                     else:
                         ValueError(shape_attr, 'unknown or unsupported annotation shape type')        
-
-            data.append(img)
-
-        return data if len(data) > 0 else False
-
-
-    # same as James Bishop for ease of comparisons
-    # poly: x = all x points, y = all y points, length = number of points
-    # rect: x = top-left & bottom-right x points, y = top-left & bottom-right y points, length = 2
-    # point: x = x, y = y, length = 1
-    def convert_via_annotations(self):
-        """
-        convert raw annotations into interal annotation format (nested classes of annotation regions)
-        with relevant properties that will allow easy filtering based on attributes, such as weed species, occluded, etc
-        """
-        data = []
-
-        # get image height/width from an img file in img_dir
-        # assume all images are of the same size in the same img_dir
-        im = PILImage.open(os.path.join(self.img_dir, self.imgs[0]))
-        width, height = im.size
-
-
-        # extract camera info from Dataset.txt in the metadata folder
-        # NOTE I suspect that it is not currently updated, so for now, just use
-        camera = 'MakoG507'
-
-        for img_data in self.annotations_raw:
-            filename = img_data['filename']
-            file_attr = img_data['file_attributes']
-
-            img = Image(filename = filename, 
-                        width = width, 
-                        height = height, 
-                        camera = camera,
-                        file_attr = file_attr)
-
-            if len(img_data['regions']) > 0:
-                for annotation in img_data['regions']:
-                    shape_attr = annotation['shape_attributes']
-                    region_attr = annotation['region_attributes']
-
-                    if len(region_attr) > 0:
-                        if self.ATTR_SPECIES in region_attr:
-                            class_name = region_attr['species']
-                        else:
-                            class_name = False
-                        if self.ATTR_OCCLUDED in region_attr:
-                            occluded = region_attr['occluded']
-                        else:
-                            occluded = False
-                    else:
-                        class_name = False
-                        occluded = False
-
-                    if shape_attr['name'] == self.SHAPE_POLY:
-                        img.regions.append(AnnotationRegion(class_name = class_name, 
-                                                            x = shape_attr['all_points_x'],
-                                                            y = shape_attr['all_points_y'],
-                                                            shape_type = self.SHAPE_POLY,
-                                                            occluded = occluded))
-                    elif shape_attr['name'] == self.SHAPE_POINT:
-                        img.regions.append(AnnotationRegion(class_name = class_name,
-                                                            x = shape_attr['cx'],
-                                                            y = shape_attr['cy'],
-                                                            shape_type = self.SHAPE_POINT,
-                                                            occluded = occluded))
-                    else:
-                        print('ERROR: unknown or unsupported annotation shape type')
 
             data.append(img)
 

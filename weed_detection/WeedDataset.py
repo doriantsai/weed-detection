@@ -21,11 +21,10 @@ from weed_detection.Annotations import Annotations
 class WeedDataset(object):
     """ weed dataset object for polygons """
 
-    # annotation format, either VIA or AGKELPIE
+    # annotation format, AGKELPIE
+    # VIA format removed after depracated
     AGKELPIE_FORMAT = 'AGKELPIE'
 
-    # old properties for VIA formatting
-    VIA_FORMAT = 'VIA'
     
     # TODO put defaults, similar to James' code
     def __init__(self,
@@ -67,27 +66,21 @@ class WeedDataset(object):
         
         # absolute filepath
         self.format = format
-        if self.format == self.VIA_FORMAT:
-            annotations = json.load(open(os.path.join(annotation_filename)))
-            self.annotations = list(annotations.values())
-            self.imgs = list(sorted(os.listdir(self.img_dir)))
-            self.masks = list(sorted(os.listdir(self.mask_dir)))
-        else:
-            annotations = Annotations(filename=annotation_filename,
-                                      img_dir=img_dir,
-                                      mask_dir=mask_dir,
-                                      ann_format=format)
-            # added to deal with training/testing sets from text files without touching original dataset.json annotation files
-            if imgtxt_file is not None:
-                self.imgtxt_file = imgtxt_file
-                print(f'pruning annotations using {imgtxt_file}')
-                annotations.prune_annotations_from_imagelist_txt(imgtxt_file)
+        annotations = Annotations(filename=annotation_filename,
+                                    img_dir=img_dir,
+                                    mask_dir=mask_dir,
+                                    ann_format=format)
+        # added to deal with training/testing sets from text files without touching original dataset.json annotation files
+        if imgtxt_file is not None:
+            self.imgtxt_file = imgtxt_file
+            print(f'pruning annotations using {imgtxt_file}')
+            annotations.prune_annotations_from_imagelist_txt(imgtxt_file)
                 
-            self.annotations = annotations.annotations
-            self.num_classes = annotations.num_classes
-            self.imgs = annotations.imgs
-            self.masks = annotations.masks
-            self.define_labels()
+        self.annotations = annotations.annotations
+        self.num_classes = annotations.num_classes
+        self.imgs = annotations.imgs
+        self.masks = annotations.masks
+        self.define_labels()
 
 
     def define_labels(self):
@@ -115,8 +108,6 @@ class WeedDataset(object):
         """
         if self.format == self.AGKELPIE_FORMAT:
             image, sample = self.getitem_agkelpie(idx)
-        elif self.format == self.VIA_FORMAT:
-            image, sample = self.getitem_via(idx)
         else:
             ValueError(self.format, 'annotation format unknown')
         return image, sample
@@ -226,142 +217,6 @@ class WeedDataset(object):
         #     sample['points'] = points
         return sample
     
-    
-    def getitem_via(self, idx):
-        """
-        given an index, return the corresponding image and sample from the dataset
-        converts images and corresponding sample to tensors
-        for via dataset format only
-        NOTE: not updated
-        """
-
-        if torch.is_tensor(idx):
-            idx = idx.tolist()
-
-        # get image
-        img_name = os.path.join(self.img_dir, self.annotations[idx]['filename'])
-        image =  PILImage.open(img_name).convert("RGB")
-
-        # get mask
-        mask_name = os.path.join(self.mask_dir, self.annotations[idx]['filename'][:-4] + '_mask.png')
-        mask =  np.array(PILImage.open(mask_name))
-
-        # if we have a normal mask of 0's and 1's
-        if mask.max() > 0:
-            # instances are encoded as different colors
-            obj_ids = np.unique(mask)
-            # first id is the background, so remove it
-            obj_ids = obj_ids[1:]
-            # split the color-encoded mask into a set of binary masks
-            masks = mask == obj_ids[:, None, None]
-            masks = masks[:]
-            nobj = len(obj_ids)
-        else:
-            # for a negative image, mask is all zeros, or just empty
-            # masks = np.expand_dims(mask == 1, axis=1)
-            nobj = 0
-            
-        if nobj > 0:
-            masks = torch.as_tensor(masks, dtype=torch.uint8)
-        else:
-            masks = torch.zeros((0, image.size[0], image.size[1]), dtype=torch.uint8)
-
-        # get bounding boxes for each object
-        # bounding box is read in a xmin, ymin, width and height
-        # bounding box is saved as xmin, ymin, xmax, ymax
-        boxes = []
-        if nobj > 0:
-            for i in range(nobj):
-                pos = np.where(masks[i])
-                xmin = np.min(pos[1])
-                xmax = np.max(pos[1])
-                ymin = np.min(pos[0])
-                ymax = np.max(pos[0])
-                boxes.append([xmin, ymin, xmax, ymax])
-        if nobj == 0:
-            boxes = torch.zeros((0, 4), dtype=torch.float32)
-        else:
-            boxes = torch.as_tensor(boxes, dtype=torch.float32)
-
-        # get annotation spray points
-        points = []
-        if nobj > 0:
-            reg = self.annotations[idx]['regions']
-            for i, r in enumerate(reg):
-                if isinstance(self.annotations[idx]['regions'], dict):
-                    j = str(i)
-                else:  # regions is a list type
-                    j = i
-                name = r['shape_attributes']['name']
-                if name == 'point':
-                    cx = self.annotations[idx]['regions'][j]['shape_attributes']['cx']
-                    cy = self.annotations[idx]['regions'][j]['shape_attributes']['cy']
-                    points.append([cx, cy])
-                # TODO need to do a python script that checks for this ahead of time
-                # NOTE: not every polygon (nobj) should contain a spraypoint, because we don't want to spray every 
-                # polygon necessarily. 
-                # NOTE: reportedly, the new AgKelpie image database has this functionality
-            points = torch.as_tensor(points, dtype=torch.float32)
-        else:
-            points = torch.zeros((0, 2), dtype=torch.float32)
-
-        # compute area
-        if nobj > 0:
-            area = (boxes[:, 3] - boxes[:, 1]) * (boxes[:, 2] - boxes[:, 0])
-        else:
-            area = 0
-        area = torch.as_tensor(area, dtype=torch.float32)
-
-        # read in all region attributes to apply label based on class names:
-        labels_box = []
-        labels_pt = []
-        labels_poly = []
-        if nobj > 0:
-            reg = self.annotations[idx]['regions']
-            for i, r in enumerate(reg):
-                if isinstance(self.annotations[idx]['regions'], dict):
-                    j = str(i)
-                else:
-                    j = i
-                name = r['shape_attributes']['name']
-                if name == 'rect':
-                    species_name = r['region_attributes']['species']
-                    if self.check_species(species_name):
-                        labels_box.append( list(self.classes.values()).index(species_name) )
-                    else:
-                        ValueError(species_name, f'species_name {species_name} not in self.classes.values()')
-
-                if name == 'point':
-                    # species_name = r['region_attributes']['species']
-                    species_name = list(self.classes.items())[1] # TODO currently, point's don't have species annotation?
-                    if self.check_species(species_name):
-                        labels_pt.append( list(self.classes.values()).index(species_name) )
-                    else:
-                        ValueError(species_name, f'species_name {species_name} not in self.classes.values()')
-
-                if name == 'polygon':
-                    species_name = r['region_attributes']['species']
-                    if self.check_species(species_name):
-                        labels_poly.append( list(self.classes.values()).index(species_name) )
-                    else:
-                        ValueError(species_name, f'species_name {species_name} not in self.classes.values()')
-
-        # for now, we don't care about point or box annotations, poly and box annotations should also be equivalent
-        labels = torch.as_tensor(labels_poly, dtype=torch.int64)
-
-        iscrowd = torch.zeros((nobj,), dtype=torch.int64) # currently unused, but potential for crowded weed images
-
-        # image_id is the index of the image in the folder
-        image_id = torch.tensor([idx], dtype=torch.int64)
-
-        sample = self.package_sample(boxes, labels, image_id, area, iscrowd, masks, points)
-        
-        # apply transforms to image and sample
-        if self.transforms:
-            image, sample = self.transforms(image, sample)
-
-        return image, sample
-
 
     def check_species(self, species):
         """ check species names, if matches self.classes, then returns true, else returns false """
