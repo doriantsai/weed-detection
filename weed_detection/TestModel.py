@@ -19,7 +19,7 @@ class TestModel:
     # default parameters
     IMAGE_INPUT_SIZE_DEFAULT = (1028, 1232) # TODO should make a config file
     SPECIES_FILE_DEFAULT = os.path.join(os.getcwd(), 'model/maskrcnn_species_names.txt')
-    MODEL_FILE_DEFAULT = os.path.join('/home/agkelpie/Code/agkelpie_weed_detection/weed-detection/model/model_best.pth')
+    MODEL_FILE_DEFAULT = os.path.join('/home/agkelpie/Code/agkelpie_weed_detection/weed-detection/model/Yellangelo32/model_best.pth')
     CONFIDENCE_THRESHOLD_DEFAULT = 0.5
     NMS_THRESHOLD_DEFAULT = 0.5
     MASK_THRESHOLD_DEFAULT = 0.5

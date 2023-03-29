@@ -6,6 +6,7 @@ converting images
 moving images around
 synchronizing annotation files
 a collection of functions for the above
+! code is depracated since merge with refactor1 branch
 """
 
 import os

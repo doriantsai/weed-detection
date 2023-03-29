@@ -11,6 +11,8 @@ as an arbitrarily long time to satisfy convergence with the intention of plottin
 Learning rate, momentum, and weight_decay were initially taken from [Olsen 2019 DeepWeeds], 
 and then empirically fine-tuned for learning. 
 patience is the number of epochs that remain arbitrarily low or approximately constant, before early stopping occurs
+validation_epoch_frequency is the frequency of performing network validation
+
 This was sufficient to develop a pipeline and produce a basic demonstrator. 
 Further hyperparameter tuning and sweeps may yield incrementally-improved performance. 
 hp = json.load(open(hyper_param_file))['hyper_parameters']
@@ -23,6 +25,7 @@ self.learning_rate = hp['learning_rate'] # 0.002
 self.momentum = hp['momentum'] # 0.9 # 0.8
 self.weight_decay = hp['weight_decay'] # 0.0005
 self.patience = hp['patience']
+
 """
 
 import os
@@ -76,6 +79,9 @@ class TrainMaskRCNN:
     # default hyper parameter text file for training the model
     HYPER_PARAMETERS_DEFAULT = '/home/agkelpie/Code/agkelpie_weed_detection/weed-detection/config/hyper_parameters.json'
 
+    # Weights And Biases Project Name & User
+    WANDB_PROJECT_NAME_DEFAULT = 'weed-detection-refactor1'
+    WANDB_USER_DEFAULT = 'doriantsai'
 
     def __init__(self,
                  annotation_data: dict=ANNOTATION_DATA_DEFAULT,
@@ -83,7 +89,9 @@ class TrainMaskRCNN:
                  imagelist_files: dict=IMAGELIST_FILES_DEFAULT,
                  output_dir: str=OUTPUT_DIR_DEFAULT,
                  classes_config_file: str=CLASSES_CONFIG_DEFAULT,
-                 hyper_param_file: str=HYPER_PARAMETERS_DEFAULT):
+                 hyper_param_file: str=HYPER_PARAMETERS_DEFAULT,
+                 wandb_project_name: str=WANDB_PROJECT_NAME_DEFAULT,
+                 wandb_user: str=WANDB_USER_DEFAULT):
 
         # create annotation set from annotation data
         self.annotation_data = annotation_data
@@ -119,11 +127,12 @@ class TrainMaskRCNN:
         self.momentum = hp['momentum'] # 0.9 # 0.8
         self.weight_decay = hp['weight_decay'] # 0.0005
         self.patience = hp['patience']
+        self.validation_epoch_frequency = hp['validation_epoch_frequency']
 
         self.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
         # Set up WandB
-        wandb.init(project='weed-detection-refactor1', entity='doriantsai') # TODO change to an agkelpie account?
+        wandb.init(project=wandb_project_name, entity=wandb_user) # TODO change to an agkelpie account?
 
         # save path for models and checkpoints
         self.output_dir = output_dir
@@ -291,7 +300,11 @@ class TrainMaskRCNN:
         print('successfully completed train_pipeline')
 
 
-    def train_model(self, WeedDataTrain, WeedDataVal, model_name=None, SAVE_CHECKPOINTS=False):
+    def train_model(self, 
+                    WeedDataTrain, 
+                    WeedDataVal, 
+                    model_name=None, 
+                    SAVE_CHECKPOINTS=False):
         """ train model given the datasets """
 
         # set unique dataset-specific model name and output folder
@@ -310,10 +323,8 @@ class TrainMaskRCNN:
         # clip_value = 5 # clip gradients
 
         start_time = time.time()
-        val_epoch = 2 # validation epoch frequency
         lowest_val = 1e6
         best_epoch = 0 
-        # best_val_loss = float('inf') # for early stopping
         counter = 0
 
         print('begin training')
@@ -329,7 +340,7 @@ class TrainMaskRCNN:
             lr_scheduler.step()
 
             # validation 
-            if (epoch % val_epoch) == (val_epoch - 1):
+            if (epoch % self.validation_epoch_frequency) == (self.validation_epoch_frequency - 1):
                 val_loss = self.validate_epoch(self.model, dataloader_val)
 
                 # compute mAP score
@@ -354,9 +365,13 @@ class TrainMaskRCNN:
                     torch.save(self.model.state_dict(), best_name)
                     counter = 0
                 else:
+                    # Early stopping: whenever we find a new "best" epoch, we
+                    # reset the counter otherwise, we increment the counter. If
+                    # the counter reaches a threshold, then we trigger early
+                    # stopping (stop the training). 
                     counter += 1
                     if counter == self.patience:
-                        print('Early stopping')
+                        print(f'Early stopping at epoch {epoch+1}')
                         break
                 # end validation section
             else:

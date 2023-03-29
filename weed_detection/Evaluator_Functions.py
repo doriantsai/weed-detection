@@ -3,6 +3,7 @@
 """
 Evaluate model - work in progress, separating model evaluation from model training in WeedModel.py (removed as of March 28th 2023)
 # TODO create ModelEvaluator class
+! this is depracated code directly cut out of WeedModel.py, this code will not work
 - Should import Detector.py to load model
 - show model predictions
 - determine outcomes, given labelled data

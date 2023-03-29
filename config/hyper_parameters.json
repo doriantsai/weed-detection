@@ -8,6 +8,7 @@
         "learning_rate": 0.002,
         "momentum": 0.9,
         "weight_decay": 0.0005,
-        "patience": 50
+        "patience": 30,
+        "validation_epoch_frequency": 2
     }
 }
