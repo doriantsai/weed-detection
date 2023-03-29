@@ -1,9 +1,11 @@
 #! /usr/bin/env python3
 
-from weed_detection.Detections import Detections
 import numpy as np
 import cv2 as cv
 import matplotlib.pyplot as plt
+
+from weed_detection.Detections import Detections
+
 
 class MaskDetections(Detections):
 
@@ -21,27 +23,30 @@ class MaskDetections(Detections):
             self.mask_binary = []
             x = False
             y = False
+            self.poly = False
 
         elif mask_confidence is None and isinstance(mask_binary, np.ndarray):
             self.mask_binary = mask_binary
             # x, y = self.get_bounding_polygon(self.mask_binary)
             x, y = False, False
+            self.poly = False
 
         elif isinstance(mask_confidence, np.ndarray):
             self.mask_confidence = mask_confidence
             self.mask_binary = self.binarize_confidence_mask(self.mask_confidence, self.mask_threshold)
             x, y = self.get_bounding_polygon(self.mask_binary)
-        
+            self.poly = np.array((x, y)) # self.poly = [] # where we will save the polygons
         else:
             raise TypeError('Unrecognised types for mask_confidence and/or mask_binary')
-
+        
         Detections.__init__(self,
                             label=label, 
                             score=score, 
                             x=x, 
                             y=y, 
                             shape_type = 'polygon')
-
+        # end init
+            
 
     def binarize_confidence_mask(self, 
                                  mask, 
@@ -143,7 +148,7 @@ if __name__ == "__main__":
     gauss = gauss / gauss.max()
 
     plt.imshow(gauss)
-    plt.show()
+    # plt.show()
 
 
     md = MaskDetections(1, 0.6, mask_confidence=gauss, mask_threshold=0.75)
@@ -152,5 +157,5 @@ if __name__ == "__main__":
     plt.imshow(md.mask_binary)
     plt.show()
 
-    # import code
-    # code.interact(local=dict(globals(), **locals()))
+    import code
+    code.interact(local=dict(globals(), **locals()))

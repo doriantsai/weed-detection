@@ -99,7 +99,7 @@ class TestModel:
         return image
          
 
-    def show_image_test(self, image_filename):
+    def show_image_test(self, image_filename, POLY=True):
         # given image filename
         # find the corresponding image in the annotations as groundtruth
         # run detector
@@ -127,7 +127,7 @@ class TestModel:
         # show detections as overlay
         save_name = img_name[:-4] + '_test.png'
         save_image_filename = os.path.join(self.output_dir, save_name)
-        image_det = self.detector.show_detections(image_ann, detections, save_image_filename, SAVE=True)
+        image_det = self.detector.show_detections(image_ann, detections, save_image_filename, POLY=POLY, SAVE=True)
 
         return image_det
 

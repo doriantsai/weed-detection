@@ -25,8 +25,6 @@ import numpy as np
 from PIL import Image as PIL_Image
 import cv2 as cv
 from typing import Tuple
-# from shapely.geometry import Polygon
-# from scipy.interpolate import interp1d
 import matplotlib.pyplot as plt
 
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
@@ -40,8 +38,8 @@ class Detector:
 
     # parameters
     IMAGE_INPUT_SIZE_DEFAULT = (1028, 1232) # TODO should make a config file
-    SPECIES_FILE_DEFAULT = os.path.join(os.getcwd(), 'model/maskrcnn_species_names.txt')
-    MODEL_FILE_DEFAULT = os.path.join('model/XX.pth')
+    SPECIES_FILE_DEFAULT = os.path.join(os.getcwd(), 'model/names_yellangelo32.txt')
+    MODEL_FILE_DEFAULT = os.path.join('model/Yellangelo32/model_best.pth')
     CONFIDENCE_THRESHOLD_DEFAULT = 0.5
     NMS_THRESHOLD_DEFAULT = 0.5
     MASK_THRESHOLD_DEFAULT = 0.5
@@ -145,6 +143,7 @@ class Detector:
         model.to(self.device)
         return model
 
+
     def convert_input_image(self, image, image_color_format = 'RGB'):
         """ convert image input type numpy array/PIL Image/tensor to model required format
         which is pytorch image tensor, RGB
@@ -228,6 +227,7 @@ class Detector:
         detections_boxes = self.rescale_boxes(detections_boxes)
 
         detections_masks = list(detections_raw[0]['masks'][keep].detach().cpu().numpy())
+
         # scores are ordered from highest to lowest
         detections_scores = list(detections_raw[0]['scores'][keep].detach().cpu().numpy())
 
@@ -241,6 +241,7 @@ class Detector:
 
             # create mask detection object, polygon, centroid information, etc 
             # should be automatically populated
+
             maskdetections = MaskDetections(label = detections_class[i],
                                             score = detections_scores[i],
                                             mask_confidence= mask,
@@ -286,7 +287,7 @@ class Detector:
         return cv.normalize(img, None, 0, 255, cv.NORM_MINMAX, cv.CV_8U) # just in case, normalize image from 0,1 to 0,255
 
 
-    def show_detections(self, image, detections, save_image_filename, SAVE=False):
+    def show_detections(self, image, detections, save_image_filename, POLY=True, SAVE=False):
         """show_detections
         Given an RGB image (numpy array), output a new image with detections drawn ontop of the input image
 
@@ -306,29 +307,75 @@ class Detector:
         detection_colour = [255, 0, 0] # RGB red - TODO should setup a library of colours for multiple classes
 
         for d in detections:
-            bb = np.array(d.box, dtype=np.float32)
-            # draw box
-            image = cv.rectangle(image, 
-                                 (int(bb[0]), int(bb[1])),
-                                 (int(bb[2]), int(bb[3])),
-                                 color=detection_colour,
-                                 thickness=box_thick)
-            
-            # add text to top left corner of box
-            # class + confidence as a percent
-            conf_str = format(d.score * 100.0, '.0f')
-            cv.putText(image,
-                       '{}: {}'.format(d.class_name, conf_str),
-                       (int(bb[0] + 10), int(bb[1]) + 30),
-                       fontFace=cv.FONT_HERSHEY_COMPLEX,
-                       fontScale=font_scale,
-                       color=detection_colour,
-                       thickness=font_thick)
+            if POLY:
+                image = self.plot_poly(image, d, box_thick, font_scale, detection_colour, font_thick)
+            else:
+                image = self.plot_box(image, d, box_thick, font_scale, detection_colour, font_thick)
         
         if SAVE:
             self.save_image(image, save_image_filename)
         return image
     
+
+    def plot_box(self, 
+                 image,
+                 detection, 
+                 box_thick,
+                 font_scale,
+                 detection_colour,
+                 font_thick):
+        """ plot a detected bounding box on an image """
+        bb = np.array(detection.box, dtype=np.float32)
+        # draw box
+        image = cv.rectangle(image, 
+                            (int(bb[0]), int(bb[1])),
+                            (int(bb[2]), int(bb[3])),
+                            color=detection_colour,
+                            thickness=box_thick)
+            
+        # add text to top left corner of box
+        # class + confidence as a percent
+        conf_str = format(detection.score * 100.0, '.0f')
+        cv.putText(image,
+                    '{}: {}'.format(detection.class_name, conf_str),
+                    (int(bb[0] + 10), int(bb[1]) + 30),
+                    fontFace=cv.FONT_HERSHEY_COMPLEX,
+                    fontScale=font_scale,
+                    color=detection_colour,
+                    thickness=font_thick)
+        return image
+
+
+    def plot_poly(self,
+                  image,
+                  detection,
+                  lines_thick,
+                  font_scale,
+                  lines_color,
+                  font_thick):
+        """ plot a detected polygon on an image """
+        poly = np.array(detection.poly)
+        poly = poly.transpose().reshape((-1, 1, 2))
+        cv.polylines(image,
+                     pts=[poly],
+                     isClosed=True,
+                     color=lines_color,
+                     thickness=lines_thick,
+                     lineType=cv.LINE_4)
+        # add text to top left corner of box
+        # class + confidence as a percent
+        conf_str = format(detection.score * 100.0, '.0f')
+        cv.putText(image,
+                    '{}: {}'.format(detection.class_name, conf_str),
+                    (int(poly[0, 0, 0] + 10), int(poly[0, 0, 1]) + 30),
+                    fontFace=cv.FONT_HERSHEY_COMPLEX,
+                    fontScale=font_scale,
+                    color=lines_color,
+                    thickness=font_thick)
+
+
+        return image
+
 
     def save_image(self, image, image_filename: str):
         """ save_image
@@ -373,7 +420,7 @@ if __name__ == "__main__":
     # print out the classes, scores, boxes
     
     if LOCAL:
-        model_file = '/home/agkelpie/Code/agkelpie_weed_detection/weed-detection/model/model_best.pth'
+        model_file = '/home/agkelpie/Code/agkelpie_weed_detection/weed-detection/model/Yellangelo32/model_best.pth'
     else: # REMOTE
         model_file = '2021_Yellangelo_Tussock_v0_2022-10-12_10_35_epoch30.pth'
         url = 'https://cloudstor.aarnet.edu.au/plus/s/3XEnfIEoLEAP27o/download'
@@ -382,8 +429,8 @@ if __name__ == "__main__":
 
     # grab any images in the 'images' folder:
     # img_dir = 'images'
-    img_dir = '/home/agkelpie/Code/agkelpie_weed_detection/agkelpiedataset_yellangelo_tussock/annotated_images'
-    out_dir = '/home/agkelpie/Code/agkelpie_weed_detection/agkelpiedataset_yellangelo_tussock/detections'
+    img_dir = '/home/agkelpie/Code/agkelpie_weed_detection/agkelpiedataset_yellangelo32_tussock/annotated_images'
+    out_dir = '/home/agkelpie/Code/agkelpie_weed_detection/agkelpiedataset_yellangelo32_tussock/detections'
     img_list = os.listdir(img_dir)
     # image_file = 'images/2021-10-13-T_13_50_55_743.png'
     max_image = 5
@@ -395,7 +442,7 @@ if __name__ == "__main__":
         img = detector.load_image_from_string(os.path.join(img_dir, img_name))
         detections = detector.detect(img)
         save_img_name = os.path.join(out_dir, img_name[:-4] + '_det.png')
-        img_out = detector.show_detections(img, detections, save_img_name, True)
+        img_out = detector.show_detections(img, detections, save_img_name, SAVE=True, POLY=True)
 
 
         # use matplotlib to show image, since their image viewer is much more stable and user-friendly

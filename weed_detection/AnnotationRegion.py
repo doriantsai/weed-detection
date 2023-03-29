@@ -2,6 +2,9 @@
 
 """
 Annotated Region class, which has annotation and region properties
+
+Based on James Bishop's UNE weed detector, AnnotatedRegion is a region that has
+annotated properties associated with it, 
 """
 
 from weed_detection.Region import Region

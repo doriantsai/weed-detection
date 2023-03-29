@@ -36,7 +36,7 @@ for i, img_name in enumerate(img_list):
         print(f'reached max images: {max_img}')
         break
     print(f'{i}: {os.path.basename(img_name)}')
-    Test.show_image_test(os.path.join(annotation_data['image_dir'], img_name))
+    Test.show_image_test(os.path.join(annotation_data['image_dir'], img_name), POLY=True)
 
 print(f'saved images in {Test.output_dir}')
 # done
