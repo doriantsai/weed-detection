@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from Region import Region
+from weed_detection.Region import Region
 
 class Detections(Region):
 

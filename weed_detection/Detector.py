@@ -33,7 +33,7 @@ from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 from torchvision.models.detection.mask_rcnn import MaskRCNNPredictor
 
 # from Detections import Detections
-from MaskDetections import MaskDetections
+from weed_detection.MaskDetections import MaskDetections
 
 
 class Detector:
@@ -126,7 +126,7 @@ class Detector:
 
         # get number of input features for mask classifier
         in_features_mask = model.roi_heads.mask_predictor.conv5_mask.in_channels
-        hidden_layer = 256 # TODO check what this variable is
+        hidden_layer = 256
 
         # replace mask predictor with new one
         model.roi_heads.mask_predictor = MaskRCNNPredictor(in_features_mask, hidden_layer, num_classes)
@@ -151,7 +151,6 @@ class Detector:
         also # record original image input size for rescaling output at end
         """
         color_format = ['RGB', 'BGR']
-        # TODO also, rescale image to correct input image size?
 
         if isinstance(image, np.ndarray):
             # check color format/ordering of image, convert to RGB
@@ -168,7 +167,6 @@ class Detector:
                                   (self.image_width, self.image_height),
                                   interpolation=cv.INTER_NEAREST)
             # transform to tensor
-            # image = torch.from_numpy(image)
             transform = transforms.ToTensor()
             image = transform(image)
         elif isinstance(image, PIL_Image.Image):
@@ -226,7 +224,7 @@ class Detector:
         detections_boxes = [[bb[0], bb[1], bb[2], bb[3]]
                             for bb in list(detections_raw[0]['boxes'][keep].detach().cpu().numpy())]
         
-        # TODO rescale bbox to original image dimensions
+        # rescale bbox to original image dimensions
         detections_boxes = self.rescale_boxes(detections_boxes)
 
         detections_masks = list(detections_raw[0]['masks'][keep].detach().cpu().numpy())
@@ -238,7 +236,7 @@ class Detector:
         for i, mask in enumerate(detections_masks):
             mask = np.transpose(mask, (1, 2, 0))
             
-            # TODO rescale mask to original image dimensions
+            # rescale mask to original image dimensions
             mask = self.rescale_mask(mask)
 
             # create mask detection object, polygon, centroid information, etc 
@@ -299,10 +297,6 @@ class Detector:
             _type_: _description_
         """
         # TODO assert valid image, numpy array, format, number of channels, size, etc
-        
-
-        # get detections
-        # detections = self.detect(image)
 
         # draw on detetections - just bounding boxes
         # plotting parameters:
@@ -336,14 +330,13 @@ class Detector:
         return image
     
 
-    def save_image(self, image, image_filename):
+    def save_image(self, image, image_filename: str):
         """ save_image
         write image to file, given image and image_filename
         """
         # TODO ensure that image_filename is valid and folder exists
         image_dir = os.path.dirname(image_filename)
         os.makedirs(image_dir, exist_ok=True)
-        # TODO ensure that image is valid
         # assuming image is in RGB format, so convert back to BGR
         image = cv.cvtColor(image, cv.COLOR_RGB2BGR)
         cv.imwrite(image_filename, image)
@@ -377,8 +370,7 @@ if __name__ == "__main__":
     
     # load a model
     # infer on a given image
-    # print out the classes, scores, boxes (TODO plots later)
-    # model_file = 'model/2021_Yellangelo_Tussock_v0_2022-10-12_10_35.pth'
+    # print out the classes, scores, boxes
     
     if LOCAL:
         model_file = '/home/agkelpie/Code/agkelpie_weed_detection/weed-detection/model/model_best.pth'
@@ -404,6 +396,8 @@ if __name__ == "__main__":
         detections = detector.detect(img)
         save_img_name = os.path.join(out_dir, img_name[:-4] + '_det.png')
         img_out = detector.show_detections(img, detections, save_img_name, True)
+
+
         # use matplotlib to show image, since their image viewer is much more stable and user-friendly
         # fig, ax = plt.subplot()
         # plt.imshow(img_out)

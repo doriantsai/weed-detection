@@ -1,6 +1,6 @@
 #! /usr/bin/env python3
 
-from Detections import Detections
+from weed_detection.Detections import Detections
 import numpy as np
 import cv2 as cv
 import matplotlib.pyplot as plt
@@ -34,10 +34,6 @@ class MaskDetections(Detections):
         
         else:
             raise TypeError('Unrecognised types for mask_confidence and/or mask_binary')
-        
-        
-        # import code
-        # code.interact(local=dict(globals(), **locals()))
 
         Detections.__init__(self,
                             label=label, 

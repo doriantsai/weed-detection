@@ -11,8 +11,8 @@ from typing import Tuple
 import cv2 as cv
 import numpy as np
 import matplotlib.pyplot as plt
-from Annotations import Annotations as Ann
-from Detector import Detector
+from weed_detection.Annotations import Annotations as Ann
+from weed_detection.Detector import Detector
 
 class TestModel:
     
