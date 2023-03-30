@@ -11,7 +11,13 @@ class MaskDetections(Detections):
 
     MASK_THRESHOLD_DEFAULT = 0.5
 
-    def __init__(self, label: int, score: float, mask_confidence = None, mask_binary = None, mask_threshold: float = None):
+    def __init__(self, 
+                 label: int, 
+                 score: float, 
+                 mask_confidence = None, 
+                 mask_binary = None, 
+                 mask_threshold: float = None,
+                 class_names: list = ['background', 'Tussock']):
 
         if mask_threshold is None:
             self.mask_threshold = self.MASK_THRESHOLD_DEFAULT
@@ -44,7 +50,8 @@ class MaskDetections(Detections):
                             score=score, 
                             x=x, 
                             y=y, 
-                            shape_type = 'polygon')
+                            shape_type = 'polygon',
+                            class_names=class_names)
         # end init
             
 

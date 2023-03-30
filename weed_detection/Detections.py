@@ -6,13 +6,13 @@ from weed_detection.Region import Region
 
 class Detections(Region):
 
-
     SHAPE_POLY = 'polygon'
     SHAPE_RECT = 'rect'
     SHAPE_POINT = 'point'
     SHAPE_TYPES = [SHAPE_POINT, SHAPE_RECT, SHAPE_POLY]
 
-    CLASS_NAMES = ['background', 'tussock'] # TODO what's a better way to approach this? Do we even need this level of info at this point?
+    # use the names file
+    # CLASS_NAMES = ['background', 'tussock'] # TODO what's a better way to approach this? Do we even need this level of info at this point?
 
     def __init__(self, 
                  label: int, 
@@ -20,11 +20,13 @@ class Detections(Region):
                  x = False, 
                  y = False, 
                  shape_type: str = False, 
-                 centroid = False):
+                 centroid = False,
+                 class_names: list = ['background', 'Tussock']):
         
         self.label = label
+        self.class_names = class_names
         # self.class_name = self.CLASS_NAMES[label]
-        Region.__init__(self, self.CLASS_NAMES[label], x, y)
+        Region.__init__(self, class_names[label], x, y)
 
         self.score = score
 

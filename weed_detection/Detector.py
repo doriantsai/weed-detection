@@ -46,6 +46,7 @@ class Detector:
 
     ORIGINAL_IMAGE_INPUT_SIZE_DEFAULT = (2052, 2460)
 
+
     def __init__(self, 
                  model_file: str = MODEL_FILE_DEFAULT,
                  names_file: str = SPECIES_FILE_DEFAULT,
@@ -57,11 +58,17 @@ class Detector:
 
         self.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
+        # must come before load_model, because load_model needs num_classes
+        self.class_names = self.load_class_names(class_names_file=names_file)
+        self.class_names.insert(0, 'background') # insert background at front of list
+
+        self.num_classes = len(self.class_names)   #  +1 for background class "0"
+
+        # load the maskrcnn model
         self.model = self.load_model(model_file)
-        self.species = self.load_class_names(class_names_file=names_file)
+        
         self.image_width = image_input_size[0]
         self.image_height = image_input_size[1]
-        
 
         self.confidence_threshold = confidence_threshold
         self.nms_threshold = nms_threshold
@@ -86,7 +93,6 @@ class Detector:
             return class_names
         else:
             raise ReadError(f'No class names read from class_names_file: {class_names_file}')
-            return False
 
 
     @staticmethod
@@ -107,9 +113,7 @@ class Detector:
         return True
 
 
-    def build_model(self, 
-                    num_classes: int = 2,
-                    pre_trained: bool = True):
+    def build_model(self):
         """ build maskrcnn model for set number of classes (num_classes)
         loads pre-trained model on coco image database
         """
@@ -120,24 +124,22 @@ class Detector:
         in_features = model.roi_heads.box_predictor.cls_score.in_features
 
         # replace pretrained head with new one
-        model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
+        model.roi_heads.box_predictor = FastRCNNPredictor(in_features, self.num_classes)
 
         # get number of input features for mask classifier
         in_features_mask = model.roi_heads.mask_predictor.conv5_mask.in_channels
         hidden_layer = 256
 
         # replace mask predictor with new one
-        model.roi_heads.mask_predictor = MaskRCNNPredictor(in_features_mask, hidden_layer, num_classes)
+        model.roi_heads.mask_predictor = MaskRCNNPredictor(in_features_mask, hidden_layer, self.num_classes)
         return model
 
 
     def load_model(self, 
                    model_file: str,
-                   num_classes: int = 2,
-                   map_location: str = 'cuda:0',
-                   pre_trained: bool = True):
+                   map_location: str = 'cuda:0'):
         """ load model based on model file (absolute file path) """
-        model = self.build_model(num_classes, pre_trained)
+        model = self.build_model()
         model.load_state_dict(torch.load(os.path.abspath(model_file), map_location=map_location))
         print(f'loaded model: {model_file}')
         model.to(self.device)
@@ -245,7 +247,8 @@ class Detector:
             maskdetections = MaskDetections(label = detections_class[i],
                                             score = detections_scores[i],
                                             mask_confidence= mask,
-                                            mask_threshold = mask_threshold)
+                                            mask_threshold = mask_threshold,
+                                            class_names = self.class_names)
             detections.append(maskdetections)
 
         # TODO calibrate model confidence scores!
@@ -309,7 +312,6 @@ class Detector:
         font_thick = int(np.ceil(0.00045 * max(image.shape)))
         detection_colour = [255, 0, 0] # RGB red - TODO should setup a library of colours for multiple classes
 
-        
         for d in detections:
             if POLY:
                 image = self.plot_poly(image, d, line_thickness, font_scale, detection_colour, font_thick)
@@ -324,7 +326,7 @@ class Detector:
     def plot_box(self, 
                  image,
                  detection, 
-                 box_thick,
+                 line_thickness,
                  font_scale,
                  detection_colour,
                  font_thick):
@@ -335,18 +337,18 @@ class Detector:
                             (int(bb[0]), int(bb[1])),
                             (int(bb[2]), int(bb[3])),
                             color=detection_colour,
-                            thickness=box_thick)
+                            thickness=line_thickness)
             
         # add text to top left corner of box
         # class + confidence as a percent
         conf_str = format(detection.score * 100.0, '.0f')
-        cv.putText(image,
-                    '{}: {}'.format(detection.class_name, conf_str),
-                    (int(bb[0] + 10), int(bb[1]) + 30),
-                    fontFace=cv.FONT_HERSHEY_COMPLEX,
-                    fontScale=font_scale,
-                    color=detection_colour,
-                    thickness=font_thick)
+        detection_str = '{}: {}'.format(detection.class_name, conf_str) 
+        image = Detector.draw_rectangle_with_text(image, 
+                                                  text=detection_str,
+                                                  xy=(int(bb[0]), int(bb[1])), 
+                                                  font_scale=font_scale, 
+                                                  font_thickness=font_thick, 
+                                                  rect_color=detection_colour)
         return image
 
 
