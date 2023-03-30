@@ -1,7 +1,17 @@
 #! /usr/bin/env python3
 
-import numpy as np
+"""Detections
+Detections class is an object that inherits from a region, and adds a predicted
+label and score to the Region, which already includes attributes, such as shape
 
+
+Raises:
+    TypeError: _description_
+
+Returns:
+    _type_: _description_
+"""
+import numpy as np
 from weed_detection.Region import Region
 
 class Detections(Region):
@@ -23,7 +33,7 @@ class Detections(Region):
                  centroid = False,
                  class_names: list = ['background', 'Tussock']):
         
-        self.label = label
+        # self.label = label
         self.class_names = class_names
         # self.class_name = self.CLASS_NAMES[label]
         Region.__init__(self, class_names[label], x, y)
@@ -93,7 +103,7 @@ if __name__ == "__main__":
     y = np.array([0, 3, 0])
     det_tri = Detections(0, 0.5, x, y, 'polygon')
     det_tri.print()
-    
+
     # python debug code
     # import code
     # code.interact(local=dict(globals(), **locals()))

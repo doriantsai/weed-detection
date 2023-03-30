@@ -10,12 +10,12 @@ from shapely.geometry import Polygon
 
 class Region:
 
-    def __init__(self, class_name: str, x, y):
+    def __init__(self, class_name: str, x, y, label=[]):
         self.class_name = class_name # string name
 
         # x, y can be a single int/pt, or an array of x's and y's
         self.shape = self.make_shape(x, y)
-        self.label = [] # numeric label, assigned during WeedDataset creation
+        self.label = label # numeric label, assigned during WeedDataset creation
         
 
     @staticmethod
