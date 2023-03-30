@@ -2,11 +2,11 @@
 
 """Detections
 Detections class is an object that inherits from a region, and adds a predicted
-label and score to the Region, which already includes attributes, such as shape
-
+ score to the Region, which already includes attributes, such as shape and label
+Also has a list of possible class names 
 
 Raises:
-    TypeError: _description_
+    TypeError: Unknown str of shape_type (not point, polygon or rect)
 
 Returns:
     _type_: _description_
@@ -21,8 +21,6 @@ class Detections(Region):
     SHAPE_POINT = 'point'
     SHAPE_TYPES = [SHAPE_POINT, SHAPE_RECT, SHAPE_POLY]
 
-    # use the names file
-    # CLASS_NAMES = ['background', 'tussock'] # TODO what's a better way to approach this? Do we even need this level of info at this point?
 
     def __init__(self, 
                  label: int, 
@@ -32,13 +30,13 @@ class Detections(Region):
                  shape_type: str = False, 
                  centroid = False,
                  class_names: list = ['background', 'Tussock']):
-        
-        # self.label = label
-        self.class_names = class_names
-        # self.class_name = self.CLASS_NAMES[label]
-        Region.__init__(self, class_names[label], x, y)
 
-        self.score = score
+        # list of potential classes, ordered such that label corresponds to the
+        # correct class name
+        self.class_names = class_names 
+        Region.__init__(self, class_names[label], x, y, label=label)
+
+        self.score = score # prediction/detection score of confidence
 
         if shape_type not in self.SHAPE_TYPES:
             raise TypeError('Unknown shape_type passed to Detections __init__()')
@@ -53,16 +51,33 @@ class Detections(Region):
          
 
     def get_centroid(self):
+        """get_centroid
+        computes centroid of the shape
+
+        Returns:
+            tuple of floats: centroid of the shape
+        """
         if self.shape is False:
             return (False, False)
         else:
             centroid = self.shape.centroid # does this work for a point?
             cx = centroid.coords[0][0]
             cy = centroid.coords[0][1]
-            return (cx, cy) # I think this is shapely's thing?
+            return (cx, cy)
 
 
     def make_box(self, x, y):
+        """make_box
+        return exterior bounding box of x and y arrays
+        top-left of image is (0,0) origin
+
+        Args:
+            x (array of floats/ints): horizontal image coordinates of shape
+            y (array of floats/ints): vertical imager coordinates of shape
+
+        Returns:
+            array: 1x4 array of bounding box, defined as [xmin, ymin, xmax, ymax]
+        """
         if x is False and y is False:
             return False
         else:
@@ -73,7 +88,11 @@ class Detections(Region):
             bbox = [xmin, ymin, xmax, ymax]
             return bbox
 
+
     def print(self):
+        """print
+        print all properties of the Detection
+        """
         print('Detection:')
         print(f'label: {self.label}')
         print(f'score: {self.score}')
