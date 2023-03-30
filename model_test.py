@@ -29,7 +29,8 @@ Test = TestModel(model_file = model_file,
                  names_file = species_file)
 
 img_list = os.listdir(annotation_data['image_dir'])
-    
+
+# TODO should take images out of the images_test.txt or images_val.txt file    
 max_img = 5
 for i, img_name in enumerate(img_list):
     if i > max_img:

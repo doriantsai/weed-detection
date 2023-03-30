@@ -96,7 +96,7 @@ class TrainMaskRCNN:
         # create annotation set from annotation data
         self.annotation_data = annotation_data
         self.annotation_object = Ann(filename=annotation_data['annotation_file'],
-                                  img_dir=annotation_data['image_dir'],
+                                  image_dir=annotation_data['image_dir'],
                                   mask_dir=annotation_data['mask_dir'])
     
         # loop to check all mask shapes

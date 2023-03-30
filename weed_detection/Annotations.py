@@ -1,18 +1,29 @@
 #! /usr/bin/env python3
+from __future__ import annotations
 
-"""
-Annotation - class to represent all the different annotation types
-with respect to shape, species, attributes
+
+"""Annotations.py
+Annotations is a class to hold and represent all the annotations from a given
+dataset. Expected input format is defined by the agkelpie weed reference library
+(see www.agkelpie.com). See the main function for example usage.
 
 Dorian Tsai
-March 2023
-dy.tsai@qut.edu.au
+dy.tsai@qut.edu.au 
+March 2023 
+
+Arguments:
+    filename: str, the absolute filepath to the dataset.json file
+    img_dir: str, the absolute filepath to the image directory
+    mask_dir: str, the absolute filepath to the mask directory 
+    (NOTE: masks are automatically-generated if the mask folder is empty)
+    dataset_name:  str, the name of the dataset, default is auto-generated from 
+    the dataset.json as location+dataset_ID
 """
-from __future__ import annotations
+
+
 import json
 import os
 from PIL import Image as PILImage
-from copy import deepcopy
 import numpy as np
 import cv2 as cv
 from matplotlib.patches import Polygon as MPLPolygon
@@ -23,26 +34,29 @@ from weed_detection.Image import Image
 from weed_detection.AnnotationRegion import AnnotationRegion
 
 
-
 class Annotations:
+    """Annotations class
+    """
 
     def __init__(self, 
                  filename: str, 
                  img_dir: str, 
                  mask_dir: str = None,
-                 dataset_name: str = None,
-                 species: str = None):
-
+                 dataset_name: str = None):
+        
+        # set dataset.json absolute path
         self.filename = filename
-        self.dataset_name  = dataset_name
-        self.species = species
+        if dataset_name is None:
+            self.dataset_name = self.create_dataset_name()
+        else:
+            self.dataset_name  = dataset_name
 
         # image directory
         self.img_dir = img_dir
         self.imgs = list(sorted(os.listdir(self.img_dir)))
         
-        # load annotations data
-        self.annotations_raw, self.dataset_name, self.species = self.read_agkelpie_annotations_raw()
+        # load annotations data from dataset.json
+        self.annotations_raw, self.species = self.read_agkelpie_annotations_raw()
         self.annotations = self.convert_agkelpie_annotations() # convert to internal format
 
         self.num_classes = len(self.species)
@@ -60,14 +74,19 @@ class Annotations:
             print('No masks detected in mask_dir, so creating masks')
             self.create_masks_from_polygons()
 
+        # sorted list of masks in mask_dir
         self.masks = list(sorted(os.listdir(self.mask_dir)))
-
-        self.dataset_name = self.create_dataset_name()
         # end init
     
 
     def create_dataset_name(self):
-        """ create unique annotation set name based on dataset.json from annotation file"""
+        """create_dataset_name
+        create unique annotation set name based on dataset.json from annotation
+        file based on combining the name and dataset_id into a string
+        
+        Returns:
+            str: dataset_name
+        """
         # combine name + dataset_id:
         metadata = json.load(open(self.filename))
         name = str(metadata['name'])
@@ -77,24 +96,30 @@ class Annotations:
         
 
     def read_agkelpie_annotations_raw(self):
-        """
-        read the raw annotations from the agkelpie weed reference data library format (dataset.json)
+        """read_agkelpie_annotations_raw
+        read the raw annotations from the agkelpie weed reference data library
+        format (dataset.json) 
         return img metadata as a list for each image
+
+        Returns:
+            list: data, a list of annotations (as dictionaries) for each image 
+            list: species, a list of strings of species names within the dataset
+            False: if no data in metadata
         """
         metadata = json.load(open(self.filename))
         data = metadata['images_tagged']
-
         species = metadata['species'].split(",") # since species comes in as a single comma-delimited string
-        location_name = metadata['name']
-        folder_name = metadata['folder_name']
-        dataset_name = folder_name + '_' + location_name # dataset_name used to make dirs
-
-        return data, dataset_name, species if len(data) > 0 else False
+        return data, species if len(data) > 0 else False
 
 
     def check_annotation_image_consistency(self):
-        """
-        check that the number of annotations in file match number of images in img_dir
+        """check_annotation_image_consistency
+        check that the number of annotations in file match number of images in
+        img_dir
+
+        Returns:
+            True: if annotations_raw == number of images in image directory
+            False: otherwise
         """
         
         # for now, just check length/number of annotations, but in future
@@ -108,8 +133,13 @@ class Annotations:
 
 
     def check_polygons_and_masks(self):
-        """check # of polygons matches number of objects in an image
-        only valid for agkelpie annotations
+        """check_polygons_and_masks
+        check the number of polygons from the annotations match those created by
+        the binary masks are only valid for agkelpie annotations
+        
+        Returns:
+            False: if number of objects in the mask do not equal annotations
+            True: otherwise
         """
         for i, img in enumerate(self.annotations):
             poly_count = 0
@@ -136,10 +166,15 @@ class Annotations:
 
 
     def convert_agkelpie_annotations(self): 
-        """
-        convert raw agkelpie annotations into internal annotation format, which is a nested
-        class of annotations with relevant properties that will allow easy filtering based on attributes, such as
-        weed species, annotation polygon size, etc
+        """convert_agkelpie_annotations
+        convert raw agkelpie annotations into internal annotation format, which
+        is a nested class of annotations with relevant properties that will
+        allow easy filtering based on attributes, such as weed species,
+        annotation polygon size, etc
+
+        Returns:
+            list: data, list of the data which houses the annotations as nested properties
+            False: if no data was extracted from annotations_raw
         """
         data = []
 
@@ -157,6 +192,9 @@ class Annotations:
                         height = height,
                         camera = camera)
             
+            # TODO identify image as negative or positive via a property?
+            # e.g. if len(annotations) = 0 then it's negative
+            # annotation.isPositive = True/False
             if len(img_data['annotations']) > 0:
                 for ann in img_data['annotations']:
                     shape_attr = ann['shape']
@@ -194,19 +232,23 @@ class Annotations:
 
     # TODO def filter_annotation_shape()
     # TODO def filter_annotations_filename()
-
+    
 
     def find_matching_images_annotations(self):
-        """
-        # removed because is_processed flag (from VIA days) was removed/missed in the development of the agkelpie weed detection library
-        # this means # imgs in img_dir is not necessarily == raw_annotations
-        # if not self.check_annotation_image_consistency():
-        #     print('Number of images in img_dir is not equal to number of raw annotations in Annotations.__init__()')
-        #     exit(-1)
-        # thus, we need to find whichever is lower/less, and then find the corresponding set...
-        # find number of imgs in img_dir
-        # find the number of annotations
-        # whichever is smaller, take that and (hope to) find the corresponding set in the larger group
+        """find_matching_images_annotations
+        removed because is_processed flag (from VIA days) was removed/missed in the development of the agkelpie weed detection library
+        this means # imgs in img_dir is not necessarily == raw_annotations
+        if not self.check_annotation_image_consistency():
+            print('Number of images in img_dir is not equal to number of raw annotations in Annotations.__init__()')
+           exit(-1)
+        thus, we need to find whichever is lower/less, and then find the corresponding set...
+        find number of imgs in img_dir
+        find the number of annotations
+        whichever is smaller, take that and (hope to) find the corresponding set in the larger group
+
+        Returns:
+            list: matching_ann, a list of matching annotations (and all their nested properties)
+            list: matching_img, a list of matching image names
         """
         # TODO image download stride is a potential issue - need not just to find min, but also matching
         n_img = len(self.imgs)
@@ -247,11 +289,11 @@ class Annotations:
 
     def create_masks_from_polygons(self,
                                    mask_dir=None):
-        """create binary masks for img_list and ann_list, save in mask_dir
-        NOTE: only valid for agkelpie format, not via format
+        """create_masks_from_polygons
+        create binary masks using the image annotations and save them in mask_dir
 
         Args:
-            mask_dir (_type_, optional): _description_. Defaults to None.
+            mask_dir (string, optional): absolute path for mask directory. Defaults to None.
         """
         # assume img_list and ann_list are consistent
         assert len(self.annotations) == len(self.imgs), "num annotations should be == num images"
@@ -261,14 +303,16 @@ class Annotations:
             mask_dir = self.mask_dir
         os.makedirs(mask_dir, exist_ok=True)
 
+        # iterate for each set of image annotations
         for i, ann in enumerate(self.annotations):
 
-            # create mask image
+            # create a blank mask image
             mask = np.zeros((ann.height, ann.width), np.int32)
 
-            # iterate over ann.regions
-            # find each annotation that is a polygon ann.shape_type
-            # then get x, y coordinates
+            # iterate over ann.regions to find each annotation that is a polygon
+            # ann.shape_type then get x, y coordinates for each polygon, fill it
+            # with numbers == count_poly, so that each polygon has a unique set
+            # of numbers in a single image
             count_poly = 0
             poly = []
             for reg in ann.regions:
@@ -292,6 +336,20 @@ class Annotations:
 
 
     def show_polygon_and_mask(self, idx, SHOW=True, SAVE=False):
+        """show_polygon_and_mask
+        Helper function to graphically show the groundtruth annotation as an
+        overlay over the original image, used to make sure that masks were
+        correctly generated
+        NOTE: can be superseded by TestModel.show_annotations()
+
+        Args:
+            idx (int): index for the image/annotation/mask (which all have the
+            same order) 
+            SHOW (bool, optional): if True, show a figure of the annotations.
+            Defaults to True. 
+            SAVE (bool, optional): if True, saves the figure to file. Defaults to
+            False.
+        """
         
         # get mask
         mask_name = self.masks[idx]
@@ -318,16 +376,23 @@ class Annotations:
         ax[1].imshow(mask)
         if SAVE:
             # save figure in the root path, so as not to corrupt the mask folder with debug masks
-            plt.savefig(os.path.join(os.path.dirname(mask_dir), mask_name[:-4] + '_debug.png'))
+            mask_save_name = os.path.join(os.path.dirname(mask_dir), mask_name[:-4] + '_debug.png')
+            plt.savefig(mask_save_name)
+            print(f'mask saved at {mask_save_name}')
         if SHOW:
             plt.show()
             print('remember to close the matplotlib window')
 
 
     def generate_imagelist_txt(self, txtfile, imglist=None):
-        """
-        output current self.annotations list to txt for further manipulation/esp useful for adjusting training/testing/validation sets
-        assume txtfilename is full absolute path
+        """generate_imagelist_txt
+        output current self.annotations list to txt for further manipulation/esp
+        useful for adjusting training/testing/validation sets assume txtfilename
+        is full absolute path
+
+        Args:
+            txtfile (str): absolute filepath of output file for list of images
+            imglist (list, optional): the list of images to output to textfile. Defaults to None.
         """
 
         # default imglist
@@ -355,9 +420,13 @@ class Annotations:
 
 
     def prune_annotations_from_imagelist_txt(self, txtfile):
-        """
-        read in text file that has a list of images with which to use for training/testing/validation
-        update the self.annotations list with relelvant images
+        """prune_annotations_from_imagelist_txt
+        read in text file that has a list of images with which to use for
+        training/testing/validation update the self.annotations list with
+        relelvant images
+
+        Args:
+            txtfile (str): absolute filepath to textfile
         """
         # read image names from txtfile and remove trailing /n
         with open(txtfile, 'r') as f:
@@ -408,38 +477,45 @@ if __name__ == "__main__":
     img_dir = '/home/agkelpie/Code/agkelpie_weed_detection/agkelpiedataset_canberra_20220422_first500/annotated_images'
     mask_dir = '/home/agkelpie/Code/agkelpie_weed_detection/agkelpiedataset_canberra_20220422_first500/masks'
     
-    # Ann = Annotations(filename=filename, img_dir=img_dir, mask_dir=mask_dir)
-    # data = Ann.read_agkelpie_annotations_raw()
-    # print(data)
+    """ test reading/printing data """
+    Ann = Annotations(filename=filename, img_dir=img_dir, mask_dir=mask_dir)
+    data = Ann.read_agkelpie_annotations_raw()
+    print(data)
     
+    """ test finding matching images """
     # anns, imgs = Ann.find_matching_images_annotations()
     # data = Ann.read_via_annotations_raw()
     # print(data)
 
-    """ testing convert annotations"""
+    """ testing converting annotations and indexing """
     # tested via initialization
-    # i = 10
-    # Ann.annotations[i].print()
+    i = 10
+    Ann.annotations[i].print()
 
+    """ test creating masks from the polygon annotations """
     # print('making masks from polygons')
-    Ann = Annotations(filename=filename, img_dir=img_dir)
-    mask_dir = os.path.join(img_dir, '..', 'masks')
-    os.makedirs(mask_dir, exist_ok=True)
-    Ann.create_masks_from_polygons(mask_dir=mask_dir)    
+    # Ann = Annotations(filename=filename, img_dir=img_dir)
+    # mask_dir = os.path.join(img_dir, '..', 'masks')
+    # os.makedirs(mask_dir, exist_ok=True)
+    # Ann.create_masks_from_polygons(mask_dir=mask_dir)    
     
+    """ test generating image list text files """
     # generate image list txt file:
     # print('generating image list txt file')
     # txtfile = os.path.join(img_dir, '..', 'annotated_images_from_annotations.txt')
     # Ann.generate_imagelist_txt(txtfile)
     # print(f'txtfile = {txtfile}')
 
+    """ test reading image list text files and pruning the annotations based on these files """
     # print('testing out txtfile reading')
     # txtfile = os.path.join(img_dir, '..', 'annotated_images_from_annotations.txt')
     # Ann.prune_annotations_from_imagelist_txt(txtfile)
 
+    """ verify polygon count matches the number of objects in masks """
     print('testing polygon count vs number of objects in masks')
     Ann.check_polygons_and_masks()
     
+    # interactive debug statement
     import code
     code.interact(local=dict(globals(), **locals()))
 

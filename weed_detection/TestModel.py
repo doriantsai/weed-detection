@@ -175,18 +175,5 @@ if __name__ == "__main__":
     print(f'saved images in {Test.output_dir}')
     print('Complete TestModel.py')
 
-# functions:
-# show_groundtruth
-# setup test_model 
 
-
-
-# as a script,
-# setup image directory, annotation file
-# setup model file
-# load annotations
-# from annotations, specify image
-# run detection on image
-# run show_detections for image painted with detections
-# run show_groundtruth for image painted with groundtruth (might swap the order of det/gt)
-
+    
