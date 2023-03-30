@@ -93,6 +93,7 @@ if __name__ == "__main__":
     y = np.array([0, 3, 0])
     det_tri = Detections(0, 0.5, x, y, 'polygon')
     det_tri.print()
+    
     # python debug code
     # import code
     # code.interact(local=dict(globals(), **locals()))

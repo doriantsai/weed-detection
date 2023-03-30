@@ -3,8 +3,22 @@
 """
 Annotated Region class, which has annotation and region properties
 
-Based on James Bishop's UNE weed detector, AnnotatedRegion is a region that has
-annotated properties associated with it, 
+Based on James Bishop's UNE weed detector, AnnotatedRegion is a Region that has
+annotated properties associated with it, which can be either polygon, rectangle
+or point. NOTE use of 'rect' has been superseded by 'polygon', and may be
+removed from all weed_detection code
+
+- occluded: boolean 1/0 True/False if plant is occluded, according to manual annotation
+- plant_count: string, "Single Plant", "Part of Plant", or "Multiple Plants", according to manual annotation
+- shape_type: string, "polygon", 'point', or 'rect' depending on annotation shape type
+- all the properties inherited from Region():
+- shape: (shapely geometry type)
+- label: numeric label assigned during WeedDataset creation
+- class_name: string of the actual weed species name
+
+Dorian Tsai
+March 2023
+dy.tsai@qut.edu.au
 """
 
 from weed_detection.Region import Region
@@ -22,10 +36,6 @@ class AnnotationRegion(Region):
         self.occluded = occluded
         self.plant_count = plant_count
         self.shape_type = str(shape_type)
-        # if shape_type not in [self.SHAPE_TYPES]:
-        #     ValueError(shape_type, 'Unknown shape type passed to AnnotationRegion __init__()')
-        # else:
-        #     self.shape_type = str(shape_type)
 
         
     def print(self):

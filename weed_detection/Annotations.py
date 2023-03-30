@@ -3,6 +3,10 @@
 """
 Annotation - class to represent all the different annotation types
 with respect to shape, species, attributes
+
+Dorian Tsai
+March 2023
+dy.tsai@qut.edu.au
 """
 from __future__ import annotations
 import json
@@ -21,16 +25,11 @@ from weed_detection.AnnotationRegion import AnnotationRegion
 
 
 class Annotations:
-    # annotation format, either VIA or AGKELPIE
-    # NOTE: depracated VIA format removed after refactor
-    AGKELPIE_FORMAT = 'AGKELPIE'
-
 
     def __init__(self, 
                  filename: str, 
                  img_dir: str, 
                  mask_dir: str = None,
-                 ann_format: str = AGKELPIE_FORMAT,
                  dataset_name: str = None,
                  species: str = None):
 
@@ -43,11 +42,8 @@ class Annotations:
         self.imgs = list(sorted(os.listdir(self.img_dir)))
         
         # load annotations data
-        if ann_format == self.AGKELPIE_FORMAT:
-            self.annotations_raw, self.dataset_name, self.species = self.read_agkelpie_annotations_raw()
-            self.annotations = self.convert_agkelpie_annotations() # convert to internal format
-        else:
-            raise ValueError(ann_format, 'Unknown annotation format')
+        self.annotations_raw, self.dataset_name, self.species = self.read_agkelpie_annotations_raw()
+        self.annotations = self.convert_agkelpie_annotations() # convert to internal format
 
         self.num_classes = len(self.species)
         self.annotations, self.imgs = self.find_matching_images_annotations()
