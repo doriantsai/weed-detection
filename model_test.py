@@ -19,7 +19,7 @@ model_file = os.path.join('/home/agkelpie/Code/agkelpie_weed_detection/weed-dete
 
 confidence_thresh = 0.5
 nms_thresh = 0.5
-species_file = os.path.join(os.getcwd(), 'model/names_clarkefield31.txt')
+species_file = os.path.join('/home/agkelpie/Code/agkelpie_weed_detection/weed-detection/model/names_clarkefield31.txt')
 
 Test = TestModel(model_file = model_file,
                  annotation_data = annotation_data,
