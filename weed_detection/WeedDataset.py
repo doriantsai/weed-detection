@@ -21,20 +21,14 @@ from weed_detection.Annotations import Annotations
 class WeedDataset(object):
     """ weed dataset object for polygons """
 
-    # annotation format, AGKELPIE
-    # VIA format removed after depracated
-    AGKELPIE_FORMAT = 'AGKELPIE'
 
-    
-    # TODO put defaults, similar to James' code
     def __init__(self,
                  annotation_filename,
                  img_dir,
                  transforms=None,
                  mask_dir=None,
                  classes_file=None,
-                 imgtxt_file=None,
-                 format=AGKELPIE_FORMAT):
+                 imgtxt_file=None):
         """
         initialise the dataset
         annotations - absolute path to json file of annotations of a prescribed format
@@ -65,11 +59,10 @@ class WeedDataset(object):
         self.class_colours = config['colours']
         
         # absolute filepath
-        self.format = format
         annotations = Annotations(filename=annotation_filename,
                                     img_dir=img_dir,
-                                    mask_dir=mask_dir,
-                                    ann_format=format)
+                                    mask_dir=mask_dir)
+        
         # added to deal with training/testing sets from text files without touching original dataset.json annotation files
         if imgtxt_file is not None:
             self.imgtxt_file = imgtxt_file
@@ -106,10 +99,7 @@ class WeedDataset(object):
         given an index, return the corresponding image and sample from the dataset
         converts images and corresponding sample to tensors
         """
-        if self.format == self.AGKELPIE_FORMAT:
-            image, sample = self.getitem_agkelpie(idx)
-        else:
-            ValueError(self.format, 'annotation format unknown')
+        image, sample = self.getitem_agkelpie(idx)
         return image, sample
         
         
@@ -445,7 +435,6 @@ class RandomBlur(object):
         """ apply blur to image """
         # image = tvtransfunc.gaussian_blur(image, self.kernel_size) # sigma calculated automatically
         image = tvtransfunc.gaussian_blur(image, self.kernel_size, self.sigma)
-        # TODO not sure if I should blur the mask? Mask RCNN accepts only binary mask, or can it be weighted?
         return image, sample
 
 
@@ -563,5 +552,5 @@ if __name__ == "__main__":
         print(f'{i}: mask size = {mask.shape}')
     
         
-    import code
-    code.interact(local=dict(globals(), **locals()))
+    # import code
+    # code.interact(local=dict(globals(), **locals()))
