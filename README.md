@@ -50,7 +50,7 @@ Data is obtained from the DPI's Weed Reference Library, available at https://www
     - `classes_config`: a configuration file for class names and colours 
     - `imagelist_files`: a python dictionary with `train_file`, `val_file`, `test_file` keys that denote the corresponding training, validation and testing images that are saved in a list as textfiles (each image as a new line)
     - `hyper_parameters`: a json file containing the dictionary for a variety of hyper parameters for the training pipeline. See `TrainMaskRCNN.py` top-level comments for more information
-- In `model_training.py`, set the appropriate folders and file locations: `annotation_data`, `output_dir`, `imagelist_files` and hyper-parameters.
+- In `model_training.py`, set the appropriate folders and file locations: `annotation_data`, `output_dir`, `imagelist_files` and hyper-parameters. NOTE that we can easily set the annotation_data and imagelist_files by setting `root_dir` to the root directory of the dataset (which by default has been set to `agkelpiedataset_clarkefield31`), and `code_dir` to the repository root directory (i.e. the `weed-detection` folder).
 - Run the top-level script, `model_training.py`, which calls `TrainMaskRCNN.train_pipeline()`
 - In the specified `output_dir` (default is `/model/<dataset_name>/`), there will be several `.pth` files, which contain the model weights. 
     - The `model_best.pth` file is the model which corresponds to the lowest validation error during training. 
