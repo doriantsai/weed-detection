@@ -30,7 +30,7 @@ Test = TestModel(model_file = model_file,
 
 img_list = os.listdir(annotation_data['image_dir'])
     
-max_img = 10
+max_img = 5
 for i, img_name in enumerate(img_list):
     if i > max_img:
         print(f'reached max images: {max_img}')

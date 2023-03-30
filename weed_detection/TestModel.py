@@ -18,7 +18,7 @@ class TestModel:
     
     # default parameters
     IMAGE_INPUT_SIZE_DEFAULT = (1028, 1232) # TODO should make a config file
-    SPECIES_FILE_DEFAULT = os.path.join(os.getcwd(), 'model/maskrcnn_species_names.txt')
+    SPECIES_FILE_DEFAULT = os.path.join(os.getcwd(), 'model/names_yellangelo32.txt')
     MODEL_FILE_DEFAULT = os.path.join('/home/agkelpie/Code/agkelpie_weed_detection/weed-detection/model/Yellangelo32/model_best.pth')
     CONFIDENCE_THRESHOLD_DEFAULT = 0.5
     NMS_THRESHOLD_DEFAULT = 0.5
@@ -74,11 +74,23 @@ class TestModel:
         # draw the bounding box + class name in the bottom left corner (so doesn't overlap with detections text)
 
         lines_colour = (0, 0, 255) # RGB 
-        line_thickness = 10
+        line_thickness = int(np.ceil(0.004 * max(image.shape)))
+        font_scale = max(1, 0.0005 * max(image.shape))
+        font_thick = int(np.ceil(0.00045 * max(image.shape)))
 
         for regions in image_annotation.regions:
             if regions.shape_type == 'polygon':
                 xy = np.array(regions.shape.exterior.coords.xy, dtype=np.int32)
+
+                # find a place to put polygon class prediction and confidence we find
+                # the x,y-pair that's closest to the top-left corner of the image, but
+                # also need it to be ON the polygon, so we know which one it is and thus
+                # most likely to actually be in the image
+                distances = np.linalg.norm(xy, axis=0)
+                minidx = np.argmin(distances)
+                xmin = xy[0, minidx]
+                ymin = xy[1, minidx]
+
                 # xy2 = xy.reshape((-1, 1, 2))
                 xy = xy.transpose().reshape((-1, 1, 2))
 
@@ -88,6 +100,13 @@ class TestModel:
                              color=lines_colour, 
                              thickness=line_thickness,
                              lineType=cv.LINE_4) # vs cv.FILLED
+
+                image = Detector.draw_rectangle_with_text(image,
+                                                          text=regions.class_name,
+                                                          xy=(xmin, ymin),
+                                                          font_scale=font_scale,
+                                                          font_thickness=font_thick,
+                                                          rect_color=lines_colour)
 
                 
 

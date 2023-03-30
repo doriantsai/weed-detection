@@ -287,6 +287,8 @@ class Detector:
         return cv.normalize(img, None, 0, 255, cv.NORM_MINMAX, cv.CV_8U) # just in case, normalize image from 0,1 to 0,255
 
 
+    
+
     def show_detections(self, image, detections, save_image_filename, POLY=True, SAVE=False):
         """show_detections
         Given an RGB image (numpy array), output a new image with detections drawn ontop of the input image
@@ -301,16 +303,18 @@ class Detector:
 
         # draw on detetections - just bounding boxes
         # plotting parameters:
-        box_thick = 3
-        font_scale = 1 # TODO font scale should be function of image size
-        font_thick = 1
+        line_thickness = int(np.ceil(0.002 * max(image.shape)))
+        font_scale = max(1, 0.0005 * max(image.shape)) # font scale should be function of image size
+        
+        font_thick = int(np.ceil(0.00045 * max(image.shape)))
         detection_colour = [255, 0, 0] # RGB red - TODO should setup a library of colours for multiple classes
 
+        
         for d in detections:
             if POLY:
-                image = self.plot_poly(image, d, box_thick, font_scale, detection_colour, font_thick)
+                image = self.plot_poly(image, d, line_thickness, font_scale, detection_colour, font_thick)
             else:
-                image = self.plot_box(image, d, box_thick, font_scale, detection_colour, font_thick)
+                image = self.plot_box(image, d, line_thickness, font_scale, detection_colour, font_thick)
         
         if SAVE:
             self.save_image(image, save_image_filename)
@@ -354,6 +358,7 @@ class Detector:
                   lines_color,
                   font_thick):
         """ plot a detected polygon on an image """
+
         poly = np.array(detection.poly)
         poly = poly.transpose().reshape((-1, 1, 2))
         cv.polylines(image,
@@ -362,18 +367,78 @@ class Detector:
                      color=lines_color,
                      thickness=lines_thick,
                      lineType=cv.LINE_4)
+
+        # find a place to put polygon class prediction and confidence we find
+        # the x,y-pair that's closest to the top-left corner of the image, but
+        # also need it to be ON the polygon, so we know which one it is and thus
+        # most likely to actually be in the image
+        distances = np.linalg.norm(detection.poly, axis=0)
+        minidx = np.argmin(distances)
+        xmin = detection.poly[0, minidx]
+        ymin = detection.poly[1, minidx]
+
         # add text to top left corner of box
         # class + confidence as a percent
         conf_str = format(detection.score * 100.0, '.0f')
+        detection_str = '{}: {}'.format(detection.class_name, conf_str) 
+        
+        image = Detector.draw_rectangle_with_text(image, 
+                                                  text=detection_str,
+                                                  xy=(xmin, ymin), 
+                                                  font_scale=font_scale, 
+                                                  font_thickness=font_thick, 
+                                                  rect_color=lines_color)
+        return image
+    
+
+    @staticmethod
+    def draw_rectangle_with_text(image, 
+                                 text, 
+                                 xy, 
+                                 font_scale, 
+                                 font_thickness, 
+                                 rect_color,
+                                 text_color = (255, 255, 255)):        
+        """ helper function to draw text onto image with a rectangle, due to likely reuse in other functions """
+        image = Detector.draw_rectangle_behind_text(image,
+                                                xy=(xy[0], xy[1]),
+                                                text = text,
+                                                font=cv.FONT_HERSHEY_COMPLEX,
+                                                font_scale=font_scale,
+                                                thickness=font_thickness,
+                                                rect_color=rect_color)
+        # determine size of the text
+        text_size, _ = cv.getTextSize(text, cv.FONT_HERSHEY_COMPLEX, font_scale, font_thickness)
+
         cv.putText(image,
-                    '{}: {}'.format(detection.class_name, conf_str),
-                    (int(poly[0, 0, 0] + 10), int(poly[0, 0, 1]) + 30),
-                    fontFace=cv.FONT_HERSHEY_COMPLEX,
-                    fontScale=font_scale,
-                    color=lines_color,
-                    thickness=font_thick)
+                   text,
+                   (int(xy[0]), int(xy[1] + text_size[1])),
+                   fontFace=cv.FONT_HERSHEY_COMPLEX,
+                   fontScale=font_scale,
+                   color=text_color,
+                   thickness=font_thickness)
+        return image # because of pointers, I don't think I actually have to return the image
+    
 
+    @staticmethod
+    def draw_rectangle_behind_text(image, xy, text, font, font_scale, thickness, rect_color, rect_thickness=-1):
+        """ helper function to make text more legible when placed onto image by creating a rectangle first """
+        # -1 rect_thicnkess = rectangle is filled in
 
+        # determine size of the text
+        text_size, _ = cv.getTextSize(text, font, font_scale, thickness)
+        # add buffers/padding to the rectangle
+        width_padding = 5
+        height_padding = 5
+        rect_width = text_size[0] + width_padding
+        rect_height = text_size[1] + height_padding
+        rect_x1 = xy[0]  - width_padding
+        rect_y1 = xy[1] - height_padding
+        rect_x2 = rect_x1 + rect_width + width_padding
+        rect_y2 = rect_y1 + rect_height + height_padding + 2
+
+        # draw rectangle
+        cv.rectangle(image, (rect_x1, rect_y1), (rect_x2, rect_y2), rect_color, rect_thickness)
         return image
 
 
