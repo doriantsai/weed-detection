@@ -8,7 +8,7 @@ import weed_detection.TrainMaskRCNN as TrainmaskRCNN
 ## define data folders, and locations of key configuration files
 
 # root_dir of dataset
-# root_dir = '/home/agkelpie/Code/agkelpie_weed_detection/agkelpiedataset_clarkfield31'
+# root_dir = '/home/agkelpie/Code/agkelpie_weed_detection/agkelpiedataset_clarkefield31'
 root_dir = '/home/agkelpie/Code/agkelpie_weed_detection/agkelpiedataset_yellanglo29'
 # root_dir = '/home/agkelpie/Code/agkelpie_weed_detection/agkelpiedataset_yellanglo32'
 
