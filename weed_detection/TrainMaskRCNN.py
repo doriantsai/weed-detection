@@ -3,6 +3,8 @@
 """
 Train MaskRCNN
 
+A class to train the MaskRCNN model on weed data
+
 A #NOTE on the hyper parameters
 Batch size was set to 10 to max out the available GPU RAM, 
 although input image size and number of workers will also influence this. 
@@ -25,34 +27,24 @@ self.learning_rate = hp['learning_rate'] # 0.002
 self.momentum = hp['momentum'] # 0.9 # 0.8
 self.weight_decay = hp['weight_decay'] # 0.0005
 self.patience = hp['patience']
-
 """
 
 import os
 import torch
-# import torchvision
 import wandb
 import time
-# import numpy as np
-# import shutil
 import json
 
-# from torchvision.models.detection.mask_rcnn import MaskRCNN
 import torch.nn as nn
 
 import torchvision.models.detection as detection  
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 from torchvision.models.detection.mask_rcnn import MaskRCNNPredictor
-# from torchvision.transforms import ToTensor
 from torch.utils.data import DataLoader
 import torchvision.models as models
 from sklearn.model_selection import train_test_split
-# from sklearn.metrics import average_precision_score
 from torchmetrics.detection.mean_ap import MeanAveragePrecision
-# from PIL import Image as PILImage
 
-# import torch.distributed as dist
-# from weed_detection.WeedDataset import WeedDataset as WD
 import weed_detection.WeedDataset as WD
 from weed_detection.Annotations import Annotations as Ann
 
@@ -83,6 +75,7 @@ class TrainMaskRCNN:
     WANDB_PROJECT_NAME_DEFAULT = 'weed-detection-refactor1'
     WANDB_USER_DEFAULT = 'doriantsai'
 
+
     def __init__(self,
                  annotation_data: dict=ANNOTATION_DATA_DEFAULT,
                  train_val_ratio: tuple=(0.7, 0.15),
@@ -92,6 +85,18 @@ class TrainMaskRCNN:
                  hyper_param_file: str=HYPER_PARAMETERS_DEFAULT,
                  wandb_project_name: str=WANDB_PROJECT_NAME_DEFAULT,
                  wandb_user: str=WANDB_USER_DEFAULT):
+        """_summary_
+
+        Args:
+            annotation_data (dict, optional): annotation data that points to the annotation file, image directory and mask directory. Defaults to ANNOTATION_DATA_DEFAULT.
+            train_val_ratio (tuple, optional): a ratio of how many images to use for train/validation/testing. Defaults to (0.7, 0.15).
+            imagelist_files (dict, optional): a trio of absolute filepaths to imagelists textfiles for training/validation/testing. Defaults to IMAGELIST_FILES_DEFAULT.
+            output_dir (str, optional): absolute filepath to output directory to save the model. Defaults to OUTPUT_DIR_DEFAULT.
+            classes_config_file (str, optional): absolute filepath to class config file. Defaults to CLASSES_CONFIG_DEFAULT.
+            hyper_param_file (str, optional): absolute filepath to hyperparameters file. Defaults to HYPER_PARAMETERS_DEFAULT.
+            wandb_project_name (str, optional): name that wandb project. Defaults to WANDB_PROJECT_NAME_DEFAULT.
+            wandb_user (str, optional): username for wandb. Defaults to WANDB_USER_DEFAULT.
+        """
 
         # create annotation set from annotation data
         self.annotation_data = annotation_data
@@ -116,7 +121,7 @@ class TrainMaskRCNN:
         # imagelist text files:
         self.imagelist_files = imagelist_files
 
-        # read config file for hyper parameters
+        # read config file for hyper parameters, see comments at top of file for descriptions
         hp = json.load(open(hyper_param_file))['hyper_parameters']
         self.num_epochs = hp['num_epochs']
         self.step_size = hp['step_size'] 
@@ -140,14 +145,24 @@ class TrainMaskRCNN:
 
         # create model
         self.model = self.create_model()
-
-
+        # end init
 
 
     def process_train_val_test_ratio(self, train_val_ratio):
-        """ process train_val ratio for the percentages of data for training, validation and testing, respectively
+        """process_train_val_test_ratio
+        given a train_val ratio, compute the remaining test ratio and then given
+        the number of images from self.annotation_object.imgs, compute the
+        precise number of images for each set
+
+        process train_val ratio for the percentages of data for training, validation and testing, respectively
         input: tuple of two numbers,
         output: tuple of 3 numbers corresponding to the number of images for training/validation/testing
+
+        Args:
+            train_val_ratio (tuple of floats): tuple 
+
+        Returns:
+            tuple of ints: number of train, val, test images
         """
         assert isinstance(train_val_ratio, tuple), "train_val_ratio should be a tuple"
         assert len(train_val_ratio) == 2, "train_val ratio should have a length of 2"
@@ -192,12 +207,12 @@ class TrainMaskRCNN:
         return (n_train, n_val, n_test)
 
 
-    def split_data(self, train_file, val_file, test_file):
+    def split_data(self, train_file: str, val_file: str, test_file: str):
         """split data
         Split data into train/val/test sets and output image lists as text files
 
         Args:
-            data_filenames (_type_): _description_
+            data_filenames (str): absolute filepaths for saving output
         """
 
         # split data
@@ -213,22 +228,43 @@ class TrainMaskRCNN:
         print(f'length of val_filenames = {len(val_filenames)}')
         print(f'length of test_filenames = {len(test_filenames)}')
 
+        # save filename lists to textfiles for future use
         self.annotation_object.generate_imagelist_txt(train_file, train_filenames)
         self.annotation_object.generate_imagelist_txt(val_file, val_filenames)
         self.annotation_object.generate_imagelist_txt(test_file, test_filenames)
         print('successful split data')
 
 
-    def create_datasets(self, annotation_data, classes_config_file, train_file, val_file, test_file):
-        """ create datasets
-        """
+    def create_datasets(self, annotation_data: dict, classes_config_file: str, train_file: str, val_file: str, test_file: str):
+        """create_datasets
+        Create pytorch dataset objects for batched training, validation and testing
 
+        A PyTorch Dataset object is used to represent a collection of data that
+        can be iterated over, typically in batches, during training or
+        evaluation of a machine learning model. It provides an easy way to load,
+        preprocess, and transform the data before feeding it to a machine
+        learning model, and allows for data augmentation and customization.
+        Using PyTorch Dataset objects ensures efficient handling of large
+        datasets and loading only the required data into memory, making it
+        easier to train machine learning models.
+
+        Args:
+            annotation_data (dict): dict to annotation json, image_dir, mask_dir
+            classes_config_file (str): absolute filepath to classes config
+            train_file (str): absolute filepath to training images textfile
+            val_file (str): absolute filepath to validation images textfile
+            test_file (str): absolute filepath to testing images textfile
+
+        Returns:
+            pytorch datasets: datasets for training, validation and testing
+        """        
         # setup training and testing transforms
         tform_train = WD.Compose([WD.Rescale(1024),
                 WD.RandomBlur(5, (0.5, 2.0)),
                 WD.RandomHorizontalFlip(0),
                 WD.RandomVerticalFlip(0),
                 WD.ToTensor()])
+        # just rescaling and convert to tensor for validation (we don't want randomisation)
         tform_val = WD.Compose([WD.Rescale(1024),
                 WD.ToTensor()])
         
@@ -256,7 +292,23 @@ class TrainMaskRCNN:
         return WeedDataTrain, WeedDataVal, WeedDataTest
     
 
-    def create_dataloader(self, WeedData, shuffle=True):
+    def create_dataloader(self, WeedData, shuffle: bool=True):
+        """create_dataloader
+        A PyTorch DataLoader is an iterable that loads data from a PyTorch
+        Dataset object in batches during training or evaluation of a machine
+        learning model. It provides options for parallel data loading, batching,
+        shuffling, and automatic memory pinning for efficient GPU usage. The
+        DataLoader is a critical component of the PyTorch data loading pipeline
+        and makes it easy to load and process data for deep learning models.
+
+        Args:
+            WeedData (pytorch dataset):  dataset from  create_datasets()
+            shuffle (bool, optional): shuffle the order of the images in the
+            dataset or not. Defaults to True.
+
+        Returns:
+            pytorch dataloader: dataloader of the dataset
+        """        
         """ create dataloader from dataset"""
         dataloader = DataLoader(WeedData, 
                                 batch_size=self.batch_size,
@@ -267,7 +319,14 @@ class TrainMaskRCNN:
 
 
     def create_model(self):
-        """ create neural network model for object detection, MaskRCNN """
+        """create_model
+        Setup neural network model architecture for object detection, MaskRCNN
+        for training
+
+        Returns:
+            pytorch MaskRCNN model: pretrained/default weights to MaskRCNN
+            (pre-trained on COCO)
+        """    
         weights= detection.MaskRCNN_ResNet50_FPN_Weights.DEFAULT
         model = models.detection.maskrcnn_resnet50_fpn(weights=weights)
         in_features = model.roi_heads.box_predictor.cls_score.in_features
@@ -281,7 +340,9 @@ class TrainMaskRCNN:
 
 
     def train_pipeline(self):
-        """ training pipeline that splits data, creates datasets, trains the model given the datasets """
+        """train_pipeline
+        Training pipeline that splits data, creates datasets, trains the model given the datasets
+        """        
 
         # split the data
         self.split_data(self.imagelist_files['train_file'],
@@ -303,9 +364,18 @@ class TrainMaskRCNN:
     def train_model(self, 
                     WeedDataTrain, 
                     WeedDataVal, 
-                    model_name=None, 
-                    SAVE_CHECKPOINTS=False):
-        """ train model given the datasets """
+                    model_name: str=None, 
+                    SAVE_CHECKPOINTS: bool=False):
+        """train_model
+        Train the model on the training dataset and validate on the validation
+        dataset, save checkpoints if desired, save to a given model_name
+
+        Args:
+            WeedDataTrain (pytorch dataset): dataset for training
+            WeedDataVal (pytorch dataset): dataset for validation
+            model_name (str, optional): name of the model for saving. Defaults to None.
+            SAVE_CHECKPOINTS (bool, optional): save checkpoints or not. Defaults to False.
+        """        
 
         # set unique dataset-specific model name and output folder
         if model_name is None:
@@ -395,7 +465,17 @@ class TrainMaskRCNN:
 
 
     def train_one_epoch(self, model, dataloader, optimizer):
-        """ train one epoch """
+        """train_one_epoch
+        Code for training the model over one epoch 
+
+        Args:
+            model (_type_): _description_
+            dataloader (_type_): _description_
+            optimizer (_type_): _description_
+
+        Returns:
+            _type_: _description_
+        """        
         running_train_loss = 0.0
         model.train()
         for i, batch in enumerate(dataloader):
@@ -418,16 +498,26 @@ class TrainMaskRCNN:
 
 
     def validate_epoch(self, model, dataloader):
-        """ evaluate model over one epoch """
-        # self.model_eval_mode()
+        """validate_epoch
+        Code for running validation on the model during training
+
+        Args:
+            model (_type_): _description_
+            dataloader (_type_): _description_
+
+        Returns:
+            _type_: _description_
+        """        
         model.train()
+
+        # freeze the batch normalisation layers, because model.eval() doesn't
+        # provide losses
         for m in model.modules():
             if isinstance(m, nn.BatchNorm2d):
                 m.eval()
 
         running_val_loss = 0.0
         with torch.no_grad():
-            
             for images, targets in dataloader:
                 images = list(image.to(self.device) for image in images)
                 targets = [{k: v.to(self.device) for k, v in t.items()} for t in targets]
@@ -438,7 +528,17 @@ class TrainMaskRCNN:
 
 
     def compute_mAP(self, model, dataloader):
-        """ compute MAP on object detection and bounding boxes """
+        """compute_mAP
+        compute the mean average precision of the model as a measure of
+        performance during training/validation
+
+        Args:
+            model (_type_): _description_ 
+            dataloader (_type_): _description_
+
+        Returns:
+            _type_: _description_
+        """        
 
         metric = MeanAveragePrecision()
         # NOTE consider putting into evaluation pipeline?
@@ -452,7 +552,6 @@ class TrainMaskRCNN:
             # make predictions
             with torch.no_grad():
                 outputs = model(images)
-                # TODO make sure box format is correct, iou type correctly selected
                 metric.update(outputs, targets)
 
         ans = metric.compute()
