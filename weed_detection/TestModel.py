@@ -1,23 +1,29 @@
 #! /usr/bin/env python3
 
 """
-Evaluator
+TestModel or Evaluator
 
-object that prints detections alongside groundtruth labels
+This is a class that prints detections alongside groundtruth labels 
+
+#TODO 
+this is where I would take the depracated code from WeedModel.py and
+Evaluator_Functions.py to compare annotations to predictions, generate outcomes,
+generate mAP scores, generate PR-curves, F1 Scores, compare models
 """
 
 import os
 from typing import Tuple
 import cv2 as cv
 import numpy as np
-import matplotlib.pyplot as plt
+
 from weed_detection.Annotations import Annotations as Ann
 from weed_detection.Detector import Detector
 
 class TestModel:
     
     # default parameters
-    IMAGE_INPUT_SIZE_DEFAULT = (1028, 1232) # TODO should make a config file
+    # TODO should make a config file for all of these parameters
+    IMAGE_INPUT_SIZE_DEFAULT = (1028, 1232) 
     SPECIES_FILE_DEFAULT = os.path.join(os.getcwd(), 'model/names_yellangelo32.txt')
     MODEL_FILE_DEFAULT = os.path.join('/home/agkelpie/Code/agkelpie_weed_detection/weed-detection/model/Yellangelo32/model_best.pth')
     CONFIDENCE_THRESHOLD_DEFAULT = 0.5
@@ -66,7 +72,23 @@ class TestModel:
         os.makedirs(output_dir, exist_ok=True)
         
 
-    def show_annotations(self, image, image_annotation, save_image_filename=None, SAVE=False):
+    def show_annotations(self, 
+                         image, 
+                         image_annotation, 
+                         save_image_filename: str=None, 
+                         SAVE: bool =False):
+        """show_annotations
+        takes in image, plots image annotations overtop as an overlay
+
+        Args:
+            image (_type_): input image
+            image_annotation (_type_): annotation object for the image (has regions)
+            save_image_filename (_type_, optional): absolute filepath to save image. Defaults to None.
+            SAVE (bool, optional): _description_. Defaults to False.
+
+        Returns:
+            numpy array: image
+        """        
         # image as numpy array on CPU
         # groundtruth as an annotations object, indexed to the relevant image
         # SAVE as boolean flag to save figure or not
@@ -80,6 +102,8 @@ class TestModel:
 
         for regions in image_annotation.regions:
             if regions.shape_type == 'polygon':
+                # get xy coordinates of polygon
+                # TODO should make a regions.poly property
                 xy = np.array(regions.shape.exterior.coords.xy, dtype=np.int32)
 
                 # find a place to put polygon class prediction and confidence we find
@@ -91,9 +115,10 @@ class TestModel:
                 xmin = xy[0, minidx]
                 ymin = xy[1, minidx]
 
-                # xy2 = xy.reshape((-1, 1, 2))
+                # reshape xy for polylines function
                 xy = xy.transpose().reshape((-1, 1, 2))
 
+                # draw polygons onto image
                 cv.polylines(image, 
                              pts=[xy], 
                              isClosed=True, 
@@ -108,23 +133,34 @@ class TestModel:
                                                           font_thickness=font_thick,
                                                           rect_color=lines_colour)
 
-                
-
+        # save image    
         if SAVE:
             if save_image_filename is None:
                 save_image_filename = self.DEFAULT_IMAGE_SAVE_NAME
             self.detector.save_image(image, save_image_filename)
-
         return image
          
 
-    def show_image_test(self, image_filename, POLY=True):
+    def show_image_test(self, image_filename: str, POLY: bool=True):
+        """show_image_test
+        show the image with polygon annotations overlayed, along with detections
+        overlayed, then save image according to image_filename
+
         # given image filename
         # find the corresponding image in the annotations as groundtruth
         # run detector
         # run show_groundtruth
         # run show_detections
         # save image
+
+        Args:
+            image_filename (str): absolute filepath to save image
+            POLY (bool, optional): plot detections as polygons if True, else
+            boxes. Defaults to True.
+
+        Returns:
+            numpy array: image with overlays drawn on
+        """     
 
         # find the corresponding image in the annotations as groundtruth
         # since ann.imgs corresponds to the ordering of annotations, the index is the same
@@ -136,8 +172,6 @@ class TestModel:
         image = self.detector.load_image_from_string(image_filename)
 
         # show the gt on the image
-        # save_name = img_name[:-4] + '_ann.png'
-        # save_image_filename_ann = os.path.join(self.output_dir, save_name) 
         image_ann = self.show_annotations(image, image_annotation)
 
         # run detector on the image
@@ -158,6 +192,7 @@ if __name__ == "__main__":
 
     Test = TestModel() # use defaults
 
+    # to verify TestModel, run/plot on a set number of images from image_dir
     ANNOTATION_DATA = {'annotation_file': '/home/agkelpie/Code/agkelpie_weed_detection/agkelpiedataset_yellangelo_tussock/dataset.json',
                         'image_dir': '/home/agkelpie/Code/agkelpie_weed_detection/agkelpiedataset_yellangelo_tussock/annotated_images',
                         'mask_dir': '/home/agkelpie/Code/agkelpie_weed_detection/agkelpiedataset_yellangelo_tussock/masks'}

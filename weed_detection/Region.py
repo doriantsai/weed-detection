@@ -1,7 +1,7 @@
 #! /usr/bin/env python3
 
 """
-Region class, which corresponds to polygon, bbox or point, also has a class
+Region class, which corresponds to polygon, bbox or point, also has a class_name
 """
 
 import numpy as np
@@ -20,10 +20,19 @@ class Region:
 
     @staticmethod
     def make_shape(x, y):
-        """
+        """make_shape
         convert x, y values into shapely geometry object (point/polygon)
         NOTE: bbox is a type of polygon, accessed via shape.exterior.coords.xy
-        """
+
+        Args:
+            x (list or numpy array): x points of shape
+            y (list or numpy array): y points of shape
+
+        Returns:
+            shape: a Shapely shape, either a Point or a Polygon
+        """        
+
+
         if type(x) is bool and type(y) is bool:
             shape = False
         elif type(x) is int and type(y) is int:
@@ -54,6 +63,9 @@ class Region:
         
     # print Regions    
     def print(self):
+        """print
+        print all properties of the object
+        """        
         print('Region: ')
         print('Class: ' + str(self.class_name))
         if self.shape:
