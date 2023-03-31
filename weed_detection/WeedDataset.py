@@ -1,7 +1,12 @@
 #! /usr/bin/env python
 
 """
-weed dataset object and associated transforms as classes
+WeedDataset is a class required by Pytorch for training neural networks that
+provides the image and the training "sample" (i.e. annotations) for a given
+index
+
+Also after the WeedDataset class, there are associated transforms as classes
+used for data augmentation and resizing image tensors
 """
 
 import os
@@ -18,6 +23,7 @@ from torchvision.transforms import functional as tvtransfunc
 
 from weed_detection.Annotations import Annotations
 
+
 class WeedDataset(object):
     """ weed dataset object for polygons """
 
@@ -29,17 +35,19 @@ class WeedDataset(object):
                  mask_dir=None,
                  classes_file=None,
                  imgtxt_file=None):
-        """
+        """__init__
         initialise the dataset
-        annotations - absolute path to json file of annotations of a prescribed format
-        img_dir - image directory
-        transforms - list of transforms randomly applied to dataset for training
-        mask_dir - mask directory (if maskrcnn)
-        
-        """
+
+        Args:
+            annotation_filename (_type_): absolute filename to dataset.json
+            img_dir (_type_): absolute filepath to image directory
+            transforms (_type_, optional): transforms applied to the image automatically. Defaults to None.
+            mask_dir (_type_, optional): absolute filepath to mask directory. Defaults to None.
+            classes_file (_type_, optional): absolute filepath to class file. Defaults to None.
+            imgtxt_file (_type_, optional): absolute filepath to imagelists textfile. Defaults to None.
+        """        
         
         self.transforms = transforms
-
         self.img_dir = img_dir
 
         if mask_dir is not None:
@@ -58,12 +66,13 @@ class WeedDataset(object):
         self.classes = config['names']
         self.class_colours = config['colours']
         
-        # absolute filepath
+        # absolute filepaths, the annotation object
         annotations = Annotations(filename=annotation_filename,
                                     img_dir=img_dir,
                                     mask_dir=mask_dir)
         
-        # added to deal with training/testing sets from text files without touching original dataset.json annotation files
+        # added to deal with training/testing sets from text files without
+        # touching original dataset.json annotation files
         if imgtxt_file is not None:
             self.imgtxt_file = imgtxt_file
             print(f'pruning annotations using {imgtxt_file}')
@@ -77,7 +86,11 @@ class WeedDataset(object):
 
 
     def define_labels(self):
-        """ given the number of classes and names of species in the annotations, define labels starting from 1 and incrementing +1 each time a new species is found """
+        """define_labels
+        given the number of classes and names of species in the annotations,
+        define labels starting from 1 and incrementing +1 each time a new
+        species is found
+        """        
         # list of objects is self.annotations[image_index].regions[regions_index] region name is given as self.annotations[image_index].regions[regions_index].class_name
         
         check_label = [] # just for debugging
@@ -95,20 +108,16 @@ class WeedDataset(object):
 
 
     def __getitem__(self, idx):
-        """
+        """__getitem__
         given an index, return the corresponding image and sample from the dataset
         converts images and corresponding sample to tensors
-        """
-        image, sample = self.getitem_agkelpie(idx)
-        return image, sample
-        
-        
-    def getitem_agkelpie(self, idx):
-        """
-        given an index, return the corresponding image and sample from the dataset
-        converts images and corresponding sample to tensors
-        for agkelpie dataset format
-        """
+
+        Args:
+            idx (_type_): _description_
+
+        Returns:
+            _type_: _description_
+        """        
         if torch.is_tensor(idx):
             idx = idx.tolist()
             
@@ -184,15 +193,32 @@ class WeedDataset(object):
 
 
     def get_key(self, my_dict, val):
-        """ helper function, get key of dictionary given value """
+        """get_key
+        helper function to get key of dictionary given its value
+
+        Args:
+            my_dict (_type_): _description_
+            val (_type_): _description_
+
+        Returns:
+            _type_: _description_
+        """        
         for key, value in my_dict.items():
             if val == value:
                 return key
     
 
     def package_sample(self, masks, labels, image_id, boxes, area=None):
-    # def package_sample(self, masks, labels, image_id, boxes=None,area=None, iscrowd=None, points=None):
-        """ helper function to package inputs into sample dictionary """
+        """package_sample
+        helper function to package inputs into sample dictionary
+
+        Args:
+            masks (_type_): _description_
+            labels (_type_): _description_
+            image_id (_type_): _description_
+            boxes (_type_): _description_
+            area (_type_, optional): _description_. Defaults to None.
+        """        
         sample = {}
         sample['labels'] = labels
         sample['image_id'] = image_id
@@ -209,7 +235,16 @@ class WeedDataset(object):
     
 
     def check_species(self, species):
-        """ check species names, if matches self.classes, then returns true, else returns false """
+        """check_species
+        check species names, if matches self.classes, then returns true, else
+        returns false 
+        
+        Args:
+            species (_type_): _description_
+
+        Returns:
+            _type_: _description_
+        """       
         if species in self.classes.values():
             return True
         else:
