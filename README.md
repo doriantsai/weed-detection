@@ -74,6 +74,7 @@ Data is obtained from the DPI's Weed Reference Library, available at https://www
 
 ## Future Work
 - learn how to do hyperparameter sweeps using WandB to tune hyperparameters and ultimately optimise some of the model's performance
+- confidence calibration
 - negative image and ratio selection
 - handle multiple datasets and merge them
 - evaluate multi-object detection models
