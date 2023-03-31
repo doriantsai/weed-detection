@@ -6,7 +6,17 @@ import matplotlib.pyplot as plt
 
 from weed_detection.Detections import Detections
 
+"""MaskDetections
+MaskDetections class inherits from Detections and adds mask functionality to the
+object. In particular it takes in the confidence mask and converts it to a
+binary mask, and then converts that to a polygon.
 
+Raises:
+    TypeError: _description_ TypeError: _description_
+
+Returns:
+    _type_: _description_
+"""
 class MaskDetections(Detections):
 
     MASK_THRESHOLD_DEFAULT = 0.5
@@ -19,6 +29,7 @@ class MaskDetections(Detections):
                  mask_threshold: float = None,
                  class_names: list = ['background', 'Tussock']):
 
+        # sort out possible inputs and defaults
         if mask_threshold is None:
             self.mask_threshold = self.MASK_THRESHOLD_DEFAULT
         else:
@@ -37,11 +48,13 @@ class MaskDetections(Detections):
             x, y = False, False
             self.poly = False
 
+        # the most likely situation:
         elif isinstance(mask_confidence, np.ndarray):
             self.mask_confidence = mask_confidence
             self.mask_binary = self.binarize_confidence_mask(self.mask_confidence, self.mask_threshold)
             x, y = self.get_bounding_polygon(self.mask_binary)
             self.poly = np.array((x, y)) # self.poly = [] # where we will save the polygons
+
         else:
             raise TypeError('Unrecognised types for mask_confidence and/or mask_binary')
         
@@ -61,9 +74,25 @@ class MaskDetections(Detections):
                                  ksize=None, 
                                  MAX_KERNEL_SIZE: int = 11, 
                                  MIN_KERNEL_SIZE: int = 3):
-        """ mask should be a 2D float image  (numpy array) with pixel values ranging from 0 to 1
-        returns binary image and contour
-        """
+        """binarize_confidence_mask
+        binarize the confidence mask, which comes in as a float image and leaves
+        as a binary image. Specifically, mask should be a 2D float image  (numpy
+        array) with pixel values ranging from 0 to 1 returns binary image and
+        contour
+
+        Args:
+            mask (_type_): _description_
+            mask_threshold (float): _description_
+            ksize (_type_, optional): _description_. Defaults to None.
+            MAX_KERNEL_SIZE (int, optional): _description_. Defaults to 11.
+            MIN_KERNEL_SIZE (int, optional): _description_. Defaults to 3.
+
+        Raises:
+            TypeError: _description_
+
+        Returns:
+            _type_: _description_
+        """        
         if not isinstance(mask, np.ndarray):
             raise TypeError('mask is not a numpy array')
         
@@ -94,6 +123,15 @@ class MaskDetections(Detections):
 
 
     def get_bounding_polygon(self, mask_binary):
+        """get_bounding_polygon
+        Finds the contour surrounding the blobs within the binary mask
+
+        Args:
+            mask_binary (uint8 2D numpy array): binary mask
+
+        Returns:
+            all_x, all_y: all the x, y points of the contours as lists
+        """        
         # find bounding polygon of binary image
         contours_in, hierarchy = cv.findContours(mask_binary, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
         contours = list(contours_in)
@@ -110,6 +148,9 @@ class MaskDetections(Detections):
 
 
     def print(self):
+        """print
+        print all properties of the MaskDetection object
+        """        
         print('MaskDetection: ')
         print(f'mask_threshold: {self.mask_threshold}')
         if isinstance(self.mask_binary, np.ndarray):
@@ -132,7 +173,7 @@ if __name__ == "__main__":
     """ testing MaskDetections input """
     # mask_file = '2021-10-13-T_13_50_19_300_mask.png'
 
-    # TODO
+    # what we're doing here to verify MaskDetections.py
     # create a blank image (numpy array)
     # add a Gaussian to this from 0-1
     # this is the confidence mask
@@ -156,7 +197,6 @@ if __name__ == "__main__":
 
     plt.imshow(gauss)
     # plt.show()
-
 
     md = MaskDetections(1, 0.6, mask_confidence=gauss, mask_threshold=0.75)
     md.print()

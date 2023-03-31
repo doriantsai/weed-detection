@@ -454,7 +454,6 @@ class Detector:
             _type_: _description_
         """        
         bb = np.array(detection.box, dtype=np.float32)
-        """ plot a detected bounding box on an image """
         
         # draw box
         image = cv.rectangle(image, 
