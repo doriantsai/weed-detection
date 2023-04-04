@@ -3,7 +3,7 @@ A deep learning approach to pastoral weed detection.
 
 
 ## Overview
-A deep learning approach to weed species detection for smart farm pasture management developed by the Queensland University of Technology (QUT), in collaboration with Agent Oriented Systems (AOS), Department of Primary Industries (DPI) and the University of New England (UNE). The robotic system used for data collection was developed by AOS. Data collection were performed and polygon annotations were provided primarily by DPI and AOS. Weed detection models were then developed by both QUT and UNE. This repository is focused on providing a neural network training pipeline for weed detection using MaskRCNN.
+A deep learning approach to weed species detection for smart farm pasture management developed by the Queensland University of Technology (QUT), in collaboration with Agent Oriented Systems (AOS), Department of Primary Industries (DPI) and the University of New England (UNE). The robotic system used for data collection was developed by AOS. Data collection were performed and polygon annotations were provided primarily by DPI and AOS. Weed detection models were then developed by both QUT and UNE. This repository is focused on providing a neural network training pipeline for weed detection using MaskRCNN. Shown below is a sample image of Serrated Tussock with the original annotations (blue), and the predictions from a mask converted into a polygon shown in red.
 
 ![Sample weed detection](https://github.com/doriantsai/weed-detection/blob/main/50-0503501633_2021-12-10-T_15_32_02_589_test.png "Serrated tussock")
 
