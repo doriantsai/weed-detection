@@ -5,6 +5,7 @@ A deep learning approach to pastoral weed detection.
 ## Overview
 A deep learning approach to weed species detection for smart farm pasture management developed by the Queensland University of Technology (QUT), in collaboration with Agent Oriented Systems (AOS), Department of Primary Industries (DPI) and the University of New England (UNE). The robotic system used for data collection was developed by AOS. Data collection were performed and polygon annotations were provided primarily by DPI and AOS. Weed detection models were then developed by both QUT and UNE. This repository is focused on providing a neural network training pipeline for weed detection using MaskRCNN.
 
+![Sample weed detection](https://github.com/doriantsai/weed-detection/blob/main/50-0503501633_2021-12-10-T_15_32_02_589_test.png "Serrated tussock")
 
 ## Data
 Data is obtained from the DPI's Weed Reference Library, available at https://www.agkelpie.com/. Access is currently limited for potential commercial development reasons, but a selected amount will be publicly available for research purposes. 
@@ -64,7 +65,7 @@ Data is obtained from the DPI's Weed Reference Library, available at https://www
     - `species_file` is a textfile that has lines corresponding to species that the detector should expect to see in the data, and the order of which should correspond to the order with which the labels were specified during `model_training` (e.g. for clarkefield31, labels are "{1:'Tussock', 2:'Saffron thistle'}", and therefore `names_clarkefield31.txt` should be first line: Tussock, second line Saffron thistle.).
 - Run `model_test.py`, which will run the detector on the specified number of images (currently set `max_img` to user-settable number), and save the figures in the output_dir. Open up said figures to verify functionality.
 
-
+![Sample weed detection](https://github.com/doriantsai/weed-detection/blob/main/50-0503501633_2021-12-10-T_14_38_39_693_test.png "Saffron thistle")
 
 ## Model Evaluation
 - Model evaluation code from WeedModel.py (pre-2023) is now depracated
